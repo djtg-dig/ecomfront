@@ -48,3 +48,56 @@ Component ne peut l’importer.
 Le prochain lot connectera Carri Account, son callback, la consommation du
 handoff, les cookies de session, le refresh JWT et la signature HMAC compatible
 avec Django. Aucun de ces flux n’est simulé dans cette initialisation.
+
+## BFF et HMAC
+
+Les appels sensibles suivent ce flux : navigateur → Route Handler Next.js →
+Django. Les Route Handlers choisiront explicitement les opérations exposées; le
+client `backendClient` n’est pas un proxy générique et refuse toute cible hors
+de `/api/v1/`.
+
+`src/lib/hmac/signing.ts` applique exactement `Ecommerce-HMAC v1` avec le
+module `node:crypto`: corps brut SHA-256, query décodée/triée/réencodée,
+timestamp Unix, nonce UUID et HMAC-SHA256 hexadécimal. Le secret et la signature
+ne sont jamais journalisés. Exemple conceptuel de chaîne signée :
+
+```text
+v1
+ecommerce-web
+<timestamp>
+<nonce>
+POST
+/api/v1/auth/carri/handoff/consume/
+<sha256-du-corps>
+```
+
+Variables serveur requises :
+
+```text
+DJANGO_BACKEND_URL=http://localhost:8000
+ECOMMERCE_HMAC_CLIENT_ID=ecommerce-web
+ECOMMERCE_HMAC_SECRET=<secret-serveur>
+```
+
+`NEXT_PUBLIC_FRONTEND_URL` est public; les trois variables ci-dessus, et en
+particulier le secret, restent dans `.env.local` et ne doivent jamais utiliser
+le préfixe `NEXT_PUBLIC_`.
+
+Le client désactive le cache, omet les cookies du navigateur, accepte un JWT
+uniquement lorsqu’un Route Handler le fournit explicitement, et normalise les
+erreurs Django `{code, detail}` sans propager de détail réseau interne.
+
+## Tests locaux
+
+```bash
+npm test
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+Les vecteurs documentés par Django sont testés sans secret réel. Pour vérifier
+l’intégration locale avec Django démarré, exporter temporairement
+`RUN_DJANGO_HMAC_INTEGRATION=true` avec les trois variables serveur, puis lancer
+`npm test`. Le test envoie un handoff volontairement invalide: `400` prouve que
+HMAC a passé; la requête directe non signée doit retourner `401`.

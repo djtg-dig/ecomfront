@@ -1,6 +1,6 @@
 import "server-only";
 
-/** Ecommerce-HMAC v1. Signing is deliberately implemented in the interoperability lot. */
+/** Header names defined by the backend's Ecommerce-HMAC v1 contract. */
 export const ecommerceHmacHeaders = {
   clientId: "X-Ecommerce-Client-Id",
   timestamp: "X-Ecommerce-Timestamp",
@@ -15,6 +15,6 @@ export const ecommerceHmacVersion = "v1";
 export type HmacRequest = {
   method: string;
   path: string;
-  query?: string;
+  query?: string | URLSearchParams;
   body: Uint8Array;
 };
