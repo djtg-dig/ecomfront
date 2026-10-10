@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+import { noIndexRobots } from "@/lib/seo/site";
+
+export const metadata: Metadata = {
+  title: "Connexion",
+  robots: noIndexRobots,
+};
+
 export default function ConnexionPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--surface)] p-6">

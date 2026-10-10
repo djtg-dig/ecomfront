@@ -101,3 +101,32 @@ l’intégration locale avec Django démarré, exporter temporairement
 `RUN_DJANGO_HMAC_INTEGRATION=true` avec les trois variables serveur, puis lancer
 `npm test`. Le test envoie un handoff volontairement invalide: `400` prouve que
 HMAC a passé; la requête directe non signée doit retourner `401`.
+
+## SEO public
+
+Les pages publiques sont rendues côté serveur par l'App Router : `/`,
+`/fonctionnalites`, `/tarifs` et `/contact`. Elles utilisent la Metadata API de
+Next.js (titre, description, canonical absolue, Open Graph et Twitter Card) et
+ne contiennent que des informations confirmées. Les tarifs et coordonnées qui
+ne sont pas encore validés restent explicitement absents.
+
+`NEXT_PUBLIC_FRONTEND_URL` contient l'URL publique réelle du site et sert de
+base aux canonical, à `robots.txt` et à `sitemap.xml`. Elle peut rester
+`http://localhost:3000` en local; aucun domaine de production n'est fourni par
+défaut.
+
+L'indexation est volontairement désactivée tant que ces trois conditions ne
+sont pas satisfaites : build de production, URL HTTPS non locale et
+`SEO_ALLOW_INDEXING=true`. En local et en préproduction, les métadonnées
+utilisent `noindex, nofollow`, `robots.txt` interdit l'exploration et le
+sitemap est vide. Avant une mise en production, définir l'URL publique réelle,
+activer explicitement cette variable, puis vérifier les canonical, les balises
+Open Graph, `/robots.txt` et `/sitemap.xml` sur l'environnement déployé.
+
+`/connexion` et les futurs callbacks OAuth restent `noindex` grâce au groupe
+`(auth)`. Les futures pages authentifiées doivent être créées sous le groupe
+`(private)`, qui applique la même règle. Les routes API et callbacks sont aussi
+exclus de `robots.txt` une fois l'indexation activée. Ils ne figurent jamais
+dans le sitemap. Ces directives ne protègent pas les données : les pages
+privées et les endpoints doivent conserver leur authentification et leurs
+autorisations côté serveur.
