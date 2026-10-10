@@ -9,19 +9,19 @@ const navigation = [
 
 export function PublicHeader() {
   return (
-    <header className="border-b border-[var(--line)] bg-white">
+    <header className="site-header">
       <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-3 sm:px-8">
-        <Link className="flex items-center gap-3 font-semibold" href="/">
-          <span className="grid size-8 place-items-center bg-[var(--brand)] text-sm font-bold text-white">
+        <Link className="brand-lockup flex items-center gap-3 font-semibold" href="/">
+          <span className="brand-mark grid size-8 place-items-center text-sm font-bold">
             E
           </span>
           E-commerce
         </Link>
         <nav aria-label="Navigation principale">
-          <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[var(--muted)]">
+          <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             {navigation.map((item) => (
               <li key={item.href}>
-                <Link className="hover:text-[var(--ink)]" href={item.href}>
+                <Link className="nav-link" href={item.href}>
                   {item.label}
                 </Link>
               </li>

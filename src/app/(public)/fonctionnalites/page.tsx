@@ -25,26 +25,26 @@ const capabilities = [
 
 export default function FonctionnalitesPage() {
   return (
-    <main className="min-h-screen bg-[var(--surface)] text-[var(--ink)]">
+    <main className="page-shell">
       <PublicHeader />
       <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
-        <p className="text-sm font-semibold text-[var(--brand)]">FONCTIONNALITÉS</p>
-        <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
+        <p className="eyebrow">FONCTIONNALITÉS</p>
+        <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-[var(--brand-secondary)] sm:text-5xl">
           Capacités documentées de la plateforme
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--muted)]">
           Le portail présentera progressivement les capacités déjà documentées dans l&apos;API E-commerce.
         </p>
       </section>
-      <section aria-labelledby="capabilities-title" className="border-y border-[var(--line)] bg-white">
+      <section aria-labelledby="capabilities-title" className="border-y border-[var(--line)] bg-[var(--surface-raised)]">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
           <h2 id="capabilities-title" className="text-2xl font-semibold">
             Périmètre fonctionnel
           </h2>
           <ul className="mt-8 grid gap-7 sm:grid-cols-2">
             {capabilities.map((capability) => (
-              <li key={capability.title} className="border-l-4 border-[var(--accent)] pl-5">
-                <h3 className="text-lg font-semibold">{capability.title}</h3>
+              <li key={capability.title} className="accent-rule border-l-4 pl-5">
+                <h3 className="text-lg font-semibold text-[var(--brand-secondary)]">{capability.title}</h3>
                 <p className="mt-2 leading-7 text-[var(--muted)]">{capability.description}</p>
               </li>
             ))}

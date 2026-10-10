@@ -1,12 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --surface: #f4f7f6;
-  --ink: #17211f;
-  --muted: #5f6d68;
-  --line: #d8e1dd;
-  --brand: #126b50;
-  --accent: #d99b36;
+  /* Historical Djana Academy brand colors, observed in logo-djana.svg and UI. */
+  --carri-blue: #1d71b8;
+  --carri-navy: #023967;
+  --carri-orange: #f39200;
+  --carri-sky: #62b3e5;
+  --carri-ink: #04111f;
+  --carri-surface: #f4f8fc;
+
+  /* Product-system colors proposed for Carri Business applications. */
+  --brand: var(--carri-blue);
+  --brand-hover: #155b96;
+  --brand-secondary: var(--carri-navy);
+  --accent: var(--carri-orange);
+  --surface: var(--carri-surface);
+  --surface-raised: #ffffff;
+  --ink: var(--carri-ink);
+  --muted: #4b5d70;
+  --line: #c8d7e6;
+  --focus-ring: var(--carri-blue);
+  --control-disabled: #dbe5ee;
+  --success: #087f5b;
+  --error: #b42318;
+  --warning: #9a6700;
+  --info: var(--carri-blue);
   --background: var(--surface);
   --foreground: var(--ink);
 }
@@ -14,11 +32,130 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.page-shell {
+  min-height: 100vh;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.site-header {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-raised);
+}
+
+.brand-lockup {
+  color: var(--brand-secondary);
+}
+
+.brand-mark {
+  background: var(--brand-secondary);
+  color: var(--surface-raised);
+}
+
+.nav-link {
+  color: var(--muted);
+  text-underline-offset: 0.25rem;
+}
+
+.nav-link:hover {
+  color: var(--brand-secondary);
+  text-decoration: underline;
+}
+
+.eyebrow {
+  color: var(--brand);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.content-panel {
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface-raised);
+}
+
+.accent-rule {
+  border-color: var(--accent);
+}
+
+.button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  padding-inline: 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.button-primary {
+  background: var(--brand);
+  color: var(--surface-raised);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.button-secondary {
+  background: var(--brand-secondary);
+  color: var(--surface-raised);
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: var(--brand);
+}
+
+.button-outline {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.button-outline:hover:not(:disabled) {
+  background: var(--brand);
+  color: var(--surface-raised);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  background: var(--control-disabled);
+  color: var(--muted);
+  opacity: 1;
 }
