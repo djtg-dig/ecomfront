@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../");
 
 :root {
   /* Historical Djana Academy brand colors, observed in logo-djana.svg and UI. */

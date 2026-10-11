@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { LogoutButton } from "@/components/auth/logout-button";
+import { readEcommerceSession } from "@/lib/auth/session";
 
 const navigation = [
   { href: "/", label: "Accueil" },
@@ -7,7 +9,9 @@ const navigation = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function PublicHeader() {
+export async function PublicHeader() {
+  const isAuthenticated = Boolean(await readEcommerceSession());
+
   return (
     <header className="site-header">
       <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-3 sm:px-8">
@@ -26,6 +30,15 @@ export function PublicHeader() {
                 </Link>
               </li>
             ))}
+            <li>
+              {isAuthenticated ? (
+                <LogoutButton />
+              ) : (
+                <Link className="button button-primary" href="/connexion">
+                  Connexion
+                </Link>
+              )}
+            </li>
           </ul>
         </nav>
       </div>
