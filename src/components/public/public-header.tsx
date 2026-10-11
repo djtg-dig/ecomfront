@@ -32,7 +32,7 @@ export async function PublicHeader() {
             ))}
             <li>
               {isAuthenticated ? (
-                <LogoutButton />
+                <><Link className="nav-link" href="/espace">Mon espace</Link><LogoutButton /></>
               ) : (
                 <Link className="button button-primary" href="/connexion">
                   Connexion

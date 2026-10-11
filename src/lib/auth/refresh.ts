@@ -77,8 +77,9 @@ export function coordinateRefresh(
 
 export async function refreshEcommerceSession(
   session: EcommerceSession,
+  options: { force?: boolean } = {},
 ): Promise<EcommerceSession> {
-  if (session.accessExpiresAt > Date.now() + 30_000) return session;
+  if (!options.force && session.accessExpiresAt > Date.now() + 30_000) return session;
 
   return coordinateRefresh(session.refreshToken, async () => {
     const tokens = await backendClient.request<EcommerceTokenPair>(

@@ -150,7 +150,7 @@ export async function POST(request: Request) {
 
     const session = createEcommerceSession(tokens);
     const encrypted = encryptSession(session);
-    const response = NextResponse.redirect(new URL("/", config.frontendUrl), 303);
+    const response = NextResponse.redirect(new URL("/espace", config.frontendUrl), 303);
     response.cookies.set(sessionCookieName, encrypted, sessionCookieOptions(
       Math.floor((session.refreshExpiresAt - Date.now()) / 1000),
     ));

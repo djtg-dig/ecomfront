@@ -1,0 +1,40 @@
+1:"/_next/static/chunks/1tq6ppe__m8m-.js"
+2:"LoadingBoundaryProvider"
+3:I[39756,["$1"],"$2"]
+4:"$Sreact.fragment"
+5:I[39756,["$1"],"default"]
+6:"/_next/static/chunks/3j_aixafn22wv.js"
+7:I[80460,["$1","$6"],"default"]
+8:I[37457,["$1"],"default"]
+9:"/_next/static/chunks/0ce3lh0x3m_lc.js"
+a:I[22016,["$1","$9"],""]
+13:I[97367,["$1"],"OutletBoundary"]
+14:"$Sreact.suspense"
+18:"ViewportBoundary"
+19:I[97367,["$1"],"$18"]
+1a:"MetadataBoundary"
+1b:I[97367,["$1"],"$1a"]
+1c:I[27201,["$1"],"IconMark"]
+:HL["/_next/static/chunks/1rnlafn_rym6e.css","style"]
+c:X
+c:C
+d:X
+d:300
+d:C
+10:X
+10:C
+17:X
+17:C
+11:[["children",{"s":"__PAGE__","h":162,"d":{"r":["$","$4","c",{"children":[["$","main",null,{"className":"page-shell","children":["$L12",["$","section",null,{"className":"mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl content-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[1.25fr_0.75fr]","children":[["$","div",null,{"className":"max-w-2xl","children":[["$","p",null,{"className":"eyebrow mb-4","children":"GESTION COMMERCIALE"}],["$","h1",null,{"className":"text-4xl font-semibold leading-tight text-[var(--brand-secondary)] sm:text-5xl","children":"Gestion commerciale E-commerce"}],["$","p",null,{"className":"mt-6 max-w-xl text-lg leading-8 text-[var(--muted)]","children":"Le portail prépare l'accès aux capacités documentées de gestion des entreprises, des équipes et des opérations commerciales."}],["$","$La",null,{"className":"button button-outline mt-8","href":"/fonctionnalites","children":"Découvrir les fonctionnalités"}],["$","a",null,{"className":"button button-primary ml-0 mt-3 sm:ml-3","href":"/api/auth/carri/login","children":"Se connecter avec Carri Account"}]]}],["$","aside",null,{"className":"content-panel accent-rule border-l-4 p-6 sm:p-8","children":[["$","h2",null,{"className":"text-sm font-semibold text-[var(--brand-secondary)]","children":"Un accès pensé pour les équipes"}],["$","p",null,{"className":"mt-3 text-sm leading-6 text-[var(--muted)]","children":"Les espaces Entreprises, invitations et administration seront connectés progressivement via le serveur applicatif."}]]}]]}]]}],[["$","script","script-0",{"src":"/_next/static/chunks/0ce3lh0x3m_lc.js","async":true}]],["$","$L13",null,{"children":["$","$14",null,{"name":"Next.MetadataOutlet","children":"$@15"}]}]]}],"p":"$@16","v":"$17","s":"$d"}}]]
+e:[["children",{"s":"(public)","h":98,"d":{"r":["$","$4","c",{"children":[null,["$","$L5",null,{"parallelRouterKey":"children","template":["$","$L8",null,{}],"notFound":[["$","main",null,{"className":"page-shell grid place-items-center p-6 text-center","children":["$","div",null,{"children":[["$","p",null,{"className":"eyebrow","children":"404"}],["$","h1",null,{"className":"mt-2 text-3xl font-semibold text-[var(--brand-secondary)]","children":"Page introuvable"}],["$","p",null,{"className":"mt-3 text-[var(--muted)]","children":"Cette adresse ne correspond à aucune page du portail."}],["$","$La",null,{"className":"button button-primary mt-6","href":"/","children":"Revenir à l’accueil"}]]}]}],[]]}]]}],"p":"$@f","v":"$10","s":"$d"},"c":"$Q11"}]]
+1e:X
+1e:C
+21:X
+21:C
+0:{"t":{"t":{"s":"","h":86,"d":{"r":["$","$L3",null,{"loading":[["$","main","l",{"className":"grid min-h-screen place-items-center bg-[var(--surface)]","children":["$","p",null,{"className":"text-sm font-medium text-[var(--muted)]","children":"Chargement…"}]}],[],null],"children":["$","$4","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/1rnlafn_rym6e.css","precedence":"next"}],["$","script","script-0",{"src":"/_next/static/chunks/1tq6ppe__m8m-.js","async":true}]],["$","html",null,{"lang":"fr","className":"T19VSG_variable _8Li5zG_variable h-full antialiased","children":["$","body",null,{"className":"min-h-full flex flex-col","children":["$","$L5",null,{"parallelRouterKey":"children","error":"$7","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/3j_aixafn22wv.js","async":true}]],"template":["$","$L8",null,{}],"notFound":[["$","main",null,{"className":"page-shell grid place-items-center p-6 text-center","children":["$","div",null,{"children":[["$","p",null,{"className":"eyebrow","children":"404"}],["$","h1",null,{"className":"mt-2 text-3xl font-semibold text-[var(--brand-secondary)]","children":"Page introuvable"}],["$","p",null,{"className":"mt-3 text-[var(--muted)]","children":"Cette adresse ne correspond à aucune page du portail."}],["$","$La",null,{"className":"button button-primary mt-6","href":"/","children":"Revenir à l’accueil"}]]}]}],[]]}]}]}]]}]}],"p":"$@b","v":"$c","s":"$d"},"c":"$Qe"},"h":{"r":["$","$4","h",{"children":[null,["$","$L19",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","$L1b",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$14",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Gestion commerciale | E-commerce"}],["$","meta","1",{"name":"description","content":"Portail E-commerce pour préparer la gestion des activités commerciales et des équipes."}],["$","meta","2",{"name":"robots","content":"noindex, nofollow"}],["$","meta","3",{"name":"googlebot","content":"noindex, nofollow, max-video-preview:-1, max-image-preview:none, max-snippet:-1"}],["$","link","4",{"rel":"canonical","href":"http://localhost:3000"}],["$","meta","5",{"property":"og:title","content":"Gestion commerciale"}],["$","meta","6",{"property":"og:description","content":"Portail E-commerce pour préparer la gestion des activités commerciales et des équipes."}],["$","meta","7",{"property":"og:url","content":"http://localhost:3000"}],["$","meta","8",{"property":"og:site_name","content":"E-commerce"}],["$","meta","9",{"property":"og:locale","content":"fr_FR"}],["$","meta","10",{"property":"og:type","content":"website"}],["$","meta","11",{"name":"twitter:card","content":"summary"}],["$","meta","12",{"name":"twitter:title","content":"Gestion commerciale"}],["$","meta","13",{"name":"twitter:description","content":"Portail E-commerce pour préparer la gestion des activités commerciales et des équipes."}],["$","link","14",{"rel":"icon","href":"/favicon.ico?favicon.117ezoe8m31dk.ico","sizes":"48x48","type":"image/x-icon"}],["$","$L1c","15",{}]]}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":"$@1d","v":"$1e","s":"$d"}},"a":"$@1f","u":"$@20","b":"juJOUZSfGzrC73-sBOk9U","r":"$21"}
+15:null
+20:true
+1f:null
+f:"$undefined"
+b:"$undefined"
+1d:"$undefined"

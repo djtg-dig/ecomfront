@@ -234,7 +234,7 @@ describe("routes d’authentification BFF", () => {
       { method: "POST", json: { handoff: "H".repeat(43) } },
     );
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`${frontendUrl}/`);
+    expect(response.headers.get("location")).toBe(`${frontendUrl}/espace`);
     expect(response.body).toBeNull();
     expect(sessionCookie).toContain("HttpOnly");
     expect(sessionCookie).toContain("SameSite=lax");

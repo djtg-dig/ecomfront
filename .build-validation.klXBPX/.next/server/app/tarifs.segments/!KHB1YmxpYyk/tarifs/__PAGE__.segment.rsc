@@ -1,0 +1,42 @@
+1:"/_next/static/chunks/1tq6ppe__m8m-.js"
+2:"LoadingBoundaryProvider"
+3:I[39756,["$1"],"$2"]
+4:"$Sreact.fragment"
+5:I[39756,["$1"],"default"]
+6:"/_next/static/chunks/3j_aixafn22wv.js"
+7:I[80460,["$1","$6"],"default"]
+8:I[37457,["$1"],"default"]
+9:"/_next/static/chunks/0ce3lh0x3m_lc.js"
+a:I[22016,["$1","$9"],""]
+15:I[97367,["$1"],"OutletBoundary"]
+16:"$Sreact.suspense"
+1a:"ViewportBoundary"
+1b:I[97367,["$1"],"$1a"]
+1c:"MetadataBoundary"
+1d:I[97367,["$1"],"$1c"]
+1e:I[27201,["$1"],"IconMark"]
+:HL["/_next/static/chunks/1rnlafn_rym6e.css","style"]
+c:X
+c:C
+d:X
+d:300
+d:C
+10:X
+10:C
+19:X
+19:C
+13:[["children",{"s":"__PAGE__","h":162,"d":{"r":["$","$4","c",{"children":[["$","main",null,{"className":"page-shell","children":["$L14",["$","section",null,{"className":"mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20","children":[["$","p",null,{"className":"eyebrow","children":"TARIFS"}],["$","h1",null,{"className":"mt-4 text-4xl font-semibold leading-tight text-[var(--brand-secondary)] sm:text-5xl","children":"Tarifs"}],["$","p",null,{"className":"mt-6 max-w-2xl text-lg leading-8 text-[var(--muted)]","children":"Aucune grille tarifaire validée n'est disponible à ce jour. Cette page sera complétée lorsque les informations métier auront été confirmées."}]]}]]}],[["$","script","script-0",{"src":"/_next/static/chunks/0ce3lh0x3m_lc.js","async":true}]],["$","$L15",null,{"children":["$","$16",null,{"name":"Next.MetadataOutlet","children":"$@17"}]}]]}],"p":"$@18","v":"$19","s":"$d"}}]]
+11:[["children",{"s":"tarifs","h":98,"d":{"r":["$","$4","c",{"children":[null,["$","$L5",null,{"parallelRouterKey":"children","template":["$","$L8",null,{}]}]]}],"p":"$@12","v":"$10","s":"$d"},"c":"$Q13"}]]
+e:[["children",{"s":"(public)","h":98,"d":{"r":["$","$4","c",{"children":[null,["$","$L5",null,{"parallelRouterKey":"children","template":["$","$L8",null,{}],"notFound":[["$","main",null,{"className":"page-shell grid place-items-center p-6 text-center","children":["$","div",null,{"children":[["$","p",null,{"className":"eyebrow","children":"404"}],["$","h1",null,{"className":"mt-2 text-3xl font-semibold text-[var(--brand-secondary)]","children":"Page introuvable"}],["$","p",null,{"className":"mt-3 text-[var(--muted)]","children":"Cette adresse ne correspond à aucune page du portail."}],["$","$La",null,{"className":"button button-primary mt-6","href":"/","children":"Revenir à l’accueil"}]]}]}],[]]}]]}],"p":"$@f","v":"$10","s":"$d"},"c":"$Q11"}]]
+20:X
+20:C
+23:X
+23:C
+0:{"t":{"t":{"s":"","h":86,"d":{"r":["$","$L3",null,{"loading":[["$","main","l",{"className":"grid min-h-screen place-items-center bg-[var(--surface)]","children":["$","p",null,{"className":"text-sm font-medium text-[var(--muted)]","children":"Chargement…"}]}],[],null],"children":["$","$4","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/1rnlafn_rym6e.css","precedence":"next"}],["$","script","script-0",{"src":"/_next/static/chunks/1tq6ppe__m8m-.js","async":true}]],["$","html",null,{"lang":"fr","className":"T19VSG_variable _8Li5zG_variable h-full antialiased","children":["$","body",null,{"className":"min-h-full flex flex-col","children":["$","$L5",null,{"parallelRouterKey":"children","error":"$7","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/3j_aixafn22wv.js","async":true}]],"template":["$","$L8",null,{}],"notFound":[["$","main",null,{"className":"page-shell grid place-items-center p-6 text-center","children":["$","div",null,{"children":[["$","p",null,{"className":"eyebrow","children":"404"}],["$","h1",null,{"className":"mt-2 text-3xl font-semibold text-[var(--brand-secondary)]","children":"Page introuvable"}],["$","p",null,{"className":"mt-3 text-[var(--muted)]","children":"Cette adresse ne correspond à aucune page du portail."}],["$","$La",null,{"className":"button button-primary mt-6","href":"/","children":"Revenir à l’accueil"}]]}]}],[]]}]}]}]]}]}],"p":"$@b","v":"$c","s":"$d"},"c":"$Qe"},"h":{"r":["$","$4","h",{"children":[null,["$","$L1b",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","$L1d",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$16",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Tarifs | E-commerce"}],["$","meta","1",{"name":"description","content":"Informations tarifaires du portail E-commerce, à publier après validation métier."}],["$","meta","2",{"name":"robots","content":"noindex, nofollow"}],["$","meta","3",{"name":"googlebot","content":"noindex, nofollow, max-video-preview:-1, max-image-preview:none, max-snippet:-1"}],["$","link","4",{"rel":"canonical","href":"http://localhost:3000/tarifs"}],["$","meta","5",{"property":"og:title","content":"Tarifs"}],["$","meta","6",{"property":"og:description","content":"Informations tarifaires du portail E-commerce, à publier après validation métier."}],["$","meta","7",{"property":"og:url","content":"http://localhost:3000/tarifs"}],["$","meta","8",{"property":"og:site_name","content":"E-commerce"}],["$","meta","9",{"property":"og:locale","content":"fr_FR"}],["$","meta","10",{"property":"og:type","content":"website"}],["$","meta","11",{"name":"twitter:card","content":"summary"}],["$","meta","12",{"name":"twitter:title","content":"Tarifs"}],["$","meta","13",{"name":"twitter:description","content":"Informations tarifaires du portail E-commerce, à publier après validation métier."}],["$","link","14",{"rel":"icon","href":"/favicon.ico?favicon.117ezoe8m31dk.ico","sizes":"48x48","type":"image/x-icon"}],["$","$L1e","15",{}]]}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":"$@1f","v":"$20","s":"$d"}},"a":"$@21","u":"$@22","b":"juJOUZSfGzrC73-sBOk9U","r":"$23"}
+17:null
+22:true
+21:null
+12:"$undefined"
+f:"$undefined"
+b:"$undefined"
+1f:"$undefined"

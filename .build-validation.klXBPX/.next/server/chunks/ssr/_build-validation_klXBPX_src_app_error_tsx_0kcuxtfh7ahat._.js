@@ -1,0 +1,3 @@
+module.exports=[9142,a=>{"use strict";var b=a.i(87924);a.s(["default",0,function({reset:a}){return(0,b.jsx)("main",{className:"page-shell grid place-items-center p-6 text-center",children:(0,b.jsxs)("div",{children:[(0,b.jsx)("h1",{className:"text-2xl font-semibold text-[var(--brand-secondary)]",children:"Une erreur est survenue"}),(0,b.jsx)("p",{className:"mt-3 text-[var(--muted)]",children:"Veuillez réessayer dans quelques instants."}),(0,b.jsx)("button",{className:"button button-primary mt-6",onClick:a,type:"button",children:"Réessayer"})]})})}])}];
+
+//# sourceMappingURL=_build-validation_klXBPX_src_app_error_tsx_0kcuxtfh7ahat._.js.map

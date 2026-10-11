@@ -1,0 +1,42 @@
+{
+  "status": 200,
+  "headers": {
+    "link": "</_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\", </_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2>; rel=preload; as=\"font\"; crossorigin=\"\"; type=\"font/woff2\"",
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(public)/layout,_N_T_/(public)/tarifs/layout,_N_T_/(public)/tarifs/page,_N_T_/tarifs"
+  },
+  "postponed": "2845:[1,{\"nextSegmentId\":2,\"rootFormatContext\":{\"insertionMode\":0,\"selectedValue\":null,\"tagScope\":0,\"viewTransition\":null},\"progressiveChunkSize\":12800,\"resumableState\":{\"idPrefix\":\"\",\"nextFormID\":0,\"streamingFormat\":0,\"instructions\":96,\"hasBody\":true,\"hasHtml\":true,\"unknownResources\":{\"font\":{\"/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2\":[],\"/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2\":[]}},\"dnsResources\":{},\"connectResources\":{\"default\":{},\"anonymous\":{},\"credentials\":{}},\"imageResources\":{},\"styleResources\":{\"/_next/static/chunks/1rnlafn_rym6e.css\":null},\"scriptResources\":{\"/_next/static/chunks/1x6obpmlu1_c2.js\":null,\"/_next/static/chunks/06bs-nf19b2js.js\":null,\"/_next/static/chunks/0p_w__bs2_j30.js\":null,\"/_next/static/chunks/0zwkgt6z_hwdh.js\":null,\"/_next/static/chunks/turbopack-3-ry682tkyiqk.js\":null,\"/_next/static/chunks/1tq6ppe__m8m-.js\":null,\"/_next/static/chunks/3j_aixafn22wv.js\":null,\"/_next/static/chunks/0ce3lh0x3m_lc.js\":null},\"moduleUnknownResources\":{},\"moduleScriptResources\":{\"/_next/static/chunks/1x6obpmlu1_c2.js\":null}},\"replayNodes\":[[\"sl\",0,[[\"Context\",0,[[\"Context\",0,[[\"ServerInsertedHTMLProvider\",0,[[\"Context\",0,[[\"io\",0,[[\"aV\",0,[[\"az\",0,[[\"aq\",0,[[\"is\",0,[[\"Fragment\",0,[[\"Context\",2,[[\"Context\",0,[[\"Context\",0,[[\"Context\",0,[[\"Context\",0,[[\"Context\",0,[[\"Context\",0,[[\"aV\",0,[[\"az\",0,[[\"aq\",0,[[\"ai\",0,[[\"aa\",0,[[\"__next_root_layout_boundary__\",1,[[null,0,[[\"Context\",0,[[\"Fragment\",\"c\",[[\"html\",1,[[\"body\",0,[[null,0,[[\"Activity\",\"(public)\",[[\"Context\",\"(public)\",[[null,2,[[\"Fragment\",0,[[\"E\",0,[[\"D\",0,[[\"Fragment\",0,[[\"n\",0,[[\"m\",0,[[\"G\",0,[[\"Suspense\",0,[[null,0,[[\"l\",0,[[\"x\",0,[[\"w\",0,[[\"F\",0,[[\"Context\",0,[[\"Fragment\",\"c\",[[null,1,[[\"Activity\",\"tarifs\",[[\"Context\",\"tarifs\",[[null,2,[[\"Fragment\",0,[[\"E\",0,[[\"D\",0,[[\"Fragment\",0,[[\"n\",0,[[\"Fragment\",0,[[\"G\",0,[[\"Fragment\",0,[[null,0,[[\"l\",0,[[\"x\",0,[[\"w\",0,[[\"F\",0,[[\"Context\",0,[[\"Fragment\",\"c\",[[null,1,[[\"Activity\",\"__PAGE__\",[[\"Context\",\"__PAGE__\",[[null,2,[[\"Fragment\",0,[[\"E\",0,[[\"D\",0,[[\"Fragment\",0,[[\"n\",0,[[\"Fragment\",0,[[\"G\",0,[[\"Fragment\",0,[[null,0,[[\"Fragment\",0,[[\"x\",0,[[\"w\",0,[[\"F\",0,[[\"Context\",0,[[\"Fragment\",\"c\",[[\"main\",0,[],{\"0\":1}]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null,[\"Suspense Fallback\",0,[],null],0]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],null]],\"replaySlots\":null}]null",
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KHB1YmxpYyk/tarifs/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/33f029e1b5f8c6ca3a003c930bcef2529e4d0dfaa51c66fe5d1cd969373d5ccc/$/tarifs",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(public)/tarifs/page"
+    },
+    "isFallback": false
+  }
+}

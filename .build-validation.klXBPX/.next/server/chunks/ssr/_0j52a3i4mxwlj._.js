@@ -1,0 +1,3 @@
+module.exports=[[47222,a=>{let b=(0,a.i(11857).registerClientReference)(function(){throw Error("Attempted to call the default export of [project]/.build-validation.klXBPX/src/app/error.tsx from the server, but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.")},"[project]/.build-validation.klXBPX/src/app/error.tsx","default");a.s(["default",0,b])},29907,a=>{var b=a.i(47222);a.n(b)},11857,(a,b,c)=>{b.exports=a.r(24951).vendored["react-rsc"].ReactServerDOMTurbopackServer}],23265,function(a){a.n(a.i(29907))}];
+
+//# sourceMappingURL=_0j52a3i4mxwlj._.js.map
