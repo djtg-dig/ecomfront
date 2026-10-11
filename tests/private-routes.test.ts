@@ -9,6 +9,8 @@ vi.mock("@/lib/api/backend-client", async (importOriginal) => {
 
 import { GET as overview } from "@/app/api/private/overview/route";
 import { POST as selectBusiness } from "@/app/api/private/business-selection/route";
+import { GET as businesses, POST as createBusiness } from "@/app/api/private/businesses/route";
+import { PATCH as updateBusiness } from "@/app/api/private/businesses/[businessId]/route";
 import { BackendApiError } from "@/lib/api/backend-client";
 import { encryptSession, type EcommerceSession } from "@/lib/auth/session";
 
@@ -50,6 +52,28 @@ beforeEach(() => {
 });
 
 describe("routes BFF de l’espace privé", () => {
+  it("liste, crée et modifie via les seuls endpoints entreprises autorisés", async () => {
+    mocks.request.mockResolvedValueOnce([]);
+    const listed = await businesses(request("/api/private/businesses"));
+    expect(listed.status).toBe(200);
+    expect(mocks.request).toHaveBeenLastCalledWith("/api/v1/businesses/", expect.objectContaining({ accessToken: expect.any(String) }));
+
+    mocks.request.mockResolvedValueOnce({ public_id: "BUS123", name: "Boutique", primary_currency: "CDF" });
+    const created = await createBusiness(request("/api/private/businesses", { method: "POST", headers: { origin: frontendUrl, "sec-fetch-site": "same-origin", "x-csrf-protection": "1", "content-type": "application/json" }, body: JSON.stringify({ name: "Boutique", primary_currency: "CDF" }) }));
+    expect(created.status).toBe(201);
+    expect(mocks.request).toHaveBeenLastCalledWith("/api/v1/businesses/", expect.objectContaining({ method: "POST", json: { name: "Boutique", primary_currency: "CDF" } }));
+
+    mocks.request.mockResolvedValueOnce({ public_id: "BUS123", name: "Nouveau nom" });
+    const updated = await updateBusiness(request("/api/private/businesses/BUS123", { method: "PATCH", headers: { origin: frontendUrl, "sec-fetch-site": "same-origin", "x-csrf-protection": "1", "content-type": "application/json" }, body: JSON.stringify({ name: "Nouveau nom" }) }), { params: Promise.resolve({ businessId: "BUS123" }) });
+    expect(updated.status).toBe(200);
+    expect(mocks.request).toHaveBeenLastCalledWith("/api/v1/businesses/BUS123/", expect.objectContaining({ method: "PATCH", json: { name: "Nouveau nom" } }));
+  });
+
+  it("ne tente pas une création cross-site", async () => {
+    const response = await createBusiness(request("/api/private/businesses", { method: "POST", headers: { origin: "https://attacker.example", "sec-fetch-site": "cross-site", "x-csrf-protection": "1" }, body: "{}" }));
+    expect(response.status).toBe(403);
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
   it("retourne seulement l’identité et les entreprises autorisées, sans exposer les JWT", async () => {
     mocks.request
       .mockResolvedValueOnce({ id: "identity-1", carri_subject: "carri-subject" })
@@ -122,6 +146,31 @@ describe("routes BFF de l’espace privé", () => {
     const cookies = response.headers.getSetCookie().join("\n");
     expect(cookies).toContain("ecommerce_selected_business=BUS123");
     expect(cookies).toContain("HttpOnly");
+  });
+
+  it("conserve uniquement une préférence présente dans les entreprises retournées après rechargement", async () => {
+    mocks.request
+      .mockResolvedValueOnce({ id: "identity-1", carri_subject: "carri-subject" })
+      .mockResolvedValueOnce([{ public_id: "BUS123", name: "Boutique", status: "ACTIVE", primary_currency: "CDF" }]);
+    const response = await overview(new Request(`${frontendUrl}/api/private/overview`, {
+      headers: { cookie: `ecommerce_session=${encryptSession(session())}; ecommerce_selected_business=BUS123` },
+    }));
+
+    expect((await response.json()).selectedBusinessId).toBe("BUS123");
+  });
+
+  it("ne mémorise jamais une entreprise hors périmètre", async () => {
+    mocks.request.mockRejectedValueOnce(new BackendApiError(404, "business_not_found", "Introuvable."));
+    const response = await selectBusiness(request("/api/private/business-selection", {
+      method: "POST",
+      headers: { origin: frontendUrl, "sec-fetch-site": "same-origin", "x-csrf-protection": "1", "content-type": "application/json" },
+      body: JSON.stringify({ businessId: "OTHER999" }),
+    }));
+
+    expect(response.status).toBe(403);
+    expect((await response.json()).code).toBe("business_not_allowed");
+    expect(response.headers.getSetCookie().join("\n")).not.toContain("ecommerce_selected_business=");
+    expect(mocks.request).toHaveBeenCalledWith("/api/v1/businesses/OTHER999/", expect.objectContaining({ accessToken: expect.any(String) }));
   });
 
   it("refuse la sélection cross-site avant tout appel backend", async () => {

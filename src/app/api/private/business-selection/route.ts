@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { BackendApiError } from "@/lib/api/backend-client";
 import {
   PrivateSessionError,
   authenticatedBackendRequest,
@@ -40,6 +41,15 @@ export async function POST(request: Request) {
     });
     return result.refreshed ? persistPrivateSession(response, result.session) : response;
   } catch (error) {
+    // The backend deliberately responds 404 for an out-of-scope business.
+    // Keep that non-disclosure property while returning a useful BFF error.
+    if ((error instanceof BackendApiError && error.status === 404) ||
+        (error instanceof PrivateSessionError && error.code === "resource_not_allowed")) {
+      return NextResponse.json(
+        { code: "business_not_allowed", detail: "Cette entreprise n’est pas accessible." },
+        { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } },
+      );
+    }
     return errorResponse(error instanceof PrivateSessionError
       ? error
       : new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est temporairement indisponible."));

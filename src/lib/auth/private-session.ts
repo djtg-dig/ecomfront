@@ -25,6 +25,7 @@ export type AuthenticatedResult<T> = {
   session: EcommerceSession;
   refreshed: boolean;
 };
+type PrivateBackendOptions = { method?: "GET" | "POST" | "PATCH"; json?: unknown };
 
 export function readPrivateSession(request: Request): EcommerceSession {
   const encrypted = requestCookie(request, sessionCookieName);
@@ -38,9 +39,10 @@ export function readPrivateSession(request: Request): EcommerceSession {
 export async function authenticatedBackendRequest<T>(
   path: string,
   session: EcommerceSession,
+  options: PrivateBackendOptions = {},
 ): Promise<AuthenticatedResult<T>> {
   try {
-    const data = await backendClient.request<T>(path, { accessToken: session.accessToken });
+    const data = await backendClient.request<T>(path, { ...options, accessToken: session.accessToken });
     if (data === undefined) throw new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est indisponible.");
     return { data, session, refreshed: false };
   } catch (error) {
@@ -49,7 +51,7 @@ export async function authenticatedBackendRequest<T>(
 
   try {
     const refreshedSession = await refreshEcommerceSession(session, { force: true });
-    const data = await backendClient.request<T>(path, { accessToken: refreshedSession.accessToken });
+    const data = await backendClient.request<T>(path, { ...options, accessToken: refreshedSession.accessToken });
     if (data === undefined) throw new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est indisponible.");
     return { data, session: refreshedSession, refreshed: true };
   } catch (error) {
@@ -62,6 +64,7 @@ function mapBackendError(error: unknown): PrivateSessionError {
   if (error instanceof BackendApiError) {
     if (error.status === 401) return new PrivateSessionError(401, "session_expired", "Votre session a expiré. Reconnectez-vous.");
     if (error.status === 403) return new PrivateSessionError(403, "access_forbidden", "Vous n’êtes pas autorisé à accéder à cette ressource.");
+    if (error.status === 404) return new PrivateSessionError(403, "resource_not_allowed", "Cette ressource n’est pas accessible.");
     return new PrivateSessionError(503, "backend_unavailable", error.detail);
   }
   if (error instanceof BackendNetworkError) return new PrivateSessionError(503, "backend_unavailable", error.message);
