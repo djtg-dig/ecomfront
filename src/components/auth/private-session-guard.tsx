@@ -28,17 +28,9 @@ export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode
     return () => controller.abort();
   }, [router]);
 
-  if (status === "checking") {
-    return (
-      <main className="page-shell grid min-h-screen place-items-center p-6" aria-live="polite">
-        <p className="text-sm text-[var(--muted)]">Vérification de votre session…</p>
-      </main>
-    );
-  }
-
   if (status === "unavailable") {
     return (
-      <main className="page-shell grid min-h-screen place-items-center p-6">
+      <div className="grid min-h-64 place-items-center p-6">
         <section className="content-panel w-full max-w-md p-8" role="alert">
           <h1 className="text-lg font-semibold text-[var(--brand-secondary)]">Espace temporairement indisponible</h1>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
@@ -48,9 +40,9 @@ export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode
             Réessayer
           </button>
         </section>
-      </main>
+      </div>
     );
   }
 
-  return children;
+  return <div aria-busy={status === "checking"}>{children}</div>;
 }
