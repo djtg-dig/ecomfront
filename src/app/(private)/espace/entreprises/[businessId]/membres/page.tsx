@@ -1,0 +1,1 @@
+import{TeamManager}from"@/components/members/team-manager";export default async function Page({params}:{params:Promise<{businessId:string}>}){return <TeamManager businessId={(await params).businessId}/>}

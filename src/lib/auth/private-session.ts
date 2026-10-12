@@ -14,7 +14,7 @@ import {
 import { requestCookie } from "@/lib/auth/security";
 
 export class PrivateSessionError extends Error {
-  constructor(readonly status: 401 | 403 | 503, readonly code: string, detail: string) {
+  constructor(readonly status: 400 | 401 | 403 | 409 | 503, readonly code: string, detail: string) {
     super(detail);
     this.name = "PrivateSessionError";
   }
@@ -62,9 +62,11 @@ export async function authenticatedBackendRequest<T>(
 function mapBackendError(error: unknown): PrivateSessionError {
   if (error instanceof PrivateSessionError) return error;
   if (error instanceof BackendApiError) {
+    if (error.status === 400) return new PrivateSessionError(400, "invalid_request", error.detail);
     if (error.status === 401) return new PrivateSessionError(401, "session_expired", "Votre session a expiré. Reconnectez-vous.");
     if (error.status === 403) return new PrivateSessionError(403, "access_forbidden", "Vous n’êtes pas autorisé à accéder à cette ressource.");
     if (error.status === 404) return new PrivateSessionError(403, "resource_not_allowed", "Cette ressource n’est pas accessible.");
+    if (error.status === 409) return new PrivateSessionError(409, "conflict", error.detail);
     return new PrivateSessionError(503, "backend_unavailable", error.detail);
   }
   if (error instanceof BackendNetworkError) return new PrivateSessionError(503, "backend_unavailable", error.message);
