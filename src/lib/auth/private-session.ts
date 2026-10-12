@@ -2,7 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import { BackendApiError, BackendNetworkError, backendClient } from "@/lib/api/backend-client";
+import { BackendApiError, BackendNetworkError, backendClient, type QueryParameters } from "@/lib/api/backend-client";
 import { refreshEcommerceSession } from "@/lib/auth/refresh";
 import {
   decryptSession,
@@ -25,7 +25,7 @@ export type AuthenticatedResult<T> = {
   session: EcommerceSession;
   refreshed: boolean;
 };
-type PrivateBackendOptions = { method?: "GET" | "POST" | "PATCH" | "DELETE"; json?: unknown };
+type PrivateBackendOptions = { method?: "GET" | "POST" | "PATCH" | "DELETE"; json?: unknown; query?: QueryParameters };
 
 export function readPrivateSession(request: Request): EcommerceSession {
   const encrypted = requestCookie(request, sessionCookieName);
