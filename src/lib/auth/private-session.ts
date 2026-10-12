@@ -25,7 +25,7 @@ export type AuthenticatedResult<T> = {
   session: EcommerceSession;
   refreshed: boolean;
 };
-type PrivateBackendOptions = { method?: "GET" | "POST" | "PATCH"; json?: unknown };
+type PrivateBackendOptions = { method?: "GET" | "POST" | "PATCH" | "DELETE"; json?: unknown };
 
 export function readPrivateSession(request: Request): EcommerceSession {
   const encrypted = requestCookie(request, sessionCookieName);
@@ -43,8 +43,8 @@ export async function authenticatedBackendRequest<T>(
 ): Promise<AuthenticatedResult<T>> {
   try {
     const data = await backendClient.request<T>(path, { ...options, accessToken: session.accessToken });
-    if (data === undefined) throw new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est indisponible.");
-    return { data, session, refreshed: false };
+    if (data === undefined && options.method !== "DELETE") throw new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est indisponible.");
+    return { data: data as T, session, refreshed: false };
   } catch (error) {
     if (!(error instanceof BackendApiError) || error.status !== 401) throw mapBackendError(error);
   }
@@ -52,8 +52,8 @@ export async function authenticatedBackendRequest<T>(
   try {
     const refreshedSession = await refreshEcommerceSession(session, { force: true });
     const data = await backendClient.request<T>(path, { ...options, accessToken: refreshedSession.accessToken });
-    if (data === undefined) throw new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est indisponible.");
-    return { data, session: refreshedSession, refreshed: true };
+    if (data === undefined && options.method !== "DELETE") throw new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est indisponible.");
+    return { data: data as T, session: refreshedSession, refreshed: true };
   } catch (error) {
     throw mapBackendError(error);
   }
