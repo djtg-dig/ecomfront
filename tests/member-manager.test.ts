@@ -11,8 +11,15 @@ describe("gestionnaire de membres", () => {
     expect(source).toContain("!selected.is_owner");
   });
 
-  it("n’invente pas de modification de rôle et explique la limite du contrat", () => {
-    expect(source).toContain("Le rôle ne peut pas être modifié");
+  it("utilise des modales et n’invente pas de modification de rôle", () => {
+    expect(source).toContain('<Modal onClose={() => setInviteOpen(false)}');
+    expect(source).toContain("Permissions initiales");
     expect(source).not.toContain('name="role"');
+  });
+
+  it("conditionne les actions de gestion à MANAGE_MEMBERS", () => {
+    expect(source).toContain('includes("MANAGE_MEMBERS")');
+    expect(source).toContain("canManage ?");
+    expect(source).toContain("if (pending) return");
   });
 });

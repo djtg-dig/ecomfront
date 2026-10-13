@@ -90,13 +90,13 @@ describe("routes BFF membres et invitations", () => {
   it("crée une invitation valide et relaie l’erreur de validation backend", async () => {
     mocks.request.mockResolvedValueOnce({ public_id: invitationId, status: "PENDING" });
     const created = await createInvitation(
-      mutationRequest(`/api/private/businesses/${businessId}/team`, JSON.stringify({ email: "new@example.test", role: "MEMBER" })),
+      mutationRequest(`/api/private/businesses/${businessId}/team`, JSON.stringify({ email: "new@example.test", title: "Caissier", permissions: ["VIEW_CATALOG"] })),
       teamParams,
     );
     expect(created.status).toBe(201);
     expect(mocks.request).toHaveBeenLastCalledWith(
       `/api/v1/businesses/${businessId}/invitations/`,
-      expect.objectContaining({ method: "POST", json: { email: "new@example.test", role: "MEMBER" } }),
+      expect.objectContaining({ method: "POST", json: { email: "new@example.test", title: "Caissier", permissions: ["VIEW_CATALOG"] } }),
     );
 
     mocks.request.mockRejectedValueOnce(new BackendApiError(400, "invalid_email", "E-mail invalide."));

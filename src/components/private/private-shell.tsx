@@ -7,7 +7,7 @@ import { useParams, usePathname } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { SiteFooter } from "@/components/layout/site-footer";
-const personalNavigation = [{ href: "/espace", label: "Accueil" }, { href: "/espace/entreprises", label: "Mes entreprises" }, { href: "/espace/parametres", label: "Paramètres du compte" }];
+const personalNavigation = [{ href: "/espace", label: "Accueil" }, { href: "/espace/entreprises", label: "Mes entreprises" }, { href: "/espace/invitations", label: "Invitations reçues" }, { href: "/espace/parametres", label: "Paramètres du compte" }];
 
 function isActive(pathname: string, href: string) {
   return pathname === href || (href !== "/espace" && pathname.startsWith(`${href}/`));
@@ -73,7 +73,7 @@ function BusinessShell({ children }: Readonly<{ children: ReactNode }>) {
     ...(permissions.some(p => ["VIEW_PURCHASES", "MANAGE_PURCHASES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/achats`, label: "Achats" }] : []),
     ...(permissions.some(p => ["VIEW_SALES", "MANAGE_SALES", "USE_POS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/ventes`, label: "Ventes" }] : []),
     ...(permissions.some(p => ["VIEW_FINANCIAL_SUMMARY", "VIEW_RECEIVABLES", "MANAGE_RECEIVABLES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: "Finance" }] : []),
-    ...(permissions.some(p => ["VIEW_MEMBERS", "MANAGE_MEMBERS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/membres`, label: "Paramètres entreprise" }] : []),
+    ...(permissions.some(p => ["VIEW_MEMBERS", "MANAGE_MEMBERS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/membres`, label: "Membres et accès" }] : []),
   ] : []);
   return <ShellFrame navigation={navigation} title="Espace entreprise">{children}</ShellFrame>;
 }
