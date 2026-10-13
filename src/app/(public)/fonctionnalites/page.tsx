@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { PublicHeader } from "@/components/public/public-header";
 import { createPublicMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPublicMetadata("/fonctionnalites");
@@ -25,9 +24,8 @@ const capabilities = [
 
 export default function FonctionnalitesPage() {
   return (
-    <main className="page-shell">
-      <PublicHeader />
-      <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
+    <>
+      <section className="site-container py-16 sm:py-20">
         <p className="eyebrow">FONCTIONNALITÉS</p>
         <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-[var(--brand-secondary)] sm:text-5xl">
           Capacités documentées de la plateforme
@@ -37,7 +35,7 @@ export default function FonctionnalitesPage() {
         </p>
       </section>
       <section aria-labelledby="capabilities-title" className="border-y border-[var(--line)] bg-[var(--surface-raised)]">
-        <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
+        <div className="site-container py-12">
           <h2 id="capabilities-title" className="text-2xl font-semibold">
             Périmètre fonctionnel
           </h2>
@@ -51,6 +49,6 @@ export default function FonctionnalitesPage() {
           </ul>
         </div>
       </section>
-    </main>
+    </>
   );
 }

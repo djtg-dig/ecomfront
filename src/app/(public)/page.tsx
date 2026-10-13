@@ -1,16 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { PublicHeader } from "@/components/public/public-header";
 import { createPublicMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPublicMetadata("/");
 
 export default function Home() {
   return (
-    <main className="page-shell">
-      <PublicHeader />
-
-      <section className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl content-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[1.25fr_0.75fr]">
+    <section className="site-container grid min-h-[calc(100vh-9rem)] content-center gap-10 py-16 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="max-w-2xl">
           <p className="eyebrow mb-4">GESTION COMMERCIALE</p>
           <h1 className="text-4xl font-semibold leading-tight text-[var(--brand-secondary)] sm:text-5xl">
@@ -34,7 +30,6 @@ export default function Home() {
             progressivement via le serveur applicatif.
           </p>
         </aside>
-      </section>
-    </main>
+    </section>
   );
 }

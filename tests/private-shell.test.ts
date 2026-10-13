@@ -25,26 +25,23 @@ describe("shell de l’espace privé", () => {
     expect(shell).toContain('{ href: "/espace/parametres", label: "Paramètres" }');
     expect(shell).toContain("Entreprise active");
     expect(shell).toContain("Non sélectionnée");
-    expect(shell).toContain('{ segment: "membres", label: "Membres" }');
-    expect(shell).toContain('{ segment: "produits", label: "Produits" }');
-    expect(shell).toContain('{ segment: "stocks", label: "Stocks" }');
-    expect(shell).toContain('{ segment: "achats", label: "Achats" }');
-    expect(shell).toContain('{ segment: "ventes", label: "Ventes" }');
-    expect(shell).toContain('{ segment: "finance", label: "Finance" }');
-    expect(shell).toContain('`/espace/entreprises/${selectedBusiness.public_id}/${item.segment}`');
+    expect(shell).not.toContain("membres");
+    expect(shell).toContain("permissions effectives par le backend");
+    expect(shell).toContain("<SiteFooter />");
+    expect(shell).toContain("site-container");
     expect(source("src/app/(private)/espace/loading.tsx")).not.toContain("min-h-screen");
   });
 
-  it("présente les modules de l’entreprise sélectionnée sans changement rapide", () => {
+  it("n’affiche aucun module sans contrat de permissions effectives", () => {
     const dashboard = source("src/components/private/private-dashboard.tsx");
 
     expect(dashboard).toContain("ENTREPRISE ACTIVE");
-    expect(dashboard).toContain("Modules disponibles");
+    expect(dashboard).toContain("Permissions des modules indisponibles");
     expect(dashboard).toContain("Choisissez une entreprise");
     expect(dashboard).toContain("/espace/parametres");
     expect(dashboard).not.toContain("selectBusiness");
     expect(dashboard).not.toContain("<select");
-    expect(dashboard).toContain("/espace/entreprises/${selectedBusiness.public_id}/${module.segment}");
+    expect(dashboard).not.toContain("/membres");
   });
 
   it("restreint le changement volontaire aux paramètres avancés et redirige après succès", () => {
@@ -53,6 +50,7 @@ describe("shell de l’espace privé", () => {
 
     expect(settingsPage).toContain("<PrivateSettings />");
     expect(settings).toContain("Paramètres avancés");
+    expect(settings).toContain("Membres et permissions");
     expect(settings).toContain("Changer d’entreprise");
     expect(settings).toContain("await selectBusiness(businessId)");
     expect(settings).toContain('router.replace("/espace")');
