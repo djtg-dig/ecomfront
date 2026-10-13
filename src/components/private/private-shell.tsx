@@ -37,8 +37,8 @@ function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
             <span className="brand-mark grid size-8 place-items-center text-sm font-bold">E</span>
             E-commerce
           </Link>
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
+          <div className="order-3 flex w-full items-center justify-between gap-3 border-t border-[var(--line)] pt-3 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
+            <div className="min-w-0 sm:text-right">
               <p className="text-xs font-medium text-[var(--muted)]">Entreprise active</p>
               <p className="max-w-48 truncate text-sm font-semibold" title={selectedBusiness?.name}>{selectedBusiness?.name ?? "Non sélectionnée"}</p>
             </div>

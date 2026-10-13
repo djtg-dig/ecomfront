@@ -14,15 +14,15 @@ export async function PublicHeader() {
 
   return (
     <header className="site-header">
-      <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-3 sm:px-8">
+      <div className="site-container flex min-h-16 flex-wrap items-center justify-between gap-x-6 gap-y-3 py-3">
         <Link className="brand-lockup flex items-center gap-3 font-semibold" href="/">
           <span className="brand-mark grid size-8 place-items-center text-sm font-bold">
             E
           </span>
           E-commerce
         </Link>
-        <nav aria-label="Navigation principale">
-          <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+        <nav className="w-full sm:w-auto" aria-label="Navigation principale">
+          <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm sm:justify-end">
             {navigation.map((item) => (
               <li key={item.href}>
                 <Link className="nav-link" href={item.href}>

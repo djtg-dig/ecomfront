@@ -78,11 +78,13 @@ body {
 }
 
 .site-footer {
-  border-top: 1px solid var(--line);
-  background: var(--surface-raised);
+  border-top: 1px solid var(--carri-navy);
+  background: var(--brand);
+  color: var(--surface-raised);
 }
 
 .site-container {
+  box-sizing: border-box;
   width: 100%;
   max-width: 1800px;
   margin-inline: auto;
@@ -93,8 +95,12 @@ body {
   .site-container { padding-inline: 1.5rem; }
 }
 
-@media (min-width: 1536px) {
+@media (min-width: 1024px) {
   .site-container { padding-inline: 2.5rem; }
+}
+
+@media (min-width: 1536px) {
+  .site-container { padding-inline: 3rem; }
 }
 
 .brand-lockup {
@@ -113,6 +119,17 @@ body {
 
 .nav-link:hover {
   color: var(--brand-secondary);
+  text-decoration: underline;
+}
+
+.footer-link {
+  color: var(--surface-raised);
+  text-underline-offset: 4px;
+}
+
+.footer-link:hover {
+  color: var(--surface-raised);
+  opacity: 0.8;
   text-decoration: underline;
 }
 

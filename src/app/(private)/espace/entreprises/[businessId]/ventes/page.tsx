@@ -1,2 +1,7 @@
 import { SaleManager } from "@/components/sales/sale-manager";
-export default async function SalesPage({ params }: { params: Promise<{ businessId: string }> }) { return <SaleManager businessId={(await params).businessId} />; }
+import { Suspense } from "react";
+import { PrivatePageFallback } from "@/components/private/private-page-fallback";
+
+type Props = { params: Promise<{ businessId: string }> };
+export default function SalesPage({ params }: Props) { return <Suspense fallback={<PrivatePageFallback />}><SalesContent params={params} /></Suspense>; }
+async function SalesContent({ params }: Props) { return <SaleManager businessId={(await params).businessId} />; }

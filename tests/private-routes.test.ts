@@ -107,6 +107,31 @@ describe("routes BFF de l’espace privé", () => {
     expect(response.headers.getSetCookie().join("\n")).toContain("ecommerce_session=");
   });
 
+  it("demande une reconnexion si le refresh est définitivement refusé", async () => {
+    mocks.request
+      .mockRejectedValueOnce(new BackendApiError(401, "invalid_token", "Expired"))
+      .mockRejectedValueOnce(new BackendApiError(401, "token_not_valid", "Refresh invalid"));
+
+    const response = await overview(request("/api/private/overview"));
+
+    expect(response.status).toBe(401);
+    expect((await response.json()).code).toBe("session_expired");
+    expect(response.headers.getSetCookie().join("\n")).toContain("Max-Age=0");
+    expect(mocks.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("signale une indisponibilité lorsque le refresh échoue côté serveur", async () => {
+    mocks.request
+      .mockRejectedValueOnce(new BackendApiError(401, "invalid_token", "Expired"))
+      .mockRejectedValueOnce(new BackendApiError(500, "server_error", "Refresh failed"));
+
+    const response = await overview(request("/api/private/overview"));
+
+    expect(response.status).toBe(503);
+    expect((await response.json()).code).toBe("backend_unavailable");
+    expect(mocks.request).toHaveBeenCalledTimes(2);
+  });
+
   it("renvoie 401 et efface la session quand elle est absente", async () => {
     const response = await overview(new Request(`${frontendUrl}/api/private/overview`));
 
