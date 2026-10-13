@@ -9,6 +9,8 @@ vi.mock("@/lib/api/backend-client", async (importOriginal) => {
 import { GET as detail } from "@/app/api/private/businesses/[businessId]/inventory/[inventoryId]/route";
 import { GET as movements, POST as createMovement } from "@/app/api/private/businesses/[businessId]/inventory/[inventoryId]/movements/route";
 import { GET as list, POST as createInventory } from "@/app/api/private/businesses/[businessId]/inventory/route";
+import { GET as summary } from "@/app/api/private/businesses/[businessId]/inventory/summary/route";
+import { GET as history } from "@/app/api/private/businesses/[businessId]/inventory/movements/route";
 import { BackendApiError, BackendNetworkError } from "@/lib/api/backend-client";
 import { encryptSession, type EcommerceSession } from "@/lib/auth/session";
 
@@ -33,7 +35,7 @@ describe("routes BFF inventaire", () => {
   it("relaie les filtres autorisés, le détail et l’historique sous le bon tenant", async () => {
     mocks.request.mockResolvedValueOnce([{ public_id: inventoryId, available_quantity: "3.000" }]);
     expect((await list(request(`/api/private/businesses/${businessId}/inventory?product=PR123&low_stock=true`), businessContext)).status).toBe(200);
-    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/`, expect.objectContaining({ query: { product: "PR123", variant: undefined, low_stock: "true" }, accessToken: expect.any(String) }));
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/`, expect.objectContaining({ query: { product: "PR123", variant: undefined, low_stock: "true", q: undefined, status: undefined, ordering: undefined }, accessToken: expect.any(String) }));
     mocks.request.mockResolvedValueOnce({ public_id: inventoryId });
     expect((await detail(request(`/api/private/businesses/${businessId}/inventory/${inventoryId}`), inventoryContext)).status).toBe(200);
     mocks.request.mockResolvedValueOnce([]);
@@ -47,9 +49,24 @@ describe("routes BFF inventaire", () => {
     expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/`, expect.objectContaining({ method: "POST", json: item }));
     const movement = { type: "ADJUSTMENT", target_quantity: "0.000", reason: "Comptage" };
     mocks.request.mockResolvedValueOnce({ public_id: "SM1", quantity_after: "0.000" });
-    expect((await createMovement(mutation(`/api/private/businesses/${businessId}/inventory/${inventoryId}/movements`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(movement) }), inventoryContext)).status).toBe(201);
-    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/${inventoryId}/movements/`, expect.objectContaining({ method: "POST", json: movement }));
+    expect((await createMovement(mutation(`/api/private/businesses/${businessId}/inventory/${inventoryId}/movements`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "movement-key" }, body: JSON.stringify(movement) }), inventoryContext)).status).toBe(201);
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/${inventoryId}/movements/`, expect.objectContaining({ method: "POST", json: movement, headers: { "Idempotency-Key": "movement-key" } }));
     expect((await createMovement(request(`/api/private/businesses/${businessId}/inventory/${inventoryId}/movements`, { method: "POST", body: "{}" }), inventoryContext)).status).toBe(403);
+  });
+
+  it("relaie le résumé et l’historique global avec des filtres validés", async () => {
+    mocks.request.mockResolvedValueOnce({ tracked_products: 2, recent_movements: [] });
+    expect((await summary(request(`/api/private/businesses/${businessId}/inventory/summary`), businessContext)).status).toBe(200);
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/summary/`, expect.objectContaining({ accessToken: expect.any(String) }));
+    mocks.request.mockResolvedValueOnce({ count: 1, results: [] });
+    expect((await history(request(`/api/private/businesses/${businessId}/inventory/movements?type=SALE&origin=SALE&date_from=2026-01-01`), businessContext)).status).toBe(200);
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/movements/`, expect.objectContaining({ query: expect.objectContaining({ type: "SALE", origin: "SALE", date_from: "2026-01-01" }) }));
+  });
+
+  it("exige une clé d’idempotence pour un mouvement", async () => {
+    const response = await createMovement(mutation(`/api/private/businesses/${businessId}/inventory/${inventoryId}/movements`, { method: "POST", body: "{}" }), inventoryContext);
+    expect(response.status).toBe(400);
+    expect(mocks.request).not.toHaveBeenCalled();
   });
 
   it("rejette les filtres et identifiants hors contrat avant Django", async () => {

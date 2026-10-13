@@ -12,8 +12,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ busi
     const product = query.get("product") ?? undefined;
     const variant = query.get("variant") ?? undefined;
     const lowStock = query.get("low_stock") ?? undefined;
-    if ((product && !validPrivateIdentifier(product)) || (variant && !validPrivateIdentifier(variant)) || (lowStock && lowStock !== "true")) return invalidIdentifier("Filtre d’inventaire invalide.");
-    const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/inventory/`, readPrivateSession(request), { query: { product, variant, low_stock: lowStock } });
+    const q = query.get("q")?.trim() || undefined;
+    const status = query.get("status") || undefined;
+    const ordering = query.get("ordering") || undefined;
+    if ((product && !validPrivateIdentifier(product)) || (variant && !validPrivateIdentifier(variant)) || (lowStock && lowStock !== "true") || (q && q.length > 120) || (status && !["AVAILABLE", "LOW_STOCK", "OUT_OF_STOCK"].includes(status)) || (ordering && !["quantity", "-quantity"].includes(ordering))) return invalidIdentifier("Filtre d’inventaire invalide.");
+    const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/inventory/`, readPrivateSession(request), { query: { product, variant, low_stock: lowStock, q, status, ordering } });
     return privateJson(result, { inventory: result.data });
   } catch (error) { return privateFailure(error); }
 }

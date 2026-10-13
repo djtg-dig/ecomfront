@@ -7,16 +7,24 @@ const source = readFileSync(resolve(process.cwd(), "src/components/inventory/inv
 describe("gestionnaire de stocks", () => {
   it("n’expose que les trois mouvements manuels du contrat", () => {
     expect(source).toContain('type: "IN" | "OUT" | "ADJUSTMENT"');
-    expect(source).not.toContain('<option value="TRANSFER">');
-    expect(source).not.toContain('<option value="SALE">');
+    expect(source).toContain('<option value="IN">Entrée</option><option value="OUT">Sortie</option><option value="ADJUSTMENT">Ajustement à une quantité cible</option>');
+    expect(source).not.toContain('setType(event.target.value as "SALE"');
   });
   it("réinterroge Django après un mouvement et désactive la double soumission", () => {
-    expect(source).toContain("onCreated={() => void loadDetail()}");
+    expect(source).toContain("await Promise.all([loadList(), loadSummary(), loadHistory()])");
     expect(source).toContain("disabled={saving}");
-    expect(source).toContain("calculés exclusivement par Django");
+    expect(source).toContain("if (saving) return");
+    expect(source).toContain('"idempotency-key": idempotencyKey');
   });
-  it("prend en charge le filtre stock faible réellement disponible", () => {
-    expect(source).toContain('"?low_stock=true"');
-    expect(source).toContain("is_low_stock");
+  it("affiche le tableau, les indicateurs et les filtres réels", () => {
+    expect(source).toContain("Produits suivis");
+    expect(source).toContain("OUT_OF_STOCK");
+    expect(source).toContain("Historique des mouvements");
+    expect(source).toContain("Produit ou référence");
+  });
+  it("n’affiche les formulaires que dans des modales autorisées", () => {
+    expect(source).toContain('permissions?.includes("MANAGE_INVENTORY")');
+    expect(source).toContain('<Modal onClose={() => setModal(null)} title="Nouveau mouvement">');
+    expect(source).toContain('<Modal onClose={() => setModal(null)} title="Initialiser un stock">');
   });
 });

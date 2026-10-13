@@ -24,7 +24,9 @@ export async function POST(request: Request, context: Context) {
     if (!isSameOriginMutation(request, getServerConfig())) return NextResponse.json({ code: "csrf_rejected", detail: "Action non autorisée." }, { status: 403 });
     const route = await ids(context);
     if (!route) return invalidIdentifier("Identifiant d’entreprise ou inventaire invalide.");
-    const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${route.businessId}/inventory/${route.inventoryId}/movements/`, readPrivateSession(request), { method: "POST", json: await request.json() });
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim();
+    if (!idempotencyKey || idempotencyKey.length > 255) return NextResponse.json({ code: "invalid_idempotency_key", detail: "Clé d’idempotence invalide." }, { status: 400 });
+    const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${route.businessId}/inventory/${route.inventoryId}/movements/`, readPrivateSession(request), { method: "POST", json: await request.json(), headers: { "Idempotency-Key": idempotencyKey } });
     return privateJson(result, { movement: result.data }, 201);
   } catch (error) { return privateFailure(error); }
 }
