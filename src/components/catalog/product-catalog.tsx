@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Modal } from "@/components/ui/modal";
+import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 
 type Category = { code: string; name: string };
 type Status = "ACTIVE" | "INACTIVE" | "ARCHIVED";
@@ -126,14 +128,19 @@ function ProductForm({ businessId, product, categories, onSaved }: {
       currency: fields.get("currency"), status: fields.get("status"), attributes: normalizedAttributes,
     };
     const url = product ? `/api/private/businesses/${businessId}/products/${product.public_id}` : `/api/private/businesses/${businessId}/products`;
-    const response = await fetch(url, { method: product ? "PATCH" : "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify(payload) });
-    setSaving(false);
-    if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
-    if (!response.ok) return setError(await detail(response));
-    onSaved((await response.json() as { product: Product }).product);
+    try {
+      const response = await fetch(url, { method: product ? "PATCH" : "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify(payload) });
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) return setError(await detail(response));
+      onSaved((await response.json() as { product: Product }).product);
+    } catch {
+      setError("Le catalogue est temporairement indisponible.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  return <form className="content-panel grid gap-3 p-5" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>
+  return <form aria-busy={saving} className="content-panel grid gap-3 p-5" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>
     <h2 className="font-semibold">{product ? "Modifier le produit" : "Créer un produit"}</h2>
     {error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}
     <label>Nom<input className="mt-1 w-full rounded border p-2" defaultValue={product?.name} name="name" required /></label>
@@ -155,6 +162,8 @@ function ProductForm({ businessId, product, categories, onSaved }: {
 
 export function ProductCatalog({ businessId, productId }: { businessId: string; productId?: string }) {
   const router = useRouter();
+  const permissions = useBusinessPermissions(businessId);
+  const canManageCatalog = permissions?.includes("MANAGE_CATALOG") ?? false;
   const [products, setProducts] = useState<Product[] | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
@@ -162,6 +171,9 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [category, setCategory] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function load() {
     setError(null);
@@ -194,6 +206,6 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
     }).catch(() => setError("Le catalogue est temporairement indisponible."));
   }, [businessId, productId, router]);
 
-  if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{product ? <ProductForm businessId={businessId} categories={categories} onSaved={setProduct} product={product} /> : !error ? <p className="mt-5">Chargement du produit…</p> : null}</main>;
-  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}<div className="mt-6 grid gap-6 lg:grid-cols-2"><ProductForm businessId={businessId} categories={categories} onSaved={(created) => { setProducts((current) => current ? [...current, created] : [created]); router.push(`/espace/entreprises/${businessId}/produits/${created.public_id}`); }} /><section className="content-panel p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="py-3" key={item.public_id}><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{item.selling_price} {item.currency} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section></div></main>;
+  if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{product ? <section className="content-panel mt-5 grid gap-2 p-5"><h2 className="font-semibold">{product.name}</h2><p>Catégorie : {product.category_name}</p><p>Prix de vente : {product.selling_price} {product.currency}</p><p>Statut : {product.status}</p>{product.internal_reference ? <p>Référence : {product.internal_reference}</p> : null}{product.description ? <p>{product.description}</p> : null}{canManageCatalog ? <button className="button button-outline mt-2 w-fit" onClick={() => setEditOpen(true)} type="button">Modifier le produit</button> : null}</section> : !error ? <p className="mt-5">Chargement du produit…</p> : null}{editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title="Modifier le produit"><ProductForm businessId={businessId} categories={categories} onSaved={(updated) => { setProduct(updated); setEditOpen(false); setSuccess("Produit modifié."); }} product={product} /></Modal> : null}</main>;
+  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3"><form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form>{canManageCatalog ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}<section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="py-3" key={item.public_id}><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{item.selling_price} {item.currency} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section>{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessId={businessId} categories={categories} onSaved={(created) => { setCreateOpen(false); setSuccess("Produit ajouté."); setProducts((current) => current ? [...current, created] : [created]); void load(); }} /></Modal> : null}</main>;
 }

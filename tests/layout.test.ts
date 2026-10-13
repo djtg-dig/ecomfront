@@ -13,7 +13,13 @@ describe("layouts et pied de page", () => {
     const privateShell = source("src/components/private/private-shell.tsx");
 
     expect(footer).toContain("new Date().getFullYear()");
-    expect(footer).toContain("Gérez vos entreprises");
+    expect(footer).toContain("Carri Business");
+    expect(footer).toContain("Nos plateformes");
+    expect(footer).toContain("Kisinet");
+    expect(footer).toContain("Conditions générales");
+    expect(footer).toContain("Confidentialité");
+    expect(footer).toContain("Cookies");
+    expect(footer).toContain("Assistance");
     expect(footer).toContain('className="footer-link"');
     expect(footer).toContain('href: "/fonctionnalites"');
     expect(footer).toContain('href: "/contact"');
