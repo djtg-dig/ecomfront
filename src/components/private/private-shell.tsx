@@ -2,33 +2,23 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { SiteFooter } from "@/components/layout/site-footer";
-import { PrivateBusinessProvider, usePrivateBusiness } from "@/components/private/private-business-context";
-
-const mainNavigation = [
-  { href: "/espace", label: "Tableau de bord" },
-  { href: "/espace/entreprises", label: "Entreprises" },
-  { href: "/espace/parametres", label: "Paramètres" },
-];
+const personalNavigation = [{ href: "/espace", label: "Accueil" }, { href: "/espace/entreprises", label: "Mes entreprises" }, { href: "/espace/parametres", label: "Paramètres du compte" }];
 
 function isActive(pathname: string, href: string) {
   return pathname === href || (href !== "/espace" && pathname.startsWith(`${href}/`));
 }
 
 export function PrivateShell({ children }: Readonly<{ children: ReactNode }>) {
-  return <PrivateBusinessProvider><PrivateShellContent>{children}</PrivateShellContent></PrivateBusinessProvider>;
+  const pathname = usePathname();
+  return pathname.startsWith("/espace/entreprises/") ? <BusinessShell>{children}</BusinessShell> : <PersonalShell>{children}</PersonalShell>;
 }
 
-function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
+function ShellFrame({ children, navigation, title }: Readonly<{ children: ReactNode; navigation: { href: string; label: string }[]; title: string }>) {
   const pathname = usePathname();
-  const { state } = usePrivateBusiness();
-  const selectedBusiness = state.kind === "ready"
-    ? state.overview.businesses.find((business) => business.public_id === state.overview.selectedBusinessId) ?? null
-    : null;
-
   return (
     <div className="page-shell flex min-h-screen flex-col">
       <header className="site-header">
@@ -39,8 +29,7 @@ function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
           </Link>
           <div className="order-3 flex w-full items-center justify-between gap-3 border-t border-[var(--line)] pt-3 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
             <div className="min-w-0 sm:text-right">
-              <p className="text-xs font-medium text-[var(--muted)]">Entreprise active</p>
-              <p className="max-w-48 truncate text-sm font-semibold" title={selectedBusiness?.name}>{selectedBusiness?.name ?? "Non sélectionnée"}</p>
+              <p className="text-xs font-medium text-[var(--muted)]">{title}</p>
             </div>
             <LogoutButton />
           </div>
@@ -48,7 +37,7 @@ function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
       </header>
       <div className="site-container flex flex-1 flex-col gap-6 py-6 lg:flex-row">
         <nav aria-label="Navigation privée" className="content-panel flex shrink-0 flex-wrap gap-2 p-3 lg:w-56 lg:flex-col lg:flex-nowrap">
-          {mainNavigation.map((item) => (
+          {navigation.map((item) => (
             <Link
               aria-current={isActive(pathname, item.href) ? "page" : undefined}
               className={isActive(pathname, item.href) ? "button button-primary" : "button button-outline"}
@@ -58,11 +47,28 @@ function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
               {item.label}
             </Link>
           ))}
-          {selectedBusiness ? <p className="w-full px-2 text-xs leading-5 text-[var(--muted)]">Les modules seront affichés après confirmation des permissions effectives par le backend.</p> : <p className="w-full px-2 text-xs leading-5 text-[var(--muted)]">Sélectionnez une entreprise dans les paramètres pour accéder aux modules.</p>}
         </nav>
         <div className="min-w-0 flex-1">{children}</div>
       </div>
       <SiteFooter />
     </div>
   );
+}
+
+function PersonalShell({ children }: Readonly<{ children: ReactNode }>) { return <ShellFrame navigation={personalNavigation} title="Mon compte">{children}</ShellFrame>; }
+
+function BusinessShell({ children }: Readonly<{ children: ReactNode }>) {
+  const params = useParams<{ businessId: string }>();
+  const businessId = params.businessId;
+  const navigation = [
+    { href: `/espace/entreprises/${businessId}`, label: "Tableau de bord" },
+    { href: `/espace/entreprises/${businessId}/produits`, label: "Produits" },
+    { href: `/espace/entreprises/${businessId}/stocks`, label: "Stocks" },
+    { href: `/espace/entreprises/${businessId}/achats`, label: "Achats" },
+    { href: `/espace/entreprises/${businessId}/ventes`, label: "Ventes" },
+    { href: `/espace/entreprises/${businessId}/finance`, label: "Finance" },
+    { href: `/espace/entreprises/${businessId}/membres`, label: "Paramètres entreprise" },
+    { href: "/espace", label: "Retour à mon espace" },
+  ];
+  return <ShellFrame navigation={navigation} title="Espace entreprise">{children}</ShellFrame>;
 }

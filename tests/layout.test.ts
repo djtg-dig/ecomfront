@@ -45,7 +45,7 @@ describe("layouts et pied de page", () => {
     expect(publicHeader).toContain('className="site-container flex min-h-16');
     expect(publicHeader).not.toContain("max-w-6xl");
     expect(privateShell).toContain('className="site-container flex flex-wrap items-center justify-between');
-    expect(privateShell).toContain("Entreprise active");
+    expect(privateShell).toContain("Mon compte");
     expect(privateShell).toContain("order-3 flex w-full");
   });
 
