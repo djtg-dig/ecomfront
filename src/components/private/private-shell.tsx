@@ -8,8 +8,9 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { PrivateBusinessProvider, usePrivateBusiness } from "@/components/private/private-business-context";
 
 const mainNavigation = [
-  { href: "/espace", label: "Vue d’ensemble" },
+  { href: "/espace", label: "Tableau de bord" },
   { href: "/espace/entreprises", label: "Entreprises" },
+  { href: "/espace/parametres", label: "Paramètres" },
 ];
 
 const businessNavigation = [
@@ -31,10 +32,10 @@ export function PrivateShell({ children }: Readonly<{ children: ReactNode }>) {
 
 function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
-  const { state, selecting, selectBusiness } = usePrivateBusiness();
-  const businesses = state.kind === "ready" ? state.overview.businesses : [];
-  const selectedBusinessId = state.kind === "ready" ? state.overview.selectedBusinessId : null;
-  const selectedBusiness = businesses.find((business) => business.public_id === selectedBusinessId) ?? null;
+  const { state } = usePrivateBusiness();
+  const selectedBusiness = state.kind === "ready"
+    ? state.overview.businesses.find((business) => business.public_id === state.overview.selectedBusinessId) ?? null
+    : null;
 
   return (
     <div className="page-shell min-h-screen">
@@ -65,26 +66,13 @@ function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
               {item.label}
             </Link>
           ))}
-          <div className="w-full border-t pt-3 lg:mt-1">
-            <label className="sr-only" htmlFor="private-business-selector">Entreprise active</label>
-            <select
-              className="w-full rounded-md border bg-white px-3 py-2 text-sm"
-              disabled={state.kind !== "ready" || selecting || businesses.length === 0}
-              id="private-business-selector"
-              onChange={(event) => void selectBusiness(event.target.value)}
-              value={selectedBusinessId ?? ""}
-            >
-              <option value="">{state.kind === "loading" ? "Chargement…" : businesses.length ? "Choisir une entreprise" : "Aucune entreprise"}</option>
-              {businesses.map((business) => <option key={business.public_id} value={business.public_id}>{business.name}</option>)}
-            </select>
-          </div>
           {selectedBusiness ? <div className="flex w-full flex-wrap gap-2 lg:flex-col">
             <p className="w-full px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Modules</p>
             {businessNavigation.map((item) => {
               const href = `/espace/entreprises/${selectedBusiness.public_id}/${item.segment}`;
               return <Link aria-current={isActive(pathname, href) ? "page" : undefined} className={isActive(pathname, href) ? "button button-primary" : "button button-outline"} href={href} key={item.segment}>{item.label}</Link>;
             })}
-          </div> : <p className="w-full px-2 text-xs leading-5 text-[var(--muted)]">Sélectionnez une entreprise pour accéder aux modules.</p>}
+          </div> : <p className="w-full px-2 text-xs leading-5 text-[var(--muted)]">Sélectionnez une entreprise dans les paramètres pour accéder aux modules.</p>}
         </nav>
         <div className="min-w-0 flex-1">{children}</div>
       </div>

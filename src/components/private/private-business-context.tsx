@@ -24,8 +24,9 @@ export type PrivateBusinessState =
 type PrivateBusinessContextValue = {
   state: PrivateBusinessState;
   selecting: boolean;
+  selectionError: string | null;
   reload: () => Promise<void>;
-  selectBusiness: (businessId: string) => Promise<void>;
+  selectBusiness: (businessId: string) => Promise<boolean>;
 };
 
 const PrivateBusinessContext = createContext<PrivateBusinessContextValue | null>(null);
@@ -42,9 +43,11 @@ export function PrivateBusinessProvider({ children }: Readonly<{ children: React
   const router = useRouter();
   const [state, setState] = useState<PrivateBusinessState>({ kind: "loading" });
   const [selecting, setSelecting] = useState(false);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setState({ kind: "loading" });
+    setSelectionError(null);
     try {
       const response = await fetch("/api/private/overview", { credentials: "same-origin", cache: "no-store" });
       if (response.status === 401) {
@@ -69,8 +72,10 @@ export function PrivateBusinessProvider({ children }: Readonly<{ children: React
   useEffect(() => { void reload(); }, [reload]);
 
   const selectBusiness = useCallback(async (businessId: string) => {
-    if (state.kind !== "ready" || !businessId || businessId === state.overview.selectedBusinessId) return;
+    if (state.kind !== "ready" || !businessId) return false;
+    if (businessId === state.overview.selectedBusinessId) return true;
     setSelecting(true);
+    setSelectionError(null);
     try {
       const response = await fetch("/api/private/business-selection", {
         method: "POST",
@@ -80,24 +85,26 @@ export function PrivateBusinessProvider({ children }: Readonly<{ children: React
       });
       if (response.status === 401) {
         router.replace("/connexion?erreur=session_expired");
-        return;
+        return false;
       }
       if (!response.ok) {
         const error = await apiError(response);
-        setState({ kind: "error", status: response.status === 403 ? 403 : 503, detail: error.detail ?? "La sélection n’a pas pu être enregistrée." });
-        return;
+        setSelectionError(error.detail ?? "La sélection n’a pas pu être enregistrée.");
+        return false;
       }
       setState((current) => current.kind === "ready"
         ? { kind: "ready", overview: { ...current.overview, selectedBusinessId: businessId } }
         : current);
+      return true;
     } catch {
-      setState({ kind: "error", status: 503, detail: "La sélection n’a pas pu être enregistrée." });
+      setSelectionError("La sélection n’a pas pu être enregistrée.");
+      return false;
     } finally {
       setSelecting(false);
     }
   }, [router, state]);
 
-  const value = useMemo(() => ({ state, selecting, reload, selectBusiness }), [reload, selectBusiness, selecting, state]);
+  const value = useMemo(() => ({ state, selecting, selectionError, reload, selectBusiness }), [reload, selectBusiness, selecting, selectionError, state]);
   return <PrivateBusinessContext.Provider value={value}>{children}</PrivateBusinessContext.Provider>;
 }
 
