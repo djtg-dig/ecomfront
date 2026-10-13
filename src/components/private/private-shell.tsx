@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
@@ -60,15 +61,19 @@ function PersonalShell({ children }: Readonly<{ children: ReactNode }>) { return
 function BusinessShell({ children }: Readonly<{ children: ReactNode }>) {
   const params = useParams<{ businessId: string }>();
   const businessId = params.businessId;
+  const [permissions, setPermissions] = useState<string[] | null>(null);
+  const [status, setStatus] = useState<"loading" | "forbidden" | "unavailable" | "ready">("loading");
+  useEffect(() => { let active = true; setStatus("loading"); setPermissions(null); fetch(`/api/private/businesses/${businessId}/my-permissions`, { credentials: "same-origin", cache: "no-store" }).then(async (response) => { if (!active) return; if (!response.ok) return setStatus(response.status === 403 || response.status === 401 ? "forbidden" : "unavailable"); const data = await response.json() as { permissions: string[] }; setPermissions(data.permissions); setStatus("ready"); }).catch(() => active && setStatus("unavailable")); return () => { active = false; }; }, [businessId]);
   const navigation = [
     { href: `/espace/entreprises/${businessId}`, label: "Tableau de bord" },
-    { href: `/espace/entreprises/${businessId}/produits`, label: "Produits" },
-    { href: `/espace/entreprises/${businessId}/stocks`, label: "Stocks" },
-    { href: `/espace/entreprises/${businessId}/achats`, label: "Achats" },
-    { href: `/espace/entreprises/${businessId}/ventes`, label: "Ventes" },
-    { href: `/espace/entreprises/${businessId}/finance`, label: "Finance" },
-    { href: `/espace/entreprises/${businessId}/membres`, label: "Paramètres entreprise" },
     { href: "/espace", label: "Retour à mon espace" },
-  ];
+  ].concat(status === "ready" && permissions ? [
+    ...(permissions.some(p => ["VIEW_CATALOG", "MANAGE_CATALOG"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/produits`, label: "Produits" }] : []),
+    ...(permissions.some(p => ["VIEW_INVENTORY", "MANAGE_INVENTORY"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/stocks`, label: "Stocks" }] : []),
+    ...(permissions.some(p => ["VIEW_PURCHASES", "MANAGE_PURCHASES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/achats`, label: "Achats" }] : []),
+    ...(permissions.some(p => ["VIEW_SALES", "MANAGE_SALES", "USE_POS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/ventes`, label: "Ventes" }] : []),
+    ...(permissions.some(p => ["VIEW_FINANCIAL_SUMMARY", "VIEW_RECEIVABLES", "MANAGE_RECEIVABLES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: "Finance" }] : []),
+    ...(permissions.some(p => ["VIEW_MEMBERS", "MANAGE_MEMBERS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/membres`, label: "Paramètres entreprise" }] : []),
+  ] : []);
   return <ShellFrame navigation={navigation} title="Espace entreprise">{children}</ShellFrame>;
 }
