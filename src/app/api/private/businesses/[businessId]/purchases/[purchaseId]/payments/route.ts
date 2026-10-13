@@ -1,0 +1,9 @@
+import { NextResponse } from "next/server";
+import { authenticatedBackendRequest, readPrivateSession } from "@/lib/auth/private-session";
+import { isSameOriginMutation } from "@/lib/auth/security";
+import { getServerConfig } from "@/lib/config/server";
+import { invalidIdentifier, privateFailure, privateJson, validPrivateIdentifier } from "@/lib/api/private-route";
+type Context = { params: Promise<{ businessId: string; purchaseId: string }> };
+async function ids(context: Context) { const values = await context.params; return validPrivateIdentifier(values.businessId) && validPrivateIdentifier(values.purchaseId) ? values : null; }
+export async function GET(request: Request, context: Context) { try { const route = await ids(context); if (!route) return invalidIdentifier("Identifiant d’entreprise ou achat invalide."); const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${route.businessId}/purchases/${route.purchaseId}/payments/`, readPrivateSession(request)); return privateJson(result, { payments: result.data }); } catch (error) { return privateFailure(error); } }
+export async function POST(request: Request, context: Context) { try { if (!isSameOriginMutation(request, getServerConfig())) return NextResponse.json({ code: "csrf_rejected", detail: "Action non autorisée." }, { status: 403 }); const route = await ids(context); if (!route) return invalidIdentifier("Identifiant d’entreprise ou achat invalide."); const key = request.headers.get("idempotency-key")?.trim(); if (!key || key.length > 255) return invalidIdentifier("Clé d’idempotence invalide."); const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${route.businessId}/purchases/${route.purchaseId}/payments/`, readPrivateSession(request), { method: "POST", json: await request.json(), headers: { "Idempotency-Key": key } }); return privateJson(result, { payment: result.data }, 201); } catch (error) { return privateFailure(error); } }
