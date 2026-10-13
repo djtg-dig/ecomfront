@@ -17,6 +17,7 @@ type BackendRequestOptions = {
   method?: BackendMethod;
   query?: QueryParameters;
   json?: unknown;
+  headers?: Record<string, string>;
   accessToken?: string;
   timeoutMs?: number;
 };
@@ -106,6 +107,7 @@ export function createBackendClient(
             ...(body ? { "Content-Type": "application/json" } : {}),
             ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}),
             ...hmacHeaders,
+            ...options.headers,
           },
         });
 

@@ -25,7 +25,7 @@ export type AuthenticatedResult<T> = {
   session: EcommerceSession;
   refreshed: boolean;
 };
-type PrivateBackendOptions = { method?: "GET" | "POST" | "PATCH" | "DELETE"; json?: unknown; query?: QueryParameters };
+type PrivateBackendOptions = { method?: "GET" | "POST" | "PATCH" | "DELETE"; json?: unknown; query?: QueryParameters; headers?: Record<string, string> };
 
 export function readPrivateSession(request: Request): EcommerceSession {
   const encrypted = requestCookie(request, sessionCookieName);
