@@ -10,6 +10,7 @@ const modules = [
   { segment: "stocks", title: "Stocks", description: "Suivez les quantités et les mouvements." },
   { segment: "achats", title: "Achats", description: "Pilotez les fournisseurs et approvisionnements." },
   { segment: "ventes", title: "Ventes", description: "Créez et consultez les ventes." },
+  { segment: "finance", title: "Finance", description: "Consultez les règlements et les écritures financières." },
 ];
 
 export function PrivateDashboard() {

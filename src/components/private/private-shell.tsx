@@ -18,6 +18,7 @@ const businessNavigation = [
   { segment: "stocks", label: "Stocks" },
   { segment: "achats", label: "Achats" },
   { segment: "ventes", label: "Ventes" },
+  { segment: "finance", label: "Finance" },
 ];
 
 function isActive(pathname: string, href: string) {

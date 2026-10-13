@@ -26,7 +26,9 @@ describe("chiffrement de session BFF", () => {
     expect(encrypted).not.toContain(tokens.access);
     expect(encrypted).not.toContain(tokens.refresh);
     expect(decryptSession(encrypted)).toEqual(session);
-    expect(decryptSession(`${encrypted.slice(0, -1)}x`)).toBeNull();
+    const [version, iv, tag, ciphertext] = encrypted.split(".");
+    const changedCiphertext = `${ciphertext[0] === "A" ? "B" : "A"}${ciphertext.slice(1)}`;
+    expect(decryptSession([version, iv, tag, changedCiphertext].join("."))).toBeNull();
   });
 
   it("refuse une clé de chiffrement absente ou mal formée", () => {

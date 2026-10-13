@@ -26,6 +26,7 @@ describe("shell de l’espace privé", () => {
     expect(shell).toContain('{ segment: "stocks", label: "Stocks" }');
     expect(shell).toContain('{ segment: "achats", label: "Achats" }');
     expect(shell).toContain('{ segment: "ventes", label: "Ventes" }');
+    expect(shell).toContain('{ segment: "finance", label: "Finance" }');
     expect(shell).toContain('`/espace/entreprises/${selectedBusiness.public_id}/${item.segment}`');
     expect(source("src/app/(private)/espace/loading.tsx")).not.toContain("min-h-screen");
   });
