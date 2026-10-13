@@ -1,0 +1,1 @@
+export default function TermsPage(){return <main className="site-container py-12"><h1 className="text-3xl font-semibold">Conditions générales</h1><p className="mt-4 text-[var(--muted)]">Les conditions applicables à E-commerce seront publiées après validation juridique.</p></main>}

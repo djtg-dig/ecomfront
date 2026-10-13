@@ -1,0 +1,1 @@
+export default function PrivacyPage(){return <main className="site-container py-12"><h1 className="text-3xl font-semibold">Politique de confidentialité</h1><p className="mt-4 text-[var(--muted)]">Les informations de confidentialité applicables à E-commerce seront publiées après validation.</p></main>}
