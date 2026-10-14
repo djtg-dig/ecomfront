@@ -16,6 +16,8 @@ import { GET as startLogin } from "@/app/api/auth/carri/login/route";
 import { POST as receiveHandoff } from "@/app/api/auth/carri/handoff/route";
 import { POST as refreshSession } from "@/app/api/auth/refresh/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
+import { BackendApiError, BackendNetworkError } from "@/lib/api/backend-client";
+import { authenticationErrors } from "@/lib/auth/login-errors";
 import {
   decryptSession,
   encryptSession,
@@ -239,6 +241,32 @@ describe("routes d’authentification BFF", () => {
     expect(sessionCookie).toContain("HttpOnly");
     expect(sessionCookie).toContain("SameSite=lax");
     expect(sessionCookie).not.toContain(tokenPair().access);
+  });
+
+  it("distingue une indisponibilité de Django d'un échec de handoff", async () => {
+    mocks.request.mockRejectedValueOnce(new BackendNetworkError());
+    const unavailable = await receiveHandoff(handoffRequest());
+    mocks.request.mockRejectedValueOnce(new BackendApiError(503, "upstream_unavailable", "Indisponible"));
+    const serverError = await receiveHandoff(handoffRequest());
+
+    expect(new URL(unavailable.headers.get("location") ?? "").searchParams.get("erreur"))
+      .toBe("backend_unavailable");
+    expect(new URL(serverError.headers.get("location") ?? "").searchParams.get("erreur"))
+      .toBe("backend_unavailable");
+  });
+
+  it("conserve les messages distincts pour indisponibilité, annulation, expiration et handoff", () => {
+    expect(authenticationErrors.oauth_provider_unavailable)
+      .toBe("Le service de connexion Carri Account est temporairement indisponible. Veuillez réessayer dans quelques instants.");
+    expect(authenticationErrors.backend_unavailable)
+      .toBe("Le service E-commerce est temporairement indisponible. Vérifiez votre connexion Internet et réessayez.");
+    expect(authenticationErrors.internet_interrupted)
+      .toBe("Connexion Internet interrompue. Vérifiez votre réseau, puis réessayez.");
+    expect(authenticationErrors.session_expired)
+      .toBe("Votre session a expiré. Veuillez vous reconnecter.");
+    expect(authenticationErrors.oauth_authorization_denied).toBe("La connexion a été annulée.");
+    expect(authenticationErrors.handoff_delivery_failed)
+      .toBe("La connexion n'a pas pu être finalisée. Veuillez réessayer.");
   });
 
   it("serialize les refresh concurrents sur la même rotation", async () => {

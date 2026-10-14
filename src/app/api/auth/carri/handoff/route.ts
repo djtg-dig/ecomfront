@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { BackendApiError, backendClient } from "@/lib/api/backend-client";
+import { BackendApiError, BackendNetworkError, backendClient } from "@/lib/api/backend-client";
 import {
   createEcommerceSession,
   encryptSession,
@@ -160,9 +160,12 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     const backendCode = error instanceof BackendApiError ? error.code : null;
-    const code = backendCode && DELIVERY_ERROR_CODES.has(backendCode)
-      ? backendCode
-      : "handoff_delivery_failed";
+    const code = error instanceof BackendNetworkError ||
+      (error instanceof BackendApiError && error.status >= 500)
+      ? "backend_unavailable"
+      : backendCode && DELIVERY_ERROR_CODES.has(backendCode)
+        ? backendCode
+        : "handoff_delivery_failed";
     const response = returnToLogin(config, code);
     return clearTransactionCookie(response, config);
   }

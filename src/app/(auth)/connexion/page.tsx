@@ -1,36 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { ConnectionStatus } from "@/components/auth/connection-status";
+import { authenticationErrors } from "@/lib/auth/login-errors";
 import { noIndexRobots } from "@/lib/seo/site";
 
 export const metadata: Metadata = {
   title: "Connexion",
   robots: noIndexRobots,
-};
-
-const authenticationErrors: Record<string, string> = {
-  configuration_locale: "La connexion n'est pas configurée sur ce serveur.",
-  configuration_https: "La connexion sécurisée exige HTTPS entre les services.",
-  origine_invalide: "La demande de connexion n'est pas autorisée.",
-  oauth_login_csrf_detected: "La tentative de connexion a expiré. Recommencez.",
-  oauth_state_invalid_or_expired: "La tentative de connexion a expiré. Recommencez.",
-  oauth_configuration_unavailable: "Le service de connexion est indisponible.",
-  oauth_provider_unavailable: "Carri Account est temporairement indisponible.",
-  oauth_authorization_denied: "Connexion annulée. Vous pouvez réessayer à tout moment.",
-  oauth_email_not_verified: "L’adresse e-mail de votre compte Carri Account n’est pas vérifiée. Vérifiez-la, puis réessayez.",
-  oauth_proof_invalid: "La preuve de connexion est invalide. Recommencez.",
-  oauth_callback_invalid: "Le retour de connexion est invalide. Recommencez.",
-  handoff_delivery_origin_invalid: "La livraison de connexion n'est pas autorisée.",
-  handoff_delivery_context_invalid: "La requête du navigateur n'a pas pu être vérifiée.",
-  handoff_delivery_binding_invalid: "La liaison de connexion est invalide. Recommencez.",
-  handoff_delivery_destination_not_allowed: "La destination de connexion n'est pas autorisée.",
-  handoff_missing: "La preuve de connexion est manquante. Recommencez.",
-  handoff_invalid: "La preuve de connexion est invalide. Recommencez.",
-  handoff_expired: "La preuve de connexion a expiré. Recommencez.",
-  handoff_already_consumed: "Cette preuve a déjà été utilisée. Recommencez.",
-  handoff_client_not_authorized: "Le service de connexion n'est pas autorisé.",
-  handoff_delivery_failed: "La livraison sécurisée a échoué. Recommencez.",
-  session_expired: "Votre session a expiré. Reconnectez-vous.",
 };
 
 export default function ConnexionPage({ searchParams }: {
@@ -68,6 +45,7 @@ async function ConnexionContent({
             {errorMessage}
           </p>
         ) : null}
+        <ConnectionStatus />
         <a className="button button-primary mt-7 flex w-full" href="/api/auth/carri/login">
           Se connecter avec Carri Account
         </a>
