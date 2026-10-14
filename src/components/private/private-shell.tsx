@@ -72,6 +72,7 @@ function BusinessShell({ children }: Readonly<{ children: ReactNode }>) {
     ...(permissions.some(p => ["VIEW_INVENTORY", "MANAGE_INVENTORY"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/stocks`, label: "Stocks" }] : []),
     ...(permissions.some(p => ["VIEW_PURCHASES", "MANAGE_PURCHASES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/achats`, label: "Achats" }] : []),
     ...(permissions.some(p => ["VIEW_SALES", "MANAGE_SALES", "USE_POS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/ventes`, label: "Ventes" }] : []),
+    ...(permissions.some(p => ["VIEW_CUSTOMERS", "VIEW_PURCHASES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/partenaires`, label: "Partenaires commerciaux" }] : []),
     ...(permissions.some(p => ["VIEW_FINANCIAL_SUMMARY", "VIEW_RECEIVABLES", "MANAGE_RECEIVABLES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: "Finance" }] : []),
     ...(permissions.some(p => ["VIEW_MEMBERS", "MANAGE_MEMBERS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/membres`, label: "Membres et accès" }] : []),
   ] : []);

@@ -29,7 +29,7 @@ beforeEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); vi.stubEnv("NEXT_PUBL
 
 describe("routes BFF achats", () => {
   it("relaie fournisseurs, achats, lignes et transitions dans le périmètre entreprise", async () => {
-    mocks.request.mockResolvedValueOnce([{ public_id: "SP1", name: "Fournisseur" }]);
+    mocks.request.mockResolvedValueOnce({ count: 1, next: null, previous: null, results: [{ public_id: "SP1", name: "Fournisseur" }] });
     expect((await suppliers(request(`/api/private/businesses/${businessId}/suppliers`), businessContext)).status).toBe(200);
     mocks.request.mockResolvedValueOnce({ public_id: "SP1", name: "Fournisseur" });
     expect((await createSupplier(mutation(`/api/private/businesses/${businessId}/suppliers`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Fournisseur" }) }), businessContext)).status).toBe(201);

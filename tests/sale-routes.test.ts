@@ -20,7 +20,7 @@ beforeEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); vi.stubEnv("NEXT_PUBL
 
 describe("routes BFF ventes", () => {
   it("relaie clients, brouillons, lignes et finalisation sans exposer de JWT", async () => {
-    mocks.request.mockResolvedValueOnce([{ public_id: "CU1", name: "Client" }]); expect((await customers(request(`/api/private/businesses/${businessId}/customers`), businessContext)).status).toBe(200);
+    mocks.request.mockResolvedValueOnce({ count: 1, next: null, previous: null, results: [{ public_id: "CU1", name: "Client" }] }); expect((await customers(request(`/api/private/businesses/${businessId}/customers`), businessContext)).status).toBe(200);
     mocks.request.mockResolvedValueOnce({ public_id: "CU1", name: "Client" }); expect((await createCustomer(mutation(`/api/private/businesses/${businessId}/customers`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Client" }) }), businessContext)).status).toBe(201);
     mocks.request.mockResolvedValueOnce({ public_id: saleId, status: "DRAFT" }); expect((await createSale(mutation(`/api/private/businesses/${businessId}/sales`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ customer: "CU1" }) }), businessContext)).status).toBe(201);
     mocks.request.mockResolvedValueOnce({ public_id: "SL1", product: "PR1" }); expect((await createLine(mutation(`/api/private/businesses/${businessId}/sales/${saleId}/lines`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ product: "PR1", quantity: "2" }) }), saleContext)).status).toBe(201);
