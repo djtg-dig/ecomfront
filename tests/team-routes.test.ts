@@ -71,6 +71,7 @@ beforeEach(() => {
 describe("routes BFF membres et invitations", () => {
   it("consulte les membres et invitations autorisés sans exposer les JWT", async () => {
     mocks.request
+      .mockResolvedValueOnce({ permissions: ["MEMBER_VIEW", "INVITATION_VIEW"] })
       .mockResolvedValueOnce({ results: [{ public_id: "MEMBER123", role: "ADMIN" }] })
       .mockResolvedValueOnce({ results: [{ public_id: invitationId, email: "team@example.test", status: "PENDING" }] });
 
@@ -83,20 +84,20 @@ describe("routes BFF membres et invitations", () => {
       invitations: { results: [{ public_id: invitationId, email: "team@example.test", status: "PENDING" }] },
     });
     expect(JSON.stringify(body)).not.toMatch(/accessToken|refreshToken|signature/);
-    expect(mocks.request).toHaveBeenNthCalledWith(1, `/api/v1/businesses/${businessId}/members/`, expect.objectContaining({ accessToken: expect.any(String) }));
-    expect(mocks.request).toHaveBeenNthCalledWith(2, `/api/v1/businesses/${businessId}/invitations/`, expect.objectContaining({ accessToken: expect.any(String) }));
+    expect(mocks.request).toHaveBeenNthCalledWith(2, `/api/v1/businesses/${businessId}/members/`, expect.objectContaining({ accessToken: expect.any(String) }));
+    expect(mocks.request).toHaveBeenNthCalledWith(3, `/api/v1/businesses/${businessId}/invitations/`, expect.objectContaining({ accessToken: expect.any(String) }));
   });
 
   it("crée une invitation valide et relaie l’erreur de validation backend", async () => {
     mocks.request.mockResolvedValueOnce({ public_id: invitationId, status: "PENDING" });
     const created = await createInvitation(
-      mutationRequest(`/api/private/businesses/${businessId}/team`, JSON.stringify({ email: "new@example.test", title: "Caissier", permissions: ["VIEW_CATALOG"] })),
+      mutationRequest(`/api/private/businesses/${businessId}/team`, JSON.stringify({ email: "new@example.test", title: "Caissier", permissions: ["PRODUCT_VIEW"] })),
       teamParams,
     );
     expect(created.status).toBe(201);
     expect(mocks.request).toHaveBeenLastCalledWith(
       `/api/v1/businesses/${businessId}/invitations/`,
-      expect.objectContaining({ method: "POST", json: { email: "new@example.test", title: "Caissier", permissions: ["VIEW_CATALOG"] } }),
+      expect.objectContaining({ method: "POST", json: { email: "new@example.test", title: "Caissier", permissions: ["PRODUCT_VIEW"] } }),
     );
 
     mocks.request.mockRejectedValueOnce(new BackendApiError(400, "invalid_email", "E-mail invalide."));
@@ -165,12 +166,13 @@ describe("routes BFF membres et invitations", () => {
     mocks.request
       .mockRejectedValueOnce(new BackendApiError(401, "invalid_token", "Expired"))
       .mockResolvedValueOnce({ access: jwt(Math.floor(Date.now() / 1000) + 900), refresh: jwt(Math.floor(Date.now() / 1000) + 86_400) })
+      .mockResolvedValueOnce({ permissions: ["MEMBER_VIEW", "INVITATION_VIEW"] })
       .mockResolvedValueOnce({ results: [] })
       .mockResolvedValueOnce({ results: [] });
 
     const response = await getTeam(authenticatedRequest(`/api/private/businesses/${businessId}/team`), teamParams);
     expect(response.status).toBe(200);
-    expect(mocks.request).toHaveBeenCalledTimes(4);
+    expect(mocks.request).toHaveBeenCalledTimes(5);
     expect(response.headers.getSetCookie().join("\n")).toContain("ecommerce_session=");
   });
 

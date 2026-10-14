@@ -13,10 +13,10 @@ describe("répertoire des partenaires commerciaux", () => {
   });
 
   it("respecte les permissions effectives pour chaque répertoire", () => {
-    expect(source).toContain('permissions?.includes("VIEW_CUSTOMERS")');
-    expect(source).toContain('permissions?.includes("VIEW_PURCHASES")');
-    expect(source).toContain('permission: "MANAGE_CUSTOMERS"');
-    expect(source).toContain('permission: "MANAGE_PURCHASES"');
+    expect(source).toContain('permissions?.includes("CUSTOMER_VIEW")');
+    expect(source).toContain('permissions?.includes("SUPPLIER_VIEW")');
+    expect(source).toContain('permission: "CUSTOMER_UPDATE"');
+    expect(source).toContain('permission: "SUPPLIER_UPDATE"');
   });
 
   it("préserve les saisies, bloque les doubles soumissions et recharge après succès", () => {

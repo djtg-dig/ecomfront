@@ -14,8 +14,14 @@ function PaymentForm({ businessId, kind, onSaved, allowed }: { businessId: strin
 export function FinanceManager({ businessId }: { businessId: string }) {
 	const router = useRouter();
 	const permissions = useBusinessPermissions(businessId);
-	const canManageReceivables = permissions?.includes("MANAGE_RECEIVABLES") ?? false;
-	const canManagePurchases = permissions?.includes("MANAGE_PURCHASES") ?? false;
+	const canViewSummary = permissions?.includes("FINANCIAL_SUMMARY_VIEW") ?? false;
+	const canViewMovements = permissions?.includes("FINANCIAL_MOVEMENT_VIEW") ?? false;
+	const canViewReceivables = permissions?.includes("RECEIVABLE_VIEW") ?? false;
+	const canViewPurchases = permissions?.includes("PURCHASE_VIEW") ?? false;
+	const canCreateReceivablePayment = permissions?.includes("RECEIVABLE_PAYMENT_CREATE") ?? false;
+	const canCreateSupplierPayment = permissions?.includes("SUPPLIER_PAYMENT_CREATE") ?? false;
+	const canManageReceivables = canCreateReceivablePayment;
+	const canManagePurchases = canCreateSupplierPayment;
 	const [summary, setSummary] = useState<Summary | null>(null);
 	const [receivables, setReceivables] = useState<Receivable[] | null>(null);
 	const [purchases, setPurchases] = useState<Purchase[] | null>(null);
@@ -27,21 +33,26 @@ export function FinanceManager({ businessId }: { businessId: string }) {
 	async function load() {
 		setError(null);
 		try {
-			const requests = ["financial-summary", "financial-movements", "receivables", "purchases", "payment-methods"].map((resource) => fetch(`/api/private/businesses/${businessId}/${resource}`, { credentials: "same-origin" }));
-			const [summaryResponse, movementsResponse, receivablesResponse, purchasesResponse, methodsResponse] = await Promise.all(requests);
-			if ([summaryResponse, movementsResponse, receivablesResponse, purchasesResponse, methodsResponse].some((response) => response.status === 401)) return router.replace("/connexion?erreur=session_expired");
-			if (![summaryResponse, movementsResponse, receivablesResponse, purchasesResponse, methodsResponse].every((response) => response.ok)) return setError("Une ressource financière n’est pas accessible.");
-			setSummary((await summaryResponse.json() as { summary: Summary }).summary);
-			setMovements((await movementsResponse.json() as { movements: Movement[] }).movements);
-			setReceivables((await receivablesResponse.json() as { receivables: Receivable[] }).receivables);
-			setPurchases((await purchasesResponse.json() as { purchases: Purchase[] }).purchases);
-			setMethods((await methodsResponse.json() as { paymentMethods: Method[] }).paymentMethods);
+			const fetchResource = (allowed: boolean, resource: string) => allowed ? fetch(`/api/private/businesses/${businessId}/${resource}`, { credentials: "same-origin" }) : Promise.resolve(null);
+			const [summaryResponse, movementsResponse, receivablesResponse, purchasesResponse, methodsResponse] = await Promise.all([
+				fetchResource(canViewSummary, "financial-summary"), fetchResource(canViewMovements, "financial-movements"),
+				fetchResource(canViewReceivables, "receivables"), fetchResource(canViewPurchases, "purchases"),
+				fetchResource(canCreateReceivablePayment || canCreateSupplierPayment, "payment-methods"),
+			]);
+			const responses = [summaryResponse, movementsResponse, receivablesResponse, purchasesResponse, methodsResponse].filter((response): response is Response => response !== null);
+			if (responses.some((response) => response.status === 401)) return router.replace("/connexion?erreur=session_expired");
+			if (!responses.every((response) => response.ok)) return setError("Une ressource financière autorisée n’est pas accessible.");
+			if (summaryResponse) setSummary((await summaryResponse.json() as { summary: Summary }).summary);
+			if (movementsResponse) setMovements((await movementsResponse.json() as { movements: Movement[] }).movements);
+			if (receivablesResponse) setReceivables((await receivablesResponse.json() as { receivables: Receivable[] }).receivables);
+			if (purchasesResponse) setPurchases((await purchasesResponse.json() as { purchases: Purchase[] }).purchases);
+			if (methodsResponse) setMethods((await methodsResponse.json() as { paymentMethods: Method[] }).paymentMethods);
 		} catch {
 			setError("Les données financières sont temporairement indisponibles.");
 		}
 	}
 
-	useEffect(() => { void load(); }, [businessId]);
+	useEffect(() => { if (permissions) void load(); }, [businessId, permissions]);
 
 	return <main><p className="eyebrow">FINANCE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Situation financière</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{summary ? <section className="content-panel mt-5 grid gap-2 p-5 sm:grid-cols-3"><p>Encaissements : <strong>{summary.total_inflow} {summary.currency}</strong></p><p>Décaissements : <strong>{summary.total_outflow} {summary.currency}</strong></p><p>Flux net : <strong>{summary.net_flow} {summary.currency}</strong></p></section> : <p className="mt-5">Chargement…</p>}<div className="mt-6 flex flex-wrap gap-3">{canManageReceivables ? <PaymentForm allowed businessId={businessId} kind="receivable" onSaved={() => { setSuccess("Règlement client enregistré."); void load(); }} /> : null}{canManagePurchases ? <PaymentForm allowed businessId={businessId} kind="purchase" onSaved={() => { setSuccess("Paiement fournisseur enregistré."); void load(); }} /> : null}</div><div className="mt-6 grid gap-6 xl:grid-cols-2"><section className="content-panel p-5"><h2 className="font-semibold">Créances clients</h2>{receivables?.length ? <ul className="mt-3 divide-y">{receivables.map((entry) => <li className="py-2" key={entry.public_id}>{entry.public_id} · solde {entry.balance} {entry.currency} · {entry.status}{entry.is_overdue ? " · Échue" : ""}</li>)}</ul> : <p className="mt-3 text-sm">Aucune créance.</p>}</section><section className="content-panel p-5"><h2 className="font-semibold">Dettes fournisseurs</h2>{purchases?.filter((entry) => entry.balance !== "0.00").length ? <ul className="mt-3 divide-y">{purchases.filter((entry) => entry.balance !== "0.00").map((entry) => <li className="py-2" key={entry.public_id}>{entry.public_id} · solde {entry.balance} {entry.currency} · {entry.payment_status}</li>)}</ul> : <p className="mt-3 text-sm">Aucune dette.</p>}</section><section className="content-panel p-5"><h2 className="font-semibold">Moyens de paiement</h2>{methods.length ? <ul className="mt-3 divide-y">{methods.map((method) => <li className="py-2" key={method.public_id}>{method.name} · {method.category}{method.is_active ? "" : " · Inactif"}</li>)}</ul> : <p className="mt-3 text-sm">Aucun moyen.</p>}</section><section className="content-panel p-5"><h2 className="font-semibold">Historique financier</h2>{movements?.length ? <ul className="mt-3 divide-y">{movements.map((movement) => <li className="py-2" key={movement.public_id}>{movement.direction} · {movement.amount} {movement.currency} · {movement.event_type}</li>)}</ul> : <p className="mt-3 text-sm">Aucune écriture.</p>}</section></div></main>;
 }

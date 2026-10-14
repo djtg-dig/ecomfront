@@ -30,11 +30,11 @@ beforeEach(() => {
 
 describe("routes BFF des invitations reçues", () => {
   it("liste les invitations sans exposer la session", async () => {
-    mocks.request.mockResolvedValueOnce([{ public_id: invitationId, permissions: ["VIEW_CATALOG"] }]);
+    mocks.request.mockResolvedValueOnce([{ public_id: invitationId, permissions: ["PRODUCT_VIEW"] }]);
     const response = await GET(request("/api/private/invitations"));
     const body = await response.json();
     expect(response.status).toBe(200);
-    expect(body).toEqual({ invitations: [{ public_id: invitationId, permissions: ["VIEW_CATALOG"] }] });
+    expect(body).toEqual({ invitations: [{ public_id: invitationId, permissions: ["PRODUCT_VIEW"] }] });
     expect(JSON.stringify(body)).not.toMatch(/accessToken|refreshToken|signature/);
     expect(mocks.request).toHaveBeenCalledWith("/api/v1/me/business-invitations/", expect.objectContaining({ accessToken: expect.any(String) }));
   });

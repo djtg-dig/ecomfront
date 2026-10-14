@@ -50,12 +50,12 @@ export function BusinessCreate() {
 }
 
 const moduleLinks = [
-  { label: "Produits", path: "produits", permissions: ["VIEW_CATALOG", "MANAGE_CATALOG"] },
-  { label: "Stocks", path: "stocks", permissions: ["VIEW_INVENTORY", "MANAGE_INVENTORY"] },
-  { label: "Achats", path: "achats", permissions: ["VIEW_PURCHASES", "MANAGE_PURCHASES"] },
-  { label: "Ventes", path: "ventes", permissions: ["VIEW_SALES", "MANAGE_SALES", "USE_POS"] },
-  { label: "Finance", path: "finance", permissions: ["VIEW_FINANCIAL_SUMMARY", "VIEW_RECEIVABLES", "MANAGE_RECEIVABLES"] },
-  { label: "Paramètres entreprise", path: "membres", permissions: ["VIEW_MEMBERS", "MANAGE_MEMBERS"] },
+  { label: "Produits", path: "produits", permissions: ["PRODUCT_VIEW", "PRODUCT_CREATE", "PRODUCT_UPDATE", "PRODUCT_DELETE", "PRODUCT_DEACTIVATE", "PRODUCT_VARIANT_VIEW", "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE"] },
+  { label: "Stocks", path: "stocks", permissions: ["INVENTORY_VIEW", "INVENTORY_INITIALIZE", "INVENTORY_IN", "INVENTORY_OUT", "INVENTORY_ADJUST", "INVENTORY_MOVEMENT_VIEW"] },
+  { label: "Achats", path: "achats", permissions: ["PURCHASE_VIEW", "PURCHASE_CREATE", "PURCHASE_UPDATE", "PURCHASE_CONFIRM", "PURCHASE_RECEIVE", "PURCHASE_CANCEL", "PURCHASE_LINE_VIEW", "PURCHASE_LINE_CREATE"] },
+  { label: "Ventes", path: "ventes", permissions: ["SALE_VIEW", "SALE_CREATE", "SALE_UPDATE", "SALE_COMPLETE", "SALE_CANCEL", "SALE_LINE_VIEW", "SALE_LINE_CREATE", "SALE_RETURN", "SALE_RETURN_VIEW"] },
+  { label: "Finance", path: "finance", permissions: ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_CREATE"] },
+  { label: "Paramètres entreprise", path: "membres", permissions: ["MEMBER_VIEW", "MEMBER_PERMISSION_VIEW", "INVITATION_VIEW", "INVITATION_CREATE", "MEMBER_UPDATE"] },
 ];
 
 export function BusinessEditor({ businessId }: { businessId: string }) {

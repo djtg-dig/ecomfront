@@ -29,11 +29,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ busi
     const { businessId } = await params;
     if (!validIdentifier(businessId)) return invalidBusinessId();
 
-    const session = readPrivateSession(request);
-    const members = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/members/`, session);
-    const invitations = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/invitations/`, members.session);
-    const response = NextResponse.json({ members: members.data, invitations: invitations.data });
-    return members.refreshed || invitations.refreshed ? persistPrivateSession(response, invitations.session) : response;
+    const access = await authenticatedBackendRequest<{ permissions: string[] }>(
+      `/api/v1/businesses/${businessId}/my-permissions/`,
+      readPrivateSession(request),
+    );
+    let session = access.session;
+    let refreshed = access.refreshed;
+    let members: unknown = [];
+    let invitations: unknown = [];
+    if (access.data.permissions.includes("MEMBER_VIEW")) {
+      const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/members/`, session);
+      members = result.data; session = result.session; refreshed ||= result.refreshed;
+    }
+    if (access.data.permissions.includes("INVITATION_VIEW")) {
+      const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/invitations/`, session);
+      invitations = result.data; session = result.session; refreshed ||= result.refreshed;
+    }
+    const response = NextResponse.json({ members, invitations });
+    return refreshed ? persistPrivateSession(response, session) : response;
   } catch (error) {
     return failure(error);
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/modal";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
@@ -81,19 +81,13 @@ function ProductForm({ businessId, product, categories, onSaved }: {
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
   const [attributeError, setAttributeError] = useState<string | null>(null);
-  const [attributesLoading, setAttributesLoading] = useState(false);
+  const [attributesLoading, setAttributesLoading] = useState(Boolean(product?.category));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!category) {
-      setAttributes([]);
-      setAttributeValues({});
-      return;
-    }
+    if (!category) return;
     let cancelled = false;
-    setAttributeError(null);
-    setAttributesLoading(true);
     void fetch(`/api/private/catalog/categories/${category}/attributes`, { credentials: "same-origin" }).then(async (response) => {
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
       if (!response.ok) throw new Error(await detail(response));
@@ -144,7 +138,7 @@ function ProductForm({ businessId, product, categories, onSaved }: {
     <h2 className="font-semibold">{product ? "Modifier le produit" : "Créer un produit"}</h2>
     {error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}
     <label>Nom<input className="mt-1 w-full rounded border p-2" defaultValue={product?.name} name="name" required /></label>
-    <label>Catégorie<select className="mt-1 w-full rounded border p-2" name="category" onChange={(event) => setCategory(event.target.value)} required value={category}><option value="">Choisir</option>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+    <label>Catégorie<select className="mt-1 w-full rounded border p-2" name="category" onChange={(event) => { setCategory(event.target.value); setAttributes([]); setAttributeValues({}); setAttributeError(null); setAttributesLoading(Boolean(event.target.value)); }} required value={category}><option value="">Choisir</option>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
     {attributeError ? <p className="text-sm text-[var(--error)]" role="alert">{attributeError}</p> : null}
     {attributesLoading ? <p className="text-sm text-[var(--muted)]">Chargement des attributs de la catégorie…</p> : null}
     <AttributeFields attributes={attributes} onChange={(code, value) => setAttributeValues((current) => ({ ...current, [code]: value }))} values={attributeValues} />
@@ -160,10 +154,67 @@ function ProductForm({ businessId, product, categories, onSaved }: {
   </form>;
 }
 
+export function ProductWorkspace({ businessId, productId }: { businessId: string; productId?: string }) {
+  const permissions = useBusinessPermissions(businessId);
+  const canViewProducts = permissions?.includes("PRODUCT_VIEW") ?? false;
+  const canDeleteProduct = permissions?.includes("PRODUCT_DELETE") ?? false;
+  return <>
+    {productId ? canViewProducts ? <ProductCatalog businessId={businessId} productId={productId} /> : null : <ProductCatalog businessId={businessId} />}
+    <ProductDeleteAction allowed={canDeleteProduct} businessId={businessId} productId={productId} />
+  </>;
+}
+
+function ProductDeleteAction({ allowed, businessId, productId }: { allowed: boolean; businessId: string; productId?: string }) {
+  const router = useRouter();
+  const [target, setTarget] = useState(productId ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  async function removeProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const productPublicId = productId ?? target.trim();
+    if (!productPublicId || saving || !window.confirm("Supprimer ce produit s’il n’est référencé par aucune opération ?")) return;
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/products/${encodeURIComponent(productPublicId)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: { "x-csrf-protection": "1" },
+      });
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) return setError(await detail(response));
+      setSuccess("Produit supprimé.");
+      if (productId) router.replace(`/espace/entreprises/${businessId}/produits`);
+      else setTarget("");
+    } catch {
+      setError("La suppression du produit a échoué.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!allowed) return null;
+  return <section className="content-panel mt-6 grid gap-3 p-5">
+    <h2 className="font-semibold">{productId ? "Supprimer ce produit" : "Supprimer un produit"}</h2>
+    <p className="text-sm text-[var(--muted)]">L’action est limitée à un identifiant connu. Un produit référencé ne peut pas être supprimé.</p>
+    {error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}
+    {success ? <p className="text-sm text-green-800" role="status">{success}</p> : null}
+    <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void removeProduct(event)}>
+      {!productId ? <label className="grid gap-1 text-sm">Identifiant du produit<input autoComplete="off" className="rounded border p-2" onChange={(event) => setTarget(event.target.value)} required value={target} /></label> : null}
+      <button className="button button-outline" disabled={saving || !allowed} type="submit">{saving ? "Suppression…" : "Supprimer"}</button>
+    </form>
+  </section>;
+}
+
 export function ProductCatalog({ businessId, productId }: { businessId: string; productId?: string }) {
   const router = useRouter();
   const permissions = useBusinessPermissions(businessId);
-  const canManageCatalog = permissions?.includes("MANAGE_CATALOG") ?? false;
+  const canViewProducts = permissions?.includes("PRODUCT_VIEW") ?? false;
+  const canCreateProduct = permissions?.includes("PRODUCT_CREATE") ?? false;
+  const canUpdateProduct = permissions?.includes("PRODUCT_UPDATE") ?? false;
   const [products, setProducts] = useState<Product[] | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
@@ -196,16 +247,48 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
     }
   }
 
-  useEffect(() => { void load(); }, [businessId]);
   useEffect(() => {
-    if (!productId) return;
+    let cancelled = false;
+    async function syncCatalog() {
+      try {
+        if (canViewProducts) {
+          const [list, taxonomy] = await Promise.all([
+            fetch(`/api/private/businesses/${businessId}/products`, { credentials: "same-origin" }),
+            fetch("/api/private/catalog/categories", { credentials: "same-origin" }),
+          ]);
+          if (list.status === 401 || taxonomy.status === 401) return router.replace("/connexion?erreur=session_expired");
+          if (!list.ok) throw new Error(await detail(list));
+          if (!taxonomy.ok) throw new Error(await detail(taxonomy));
+          const productsData = await list.json() as { products: Product[] };
+          const categoriesData = await taxonomy.json() as { categories: Category[] };
+          if (!cancelled) {
+            setProducts(productsData.products);
+            setCategories(categoriesData.categories);
+          }
+          return;
+        }
+        if (canCreateProduct) {
+          const taxonomy = await fetch("/api/private/catalog/categories", { credentials: "same-origin" });
+          if (!taxonomy.ok) throw new Error(await detail(taxonomy));
+          const categoriesData = await taxonomy.json() as { categories: Category[] };
+          if (!cancelled) setCategories(categoriesData.categories);
+        }
+      } catch (reason) {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : "Le catalogue est temporairement indisponible.");
+      }
+    }
+    void syncCatalog();
+    return () => { cancelled = true; };
+  }, [businessId, canCreateProduct, canViewProducts, router]);
+  useEffect(() => {
+    if (!productId || !canViewProducts) return;
     void fetch(`/api/private/businesses/${businessId}/products/${productId}`, { credentials: "same-origin" }).then(async (response) => {
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
       if (!response.ok) return setError(await detail(response));
       setProduct((await response.json() as { product: Product }).product);
     }).catch(() => setError("Le catalogue est temporairement indisponible."));
-  }, [businessId, productId, router]);
+  }, [businessId, productId, router, canViewProducts]);
 
-  if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{product ? <section className="content-panel mt-5 grid gap-2 p-5"><h2 className="font-semibold">{product.name}</h2><p>Catégorie : {product.category_name}</p><p>Prix de vente : {product.selling_price} {product.currency}</p><p>Statut : {product.status}</p>{product.internal_reference ? <p>Référence : {product.internal_reference}</p> : null}{product.description ? <p>{product.description}</p> : null}{canManageCatalog ? <button className="button button-outline mt-2 w-fit" onClick={() => setEditOpen(true)} type="button">Modifier le produit</button> : null}</section> : !error ? <p className="mt-5">Chargement du produit…</p> : null}{editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title="Modifier le produit"><ProductForm businessId={businessId} categories={categories} onSaved={(updated) => { setProduct(updated); setEditOpen(false); setSuccess("Produit modifié."); }} product={product} /></Modal> : null}</main>;
-  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3"><form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form>{canManageCatalog ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}<section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="py-3" key={item.public_id}><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{item.selling_price} {item.currency} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section>{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessId={businessId} categories={categories} onSaved={(created) => { setCreateOpen(false); setSuccess("Produit ajouté."); setProducts((current) => current ? [...current, created] : [created]); void load(); }} /></Modal> : null}</main>;
+  if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{product ? <section className="content-panel mt-5 grid gap-2 p-5"><h2 className="font-semibold">{product.name}</h2><p>Catégorie : {product.category_name}</p><p>Prix de vente : {product.selling_price} {product.currency}</p><p>Statut : {product.status}</p>{product.internal_reference ? <p>Référence : {product.internal_reference}</p> : null}{product.description ? <p>{product.description}</p> : null}{canUpdateProduct ? <button className="button button-outline mt-2 w-fit" onClick={() => setEditOpen(true)} type="button">Modifier le produit</button> : null}</section> : !error ? <p className="mt-5">Chargement du produit…</p> : null}{editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title="Modifier le produit"><ProductForm businessId={businessId} categories={categories} onSaved={(updated) => { setProduct(updated); setEditOpen(false); setSuccess("Produit modifié."); }} product={product} /></Modal> : null}</main>;
+  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="py-3" key={item.public_id}><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{item.selling_price} {item.currency} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">La consultation du catalogue n’est pas autorisée. Les actions accordées restent disponibles ci-dessus.</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessId={businessId} categories={categories} onSaved={(created) => { setCreateOpen(false); setSuccess("Produit ajouté."); setProducts((current) => current ? [...current, created] : [created]); if (canViewProducts) void load(); }} /></Modal> : null}</main>;
 }

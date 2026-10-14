@@ -15,8 +15,8 @@ type OperationPage = Pagination & { results: Operation[] };
 type Profile = { customer?: Partner; supplier?: Partner; sales?: OperationPage | null; purchases?: OperationPage | null; financial_summary: Record<string, string | number> | null; capabilities: Record<string, boolean> };
 
 const config = {
-  customer: { singular: "client", plural: "Clients", endpoint: "customers", permission: "MANAGE_CUSTOMERS", history: "sales" as const },
-  supplier: { singular: "fournisseur", plural: "Fournisseurs", endpoint: "suppliers", permission: "MANAGE_PURCHASES", history: "purchases" as const },
+  customer: { singular: "client", plural: "Clients", endpoint: "customers", permission: "CUSTOMER_UPDATE", createPermission: "CUSTOMER_CREATE", history: "sales" as const },
+  supplier: { singular: "fournisseur", plural: "Fournisseurs", endpoint: "suppliers", permission: "SUPPLIER_UPDATE", createPermission: "SUPPLIER_CREATE", history: "purchases" as const },
 };
 
 async function responseMessage(response: Response) {
@@ -59,7 +59,7 @@ function Pager({ page, setPage, hasNext, hasPrevious }: { page: number; setPage:
   return <div className="mt-4 flex items-center justify-between gap-3"><button className="button button-outline" disabled={!hasPrevious} onClick={() => setPage(page - 1)} type="button">Précédent</button><span className="text-sm">Page {page}</span><button className="button button-outline" disabled={!hasNext} onClick={() => setPage(page + 1)} type="button">Suivant</button></div>;
 }
 
-function PartnerSection({ businessId, kind, canManage }: { businessId: string; kind: Kind; canManage: boolean }) {
+function PartnerSection({ businessId, kind, canManage, canCreate }: { businessId: string; kind: Kind; canManage: boolean; canCreate: boolean }) {
   const router = useRouter();
   const [partners, setPartners] = useState<Partner[] | null>(null); const [pagination, setPagination] = useState<Pagination | null>(null);
   const [query, setQuery] = useState(""); const [ordering, setOrdering] = useState("name"); const [page, setPage] = useState(1);
@@ -71,7 +71,7 @@ function PartnerSection({ businessId, kind, canManage }: { businessId: string; k
   useEffect(() => { void load(); }, [businessId, kind, page, ordering]);
   const saved = (label: string) => { setCreateOpen(false); setEditing(null); setNotice(label); void load(); };
   return <section className="content-panel p-5">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">{config[kind].plural}</h2>{canManage ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un {config[kind].singular}</button> : null}</div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">{config[kind].plural}</h2>{canCreate ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un {config[kind].singular}</button> : null}</div>
     <form className="mt-4 flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); setPage(1); void load(); }}><input className="min-w-0 flex-1 rounded border p-2" onChange={(event) => setQuery(event.target.value)} placeholder="Nom, téléphone, e-mail ou référence" value={query} /><select className="rounded border p-2" onChange={(event) => { setOrdering(event.target.value); setPage(1); }} value={ordering}><option value="name">Nom A–Z</option><option value="-name">Nom Z–A</option><option value="-created_at">Plus récents</option><option value="created_at">Plus anciens</option></select><button className="button button-outline" type="submit">Rechercher</button></form>
     {error ? <p className="mt-3 text-sm text-[var(--error)]" role="alert">{error}</p> : null}{notice ? <p className="mt-3 text-sm text-green-800" role="status">{notice}</p> : null}
     <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr><th className="p-2">Nom</th><th className="p-2">Téléphone</th><th className="p-2">E-mail</th><th className="p-2">Statut</th><th className="p-2">Création</th><th className="p-2">Actions</th></tr></thead><tbody>{partners?.map((partner) => <tr className="border-t" key={partner.public_id}><td className="p-2"><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/partenaires/${kind === "customer" ? "clients" : "fournisseurs"}/${partner.public_id}`}>{partner.name}</Link><div className="text-xs text-[var(--muted)]">{partner.public_id}</div></td><td className="p-2">{partner.phone || "—"}</td><td className="p-2">{partner.email || "—"}</td><td className="p-2">{partner.is_active ? "Actif" : "Inactif"}</td><td className="p-2">{new Date(partner.created_at).toLocaleDateString("fr-CD")}</td><td className="p-2">{canManage ? <button className="button button-outline" onClick={() => setEditing(partner)} type="button">Modifier</button> : "—"}</td></tr>)}</tbody></table>{partners === null && !error ? <p className="py-5">Chargement…</p> : partners?.length === 0 ? <p className="py-5 text-sm">Aucun {config[kind].singular} ne correspond à la recherche.</p> : null}</div>
@@ -93,6 +93,6 @@ function PartnerDetail({ businessId, kind, partnerId }: { businessId: string; ki
 export function PartnerDirectory({ businessId, kind, partnerId }: { businessId: string; kind?: Kind; partnerId?: string }) {
   const permissions = useBusinessPermissions(businessId);
   if (kind && partnerId) return <PartnerDetail businessId={businessId} kind={kind} partnerId={partnerId} />;
-  const viewCustomers = permissions?.includes("VIEW_CUSTOMERS") ?? false; const viewSuppliers = permissions?.includes("VIEW_PURCHASES") ?? false;
-  return <main><div><p className="eyebrow">RÉPERTOIRE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Partenaires commerciaux</h1><p className="mt-2 text-sm text-[var(--muted)]">Clients et fournisseurs de l’entreprise active.</p></div>{permissions === null ? <p className="mt-6">Chargement des accès…</p> : <div className="mt-6 grid gap-6">{viewCustomers ? <PartnerSection businessId={businessId} canManage={permissions.includes("MANAGE_CUSTOMERS")} kind="customer" /> : null}{viewSuppliers ? <PartnerSection businessId={businessId} canManage={permissions.includes("MANAGE_PURCHASES")} kind="supplier" /> : null}{!viewCustomers && !viewSuppliers ? <p className="content-panel p-5">Vous ne disposez d’aucun accès au répertoire commercial.</p> : null}</div>}</main>;
+  const viewCustomers = permissions?.includes("CUSTOMER_VIEW") ?? false; const viewSuppliers = permissions?.includes("SUPPLIER_VIEW") ?? false;
+  return <main><div><p className="eyebrow">RÉPERTOIRE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Partenaires commerciaux</h1><p className="mt-2 text-sm text-[var(--muted)]">Clients et fournisseurs de l’entreprise active.</p></div>{permissions === null ? <p className="mt-6">Chargement des accès…</p> : <div className="mt-6 grid gap-6">{viewCustomers ? <PartnerSection businessId={businessId} canCreate={permissions.includes("CUSTOMER_CREATE")} canManage={permissions.includes("CUSTOMER_UPDATE")} kind="customer" /> : null}{viewSuppliers ? <PartnerSection businessId={businessId} canCreate={permissions.includes("SUPPLIER_CREATE")} canManage={permissions.includes("SUPPLIER_UPDATE")} kind="supplier" /> : null}{!viewCustomers && !viewSuppliers ? <p className="content-panel p-5">Vous ne disposez d’aucun accès au répertoire commercial.</p> : null}</div>}</main>;
 }

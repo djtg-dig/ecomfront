@@ -52,13 +52,13 @@ describe("routes BFF d’administration des membres", () => {
     const suspended = await lifecycle(mutation(`/api/private/businesses/${businessId}/members/${memberId}/suspend`, { method: "POST" }), { params: Promise.resolve({ businessId, memberId, action: "suspend" }) });
     expect(suspended.status).toBe(200);
 
-    mocks.request.mockResolvedValueOnce({ permission: "USE_POS" });
-    expect((await grant(mutation(`/api/private/businesses/${businessId}/members/${memberId}/permissions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ permission: "USE_POS" }) }), context)).status).toBe(201);
+    mocks.request.mockResolvedValueOnce({ permission: "SALE_CREATE" });
+    expect((await grant(mutation(`/api/private/businesses/${businessId}/members/${memberId}/permissions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ permission: "SALE_CREATE" }) }), context)).status).toBe(201);
 
     mocks.request.mockResolvedValueOnce(undefined);
-    expect((await revoke(mutation(`/api/private/businesses/${businessId}/members/${memberId}/permissions/USE_POS`, { method: "DELETE" }), { params: Promise.resolve({ businessId, memberId, permission: "USE_POS" }) })).status).toBe(204);
+    expect((await revoke(mutation(`/api/private/businesses/${businessId}/members/${memberId}/permissions/SALE_CREATE`, { method: "DELETE" }), { params: Promise.resolve({ businessId, memberId, permission: "SALE_CREATE" }) })).status).toBe(204);
 
-    mocks.request.mockResolvedValueOnce([{ permission: "USE_POS", label: "Use point of sale" }]);
+    mocks.request.mockResolvedValueOnce([{ permission: "SALE_CREATE", label: "Create sales" }]);
     expect((await catalog(request(`/api/private/businesses/${businessId}/permission-catalog`), { params: Promise.resolve({ businessId }) })).status).toBe(200);
   });
 

@@ -7,6 +7,7 @@ import { useParams, usePathname } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { hasAnyPermission } from "@/lib/permissions/catalog";
 const personalNavigation = [{ href: "/espace", label: "Accueil" }, { href: "/espace/entreprises", label: "Mes entreprises" }, { href: "/espace/invitations", label: "Invitations reçues" }, { href: "/espace/parametres", label: "Paramètres du compte" }];
 
 function isActive(pathname: string, href: string) {
@@ -68,13 +69,13 @@ function BusinessShell({ children }: Readonly<{ children: ReactNode }>) {
     { href: `/espace/entreprises/${businessId}`, label: "Tableau de bord" },
     { href: "/espace", label: "Retour à mon espace" },
   ].concat(status === "ready" && permissions ? [
-    ...(permissions.some(p => ["VIEW_CATALOG", "MANAGE_CATALOG"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/produits`, label: "Produits" }] : []),
-    ...(permissions.some(p => ["VIEW_INVENTORY", "MANAGE_INVENTORY"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/stocks`, label: "Stocks" }] : []),
-    ...(permissions.some(p => ["VIEW_PURCHASES", "MANAGE_PURCHASES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/achats`, label: "Achats" }] : []),
-    ...(permissions.some(p => ["VIEW_SALES", "MANAGE_SALES", "USE_POS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/ventes`, label: "Ventes" }] : []),
-    ...(permissions.some(p => ["VIEW_CUSTOMERS", "VIEW_PURCHASES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/partenaires`, label: "Partenaires commerciaux" }] : []),
-    ...(permissions.some(p => ["VIEW_FINANCIAL_SUMMARY", "VIEW_RECEIVABLES", "MANAGE_RECEIVABLES"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: "Finance" }] : []),
-    ...(permissions.some(p => ["VIEW_MEMBERS", "MANAGE_MEMBERS"].includes(p)) ? [{ href: `/espace/entreprises/${businessId}/membres`, label: "Membres et accès" }] : []),
+    ...(hasAnyPermission(permissions, ["PRODUCT_VIEW", "PRODUCT_CREATE", "PRODUCT_UPDATE", "PRODUCT_DELETE", "PRODUCT_DEACTIVATE", "PRODUCT_VARIANT_VIEW", "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE"]) ? [{ href: `/espace/entreprises/${businessId}/produits`, label: "Produits" }] : []),
+    ...(hasAnyPermission(permissions, ["INVENTORY_VIEW", "INVENTORY_INITIALIZE", "INVENTORY_IN", "INVENTORY_OUT", "INVENTORY_ADJUST", "INVENTORY_MOVEMENT_VIEW"]) ? [{ href: `/espace/entreprises/${businessId}/stocks`, label: "Stocks" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("PURCHASE_") || permission.startsWith("SUPPLIER_")) ? [{ href: `/espace/entreprises/${businessId}/achats`, label: "Achats" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("SALE_")) ? [{ href: `/espace/entreprises/${businessId}/ventes`, label: "Ventes" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("CUSTOMER_") || permission.startsWith("SUPPLIER_")) ? [{ href: `/espace/entreprises/${businessId}/partenaires`, label: "Partenaires commerciaux" }] : []),
+    ...(permissions.some((permission) => ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_PAYMENT_VIEW", "RECEIVABLE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_VIEW", "SUPPLIER_PAYMENT_CREATE", "SUPPLIER_PAYMENT_REVERSE"].includes(permission)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: "Finance" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("MEMBER_") || permission.startsWith("INVITATION_")) ? [{ href: `/espace/entreprises/${businessId}/membres`, label: "Membres et accès" }] : []),
   ] : []);
   return <ShellFrame navigation={navigation} title="Espace entreprise">{children}</ShellFrame>;
 }

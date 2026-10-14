@@ -9,7 +9,7 @@ vi.mock("@/lib/api/backend-client", async (importOriginal) => {
 
 import { GET as categories } from "@/app/api/private/catalog/categories/route";
 import { GET as attributes } from "@/app/api/private/catalog/categories/[code]/attributes/route";
-import { GET as detail, PATCH as update } from "@/app/api/private/businesses/[businessId]/products/[productId]/route";
+import { DELETE as remove, GET as detail, PATCH as update } from "@/app/api/private/businesses/[businessId]/products/[productId]/route";
 import { GET as list, POST as create } from "@/app/api/private/businesses/[businessId]/products/route";
 import { BackendApiError, BackendNetworkError } from "@/lib/api/backend-client";
 import { encryptSession, type EcommerceSession } from "@/lib/auth/session";
@@ -57,6 +57,15 @@ describe("routes BFF du catalogue", () => {
     expect((await update(mutation(`/api/private/businesses/${businessId}/products/${productId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "INACTIVE" }) }), productContext)).status).toBe(200);
 
     expect((await create(request(`/api/private/businesses/${businessId}/products`, { method: "POST", body: "{}" }), businessContext)).status).toBe(403);
+  });
+
+  it("supprime par identifiant connu seulement après la protection CSRF", async () => {
+    mocks.request.mockResolvedValueOnce(undefined);
+    const response = await remove(mutation(`/api/private/businesses/${businessId}/products/${productId}`, { method: "DELETE" }), productContext);
+    expect(response.status).toBe(204);
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/products/${productId}/`, expect.objectContaining({ method: "DELETE" }));
+
+    expect((await remove(request(`/api/private/businesses/${businessId}/products/${productId}`, { method: "DELETE" }), productContext)).status).toBe(403);
   });
 
   it("refuse les identifiants et filtres hors contrat avant le backend", async () => {

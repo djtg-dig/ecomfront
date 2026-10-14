@@ -22,4 +22,10 @@ describe("composant catalogue", () => {
     expect(source).toContain('min="0"');
     expect(source).toContain('"x-csrf-protection": "1"');
   });
+
+  it("propose la suppression sans charger la liste des produits", () => {
+    expect(source).toContain('permissions?.includes("PRODUCT_DELETE")');
+    expect(source).toContain('method: "DELETE"');
+    expect(source).toContain("Identifiant du produit");
+  });
 });

@@ -17,9 +17,11 @@ describe("gestionnaire de membres", () => {
     expect(source).not.toContain('name="role"');
   });
 
-  it("conditionne les actions de gestion à MANAGE_MEMBERS", () => {
-    expect(source).toContain('includes("MANAGE_MEMBERS")');
-    expect(source).toContain("canManage ?");
+  it("conditionne chaque action à sa permission atomique", () => {
+    expect(source).toContain('includes("MEMBER_SUSPEND")');
+    expect(source).toContain('includes("MEMBER_REMOVE")');
+    expect(source).toContain('includes("MEMBER_PERMISSION_GRANT")');
+    expect(source).toContain('includes("INVITATION_CREATE")');
     expect(source).toContain("if (pending) return");
   });
 });
