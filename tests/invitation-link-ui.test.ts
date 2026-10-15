@@ -17,4 +17,10 @@ describe("page publique du lien d’invitation", () => {
     expect(source).toContain('"recipient_mismatch"');
     expect(source).toContain("Se connecter avec un autre compte");
   });
+
+  it("propose une sortie explicite après acceptation sans fabriquer d’identifiant", () => {
+    expect(source).toContain("body.invitation?.status === \"ACCEPTED\"");
+    expect(source).toContain("Accéder à l’entreprise");
+    expect(source).toContain("Accéder à mon espace");
+  });
 });

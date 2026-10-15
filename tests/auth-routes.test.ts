@@ -242,6 +242,8 @@ describe("routes d’authentification BFF", () => {
     expect(response.body).toBeNull();
     expect(sessionCookie).toContain("HttpOnly");
     expect(sessionCookie).toContain("SameSite=lax");
+    expect(sessionCookie).toContain("Path=/");
+    expect(sessionCookie).not.toContain("Max-Age=0");
     expect(sessionCookie).not.toContain(tokenPair().access);
   });
 

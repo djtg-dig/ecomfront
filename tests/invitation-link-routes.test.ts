@@ -94,6 +94,18 @@ describe("parcours BFF du lien d’invitation", () => {
     expect(JSON.stringify(body)).not.toContain(token);
   });
 
+  it("conserve la session et ne supprime que le contexte après une acceptation", async () => {
+    mocks.request.mockResolvedValueOnce({ status: "ACCEPTED", business_public_id: "BUS123" });
+    const response = await action(request("/api/invitation/accept", "POST"), { params: Promise.resolve({ action: "accept" }) });
+    const cookies = response.headers.getSetCookie();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.invitation).toEqual({ status: "ACCEPTED", business_public_id: "BUS123" });
+    expect(cookies.some((value) => value.startsWith("ecommerce_invitation_context=") && value.includes("Max-Age=0"))).toBe(true);
+    expect(cookies.some((value) => value.startsWith("ecommerce_session="))).toBe(false);
+  });
+
   it("bloque une action cross-site avant tout appel Django", async () => {
     const response = await action(new Request(`${frontendUrl}/api/invitation/accept`, {
       method: "POST",
