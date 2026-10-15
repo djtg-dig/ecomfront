@@ -14,7 +14,7 @@ import {
 import { requestCookie } from "@/lib/auth/security";
 
 export class PrivateSessionError extends Error {
-  constructor(readonly status: 400 | 401 | 403 | 409 | 503, readonly code: string, detail: string) {
+  constructor(readonly status: 400 | 401 | 403 | 409 | 410 | 503, readonly code: string, detail: string) {
     super(detail);
     this.name = "PrivateSessionError";
   }
@@ -62,6 +62,29 @@ export async function authenticatedBackendRequest<T>(
 function mapBackendError(error: unknown): PrivateSessionError {
   if (error instanceof PrivateSessionError) return error;
   if (error instanceof BackendApiError) {
+    // Invitation links have intentionally user-facing, stable business errors.
+    // Keep only this allow-list rather than making arbitrary Django error codes
+    // part of the BFF contract.
+    const invitationCodes = new Set([
+      "carri_reauthentication_required",
+      "verified_email_required",
+      "invitation_recipient_mismatch",
+      "invitation_expired",
+      "invitation_revoked",
+      "invitation_already_processed",
+      "business_member_already_exists",
+      "invitation_delivery_unavailable",
+      "invalid_invitation_token",
+      "invitation_not_found",
+    ]);
+    if (error.code && invitationCodes.has(error.code) &&
+        [400, 401, 403, 409, 410, 503].includes(error.status)) {
+      return new PrivateSessionError(
+        error.status as 400 | 401 | 403 | 409 | 410 | 503,
+        error.code,
+        error.detail,
+      );
+    }
     if (error.status === 400) return new PrivateSessionError(400, "invalid_request", error.detail);
     if (error.status === 401) return new PrivateSessionError(401, "session_expired", "Votre session a expiré. Reconnectez-vous.");
     if (error.status === 403) return new PrivateSessionError(403, "access_forbidden", "Vous n’êtes pas autorisé à accéder à cette ressource.");

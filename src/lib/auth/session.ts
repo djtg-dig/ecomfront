@@ -77,10 +77,14 @@ export function createEcommerceSession(tokens: EcommerceTokenPair): EcommerceSes
 }
 
 export function encryptSession(session: EcommerceSession): string {
+  return encryptProtectedPayload(session);
+}
+
+export function encryptProtectedPayload(payload: unknown): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
   const ciphertext = Buffer.concat([
-    cipher.update(JSON.stringify(session), "utf8"),
+    cipher.update(JSON.stringify(payload), "utf8"),
     cipher.final(),
   ]);
   const encrypted = [
@@ -97,6 +101,16 @@ export function encryptSession(session: EcommerceSession): string {
 }
 
 export function decryptSession(value: string): EcommerceSession | null {
+  const payload = decryptProtectedPayload(value) as Partial<EcommerceSession> | null;
+  if (!payload ||
+      typeof payload.accessToken !== "string" ||
+      typeof payload.refreshToken !== "string" ||
+      typeof payload.accessExpiresAt !== "number" ||
+      typeof payload.refreshExpiresAt !== "number") return null;
+  return payload as EcommerceSession;
+}
+
+export function decryptProtectedPayload(value: string): unknown | null {
   const [version, encodedIv, encodedTag, encodedCiphertext, extra] = value.split(".");
   if (version !== SESSION_VERSION || !encodedIv || !encodedTag || !encodedCiphertext || extra) {
     return null;
@@ -113,18 +127,7 @@ export function decryptSession(value: string): EcommerceSession | null {
       decipher.update(Buffer.from(encodedCiphertext, "base64url")),
       decipher.final(),
     ]).toString("utf8");
-    const session = JSON.parse(plaintext) as Partial<EcommerceSession>;
-
-    if (
-      typeof session.accessToken !== "string" ||
-      typeof session.refreshToken !== "string" ||
-      typeof session.accessExpiresAt !== "number" ||
-      typeof session.refreshExpiresAt !== "number"
-    ) {
-      return null;
-    }
-
-    return session as EcommerceSession;
+    return JSON.parse(plaintext) as unknown;
   } catch {
     return null;
   }

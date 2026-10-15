@@ -17,6 +17,7 @@ import {
   transactionCookiePath,
 } from "@/lib/auth/security";
 import { getServerConfig } from "@/lib/config/server";
+import { invitationReturnCookieName } from "@/lib/auth/invitation-context";
 
 const DELIVERY_ERROR_CODES = new Set([
   "oauth_login_csrf_detected",
@@ -150,11 +151,13 @@ export async function POST(request: Request) {
 
     const session = createEcommerceSession(tokens);
     const encrypted = encryptSession(session);
-    const response = NextResponse.redirect(new URL("/espace", config.frontendUrl), 303);
+    const invitationReturn = requestCookie(request, invitationReturnCookieName) === "1";
+    const response = NextResponse.redirect(new URL(invitationReturn ? "/invitation" : "/espace", config.frontendUrl), 303);
     response.cookies.set(sessionCookieName, encrypted, sessionCookieOptions(
       Math.floor((session.refreshExpiresAt - Date.now()) / 1000),
     ));
     clearTransactionCookie(response, config);
+    if (invitationReturn) response.cookies.set(invitationReturnCookieName, "", sessionCookieOptions(0));
     response.headers.set("Cache-Control", "no-store, max-age=0");
     response.headers.set("Referrer-Policy", "no-referrer");
     return response;

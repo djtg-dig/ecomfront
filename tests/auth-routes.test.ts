@@ -64,11 +64,13 @@ function handoffRequest({
   deliveryBinding = binding,
   cookieBinding = binding,
   origin = backendUrl,
+  invitationReturn = false,
 }: {
   handoff?: string;
   deliveryBinding?: string;
   cookieBinding?: string;
   origin?: string;
+  invitationReturn?: boolean;
 } = {}) {
   const form = new URLSearchParams({ handoff, delivery_binding: deliveryBinding });
   return new Request(`${frontendUrl}/api/auth/carri/handoff`, {
@@ -77,7 +79,7 @@ function handoffRequest({
       "content-type": "application/x-www-form-urlencoded",
       origin,
       "sec-fetch-site": "same-site",
-      cookie: `ecommerce_oauth_transaction=${cookieBinding}`,
+      cookie: `ecommerce_oauth_transaction=${cookieBinding}${invitationReturn ? "; ecommerce_invitation_return=1" : ""}`,
     },
     body: form,
   });
@@ -241,6 +243,15 @@ describe("routes d’authentification BFF", () => {
     expect(sessionCookie).toContain("HttpOnly");
     expect(sessionCookie).toContain("SameSite=lax");
     expect(sessionCookie).not.toContain(tokenPair().access);
+  });
+
+  it("reprend l’invitation après le handoff OAuth sans la placer dans OAuth", async () => {
+    mocks.request.mockResolvedValue(tokenPair());
+    const response = await receiveHandoff(handoffRequest({ invitationReturn: true }));
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${frontendUrl}/invitation`);
+    expect(cookies(response).some((entry) => entry.startsWith("ecommerce_invitation_return=") && entry.includes("Max-Age=0"))).toBe(true);
   });
 
   it("distingue une indisponibilité de Django d'un échec de handoff", async () => {
