@@ -44,5 +44,13 @@ export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode
     );
   }
 
-  return <div aria-busy={status === "checking"}>{children}</div>;
+  if (status === "checking") {
+    return (
+      <div aria-busy="true" className="grid min-h-64 place-items-center p-6">
+        <p className="text-sm text-[var(--muted)]">Vérification de la session…</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }

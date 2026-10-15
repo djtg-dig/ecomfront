@@ -18,7 +18,7 @@ export function LogoutButton() {
         credentials: "same-origin",
         headers: { "x-csrf-protection": "1" },
       });
-      if (response.ok) router.replace("/");
+      if (response.ok || response.status === 503) router.replace("/");
       else setFailed(true);
     } catch {
       setFailed(true);
