@@ -84,7 +84,14 @@ describe("routes BFF membres et invitations", () => {
       invitations: { results: [{ public_id: invitationId, email: "team@example.test", status: "PENDING" }] },
     });
     expect(JSON.stringify(body)).not.toMatch(/accessToken|refreshToken|signature/);
-    expect(mocks.request).toHaveBeenNthCalledWith(2, `/api/v1/businesses/${businessId}/members/`, expect.objectContaining({ accessToken: expect.any(String) }));
+    expect(mocks.request).toHaveBeenNthCalledWith(
+      2,
+      `/api/v1/businesses/${businessId}/members/`,
+      expect.objectContaining({
+        accessToken: expect.any(String),
+        query: { page: "1", page_size: "50" },
+      }),
+    );
     expect(mocks.request).toHaveBeenNthCalledWith(3, `/api/v1/businesses/${businessId}/invitations/`, expect.objectContaining({ accessToken: expect.any(String) }));
   });
 
@@ -146,6 +153,20 @@ describe("routes BFF membres et invitations", () => {
     const response = await createInvitation(mutationRequest(`/api/private/businesses/${businessId}/team`), teamParams);
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ code: "conflict", detail: "Invitation déjà active." });
+  });
+
+  it("préserve les conflits métier nécessitant un administrateur", async () => {
+    mocks.request
+      .mockResolvedValueOnce({ permissions: ["MEMBER_VIEW"] })
+      .mockRejectedValueOnce(new BackendApiError(409, "business_member_removed", "Votre ancienne adhésion a été retirée."));
+
+    const response = await getTeam(authenticatedRequest(`/api/private/businesses/${businessId}/team`), teamParams);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "business_member_removed",
+      detail: "Votre ancienne adhésion a été retirée.",
+    });
   });
 
   it("bloque toute mutation cross-site avant l’appel backend", async () => {

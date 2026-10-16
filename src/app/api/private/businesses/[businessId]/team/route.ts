@@ -38,7 +38,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ busi
     let members: unknown = [];
     let invitations: unknown = [];
     if (access.data.permissions.includes("MEMBER_VIEW")) {
-      const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/members/`, session);
+      const result = await authenticatedBackendRequest<unknown>(
+        `/api/v1/businesses/${businessId}/members/`,
+        session,
+        { query: { page: "1", page_size: "50" } },
+      );
       members = result.data; session = result.session; refreshed ||= result.refreshed;
     }
     if (access.data.permissions.includes("INVITATION_VIEW")) {
