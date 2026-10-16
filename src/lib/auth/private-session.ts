@@ -75,6 +75,8 @@ function mapBackendError(error: unknown): PrivateSessionError {
       "business_member_already_exists",
       "business_member_suspended",
       "business_member_removed",
+      "business_member_removal_date_unknown",
+      "invitation_precedes_member_removal",
       "invitation_delivery_unavailable",
       "invalid_invitation_token",
       "invitation_not_found",
