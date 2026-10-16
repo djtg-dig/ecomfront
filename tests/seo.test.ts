@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
+import { metadata as privateMetadata } from "@/app/(private)/layout";
 import {
   createPublicMetadata,
   getPublicSiteUrl,
@@ -13,6 +14,11 @@ afterEach(() => {
 });
 
 describe("SEO public", () => {
+  it("applique noindex, nofollow à toutes les pages du groupe privé", () => {
+    expect(privateMetadata.robots).toEqual(noIndexRobots);
+    expect(sitemap().some((entry) => entry.url.includes("/espace"))).toBe(false);
+  });
+
   it("produit des metadata françaises avec canonical et Open Graph absolus", () => {
     vi.stubEnv("NEXT_PUBLIC_FRONTEND_URL", "https://boutique.exemple.test");
     vi.stubEnv("SEO_ALLOW_INDEXING", "false");
