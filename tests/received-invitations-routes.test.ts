@@ -43,10 +43,23 @@ describe("routes BFF des invitations reçues", () => {
     mocks.request.mockResolvedValueOnce({ public_id: invitationId, status: action === "accept" ? "ACCEPTED" : "DECLINED" });
     const response = await POST(request(`/api/private/invitations/${invitationId}/${action}`, true), { params: Promise.resolve({ invitationId, action }) });
     expect(response.status).toBe(200);
+    expect((await response.clone().json()).redirect_to).toBe(`/espace/entreprises?invitation=${action === "accept" ? "accepted" : "declined"}`);
     expect(mocks.request).toHaveBeenCalledWith(
       `/api/v1/me/business-invitations/${invitationId}/${action}-authenticated/`,
       expect.objectContaining({ method: "POST", json: {}, accessToken: expect.any(String) }),
     );
+  });
+
+  it("conserve un conflit métier et récupère le statut terminal", async () => {
+    const { BackendApiError } = await import("@/lib/api/backend-client");
+    mocks.request
+      .mockRejectedValueOnce(new BackendApiError(409, "invitation_already_processed", "Cette invitation a déjà été traitée."))
+      .mockResolvedValueOnce([{ public_id: invitationId, status: "DECLINED" }]);
+
+    const response = await POST(request(`/api/private/invitations/${invitationId}/accept`, true), { params: Promise.resolve({ invitationId, action: "accept" }) });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ code: "invitation_already_processed", detail: "Cette invitation a déjà été traitée.", invitation: { public_id: invitationId, status: "DECLINED" } });
   });
 
   it("bloque les mutations cross-site et les actions inconnues", async () => {

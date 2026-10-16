@@ -13,7 +13,7 @@ async function detail(response: Response) {
   catch { return "Le service E-commerce est indisponible."; }
 }
 
-export function BusinessList() {
+export function BusinessList({ invitationOutcome }: { invitationOutcome?: string }) {
   const router = useRouter();
   const [items, setItems] = useState<Business[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,13 @@ export function BusinessList() {
   if (error) return <section className="content-panel p-6" role="alert"><p>{error}</p><button className="button button-primary mt-4" onClick={() => void load()} type="button">Réessayer</button></section>;
   if (!items) return <p className="p-6 text-sm text-[var(--muted)]">Chargement des entreprises…</p>;
 
-  return <main><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="eyebrow">ENTREPRISES</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Mes entreprises</h1></div><Link className="button button-primary" href="/espace/entreprises/nouvelle">Créer une entreprise</Link></div><section className="content-panel mt-6 p-6"><h2 className="font-semibold">Entreprises accessibles</h2>{items.length === 0 ? <div className="mt-3"><p className="text-sm text-[var(--muted)]">Vous n’avez accès à aucune entreprise pour le moment.</p><Link className="button button-outline mt-5" href="/espace/entreprises/nouvelle">Créer une entreprise</Link></div> : <ul className="mt-4 grid gap-3 sm:grid-cols-2">{items.map((business) => <li className="rounded-md border p-4" key={business.public_id}><strong>{business.name}</strong><span className="mt-1 block text-sm text-[var(--muted)]">{business.status} · {business.primary_currency}</span><Link className="button button-outline mt-4" href={`/espace/entreprises/${business.public_id}`}>Entrer dans l’entreprise</Link></li>)}</ul>}</section></main>;
+  const invitationNotice = invitationOutcome === "accepted"
+    ? "Invitation acceptée. L’entreprise apparaît ci-dessous selon vos accès attribués."
+    : invitationOutcome === "declined"
+      ? "Invitation refusée."
+      : null;
+
+  return <main><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="eyebrow">ENTREPRISES</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Mes entreprises</h1></div><Link className="button button-primary" href="/espace/entreprises/nouvelle">Créer une entreprise</Link></div>{invitationNotice ? <p className="mt-4 rounded-md border p-3 text-sm" role="status">{invitationNotice}</p> : null}<section className="content-panel mt-6 p-6"><h2 className="font-semibold">Entreprises accessibles</h2>{items.length === 0 ? <div className="mt-3"><p className="text-sm text-[var(--muted)]">Vous n’avez accès à aucune entreprise pour le moment.</p><Link className="button button-outline mt-5" href="/espace/entreprises/nouvelle">Créer une entreprise</Link></div> : <ul className="mt-4 grid gap-3 sm:grid-cols-2">{items.map((business) => <li className="rounded-md border p-4" key={business.public_id}><strong>{business.name}</strong><span className="mt-1 block text-sm text-[var(--muted)]">{business.status} · {business.primary_currency}</span><Link className="button button-outline mt-4" href={`/espace/entreprises/${business.public_id}`}>Entrer dans l’entreprise</Link></li>)}</ul>}</section></main>;
 }
 
 export function BusinessCreate() {

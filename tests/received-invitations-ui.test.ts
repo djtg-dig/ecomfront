@@ -12,9 +12,11 @@ describe("invitations reçues", () => {
     expect(source).toContain("Refuser");
   });
 
-  it("protège les doubles soumissions et actualise après succès", () => {
+  it("protège les doubles soumissions et redirige après une finalisation confirmée", () => {
     expect(source).toContain("if (pending) return");
-    expect(source).toContain("await load()");
-    expect(source).toContain("router.refresh()");
+    expect(source).toContain("let navigationScheduled = false");
+    expect(source).toContain("body.redirect_to !== expectedDestination");
+    expect(source).toContain("window.location.assign(destination)");
+    expect(source).toContain("Statut :");
   });
 });

@@ -247,12 +247,12 @@ describe("routes d’authentification BFF", () => {
     expect(sessionCookie).not.toContain(tokenPair().access);
   });
 
-  it("reprend l’invitation après le handoff OAuth sans la placer dans OAuth", async () => {
+  it("ignore un ancien marqueur d’invitation et revient toujours vers l’espace", async () => {
     mocks.request.mockResolvedValue(tokenPair());
     const response = await receiveHandoff(handoffRequest({ invitationReturn: true }));
 
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`${frontendUrl}/invitation`);
+    expect(response.headers.get("location")).toBe(`${frontendUrl}/espace`);
     expect(cookies(response).some((entry) => entry.startsWith("ecommerce_invitation_return=") && entry.includes("Max-Age=0"))).toBe(true);
   });
 

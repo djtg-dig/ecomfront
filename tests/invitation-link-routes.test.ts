@@ -86,7 +86,9 @@ describe("parcours BFF du lien d’invitation", () => {
     const response = await invitationLogin();
 
     expect(response.status).toBe(303);
-    expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/api/auth/carri/login");
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.pathname).toBe("/api/auth/carri/login");
+    expect(location.searchParams.get("erreur")).not.toBe("lien_invalide");
     expect(response.headers.getSetCookie().some((value) => value.startsWith("ecommerce_invitation_context=") && value.includes("Max-Age=0"))).toBe(true);
     expect(response.headers.getSetCookie().some((value) => value.startsWith("ecommerce_invitation_return="))).toBe(false);
   });

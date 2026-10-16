@@ -1,2 +1,9 @@
 import { BusinessList } from "@/components/businesses/business-manager";
-export default function BusinessesPage() { return <BusinessList />; }
+
+type Props = { searchParams: Promise<{ invitation?: string | string[] }> };
+
+export default async function BusinessesPage({ searchParams }: Props) {
+  const invitation = (await searchParams).invitation;
+  const outcome = typeof invitation === "string" ? invitation : undefined;
+  return <BusinessList invitationOutcome={outcome} />;
+}

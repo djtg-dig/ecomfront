@@ -151,13 +151,13 @@ export async function POST(request: Request) {
 
     const session = createEcommerceSession(tokens);
     const encrypted = encryptSession(session);
-    const invitationReturn = requestCookie(request, invitationReturnCookieName) === "1";
-    const response = NextResponse.redirect(new URL(invitationReturn ? "/invitation" : "/espace", config.frontendUrl), 303);
+    const response = NextResponse.redirect(new URL("/espace", config.frontendUrl), 303);
     response.cookies.set(sessionCookieName, encrypted, sessionCookieOptions(
       Math.floor((session.refreshExpiresAt - Date.now()) / 1000),
     ));
     clearTransactionCookie(response, config);
-    if (invitationReturn) response.cookies.set(invitationReturnCookieName, "", sessionCookieOptions(0));
+    // Remove the legacy marker if a browser still has one from an older flow.
+    response.cookies.set(invitationReturnCookieName, "", sessionCookieOptions(0));
     response.headers.set("Cache-Control", "no-store, max-age=0");
     response.headers.set("Referrer-Policy", "no-referrer");
     return response;
