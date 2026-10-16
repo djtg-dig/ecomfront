@@ -10,6 +10,7 @@ vi.mock("@/lib/api/backend-client", async (importOriginal) => {
 import { POST as action } from "@/app/api/invitation/[action]/route";
 import { GET as continueInvitation } from "@/app/api/invitation/continue/route";
 import { GET as context } from "@/app/api/invitation/context/route";
+import { GET as invitationLogin } from "@/app/api/invitation/login/route";
 import { BackendApiError } from "@/lib/api/backend-client";
 import { encryptProtectedPayload, encryptSession, type EcommerceSession } from "@/lib/auth/session";
 
@@ -77,7 +78,17 @@ describe("parcours BFF du lien d’invitation", () => {
 
     expect(response.status).toBe(200);
     expect(body.state).toBe("authentication_required");
+    expect(body.detail).toBe("Veuillez d'abord vous connecter à votre compte E-commerce. Après connexion, consultez vos notifications ou vos invitations reçues dans votre espace pour retrouver cette invitation et y répondre.");
     expect(JSON.stringify(body)).not.toContain(token);
+  });
+
+  it("démarre une connexion ordinaire sans marqueur de reprise d’invitation", async () => {
+    const response = await invitationLogin();
+
+    expect(response.status).toBe(303);
+    expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/api/auth/carri/login");
+    expect(response.headers.getSetCookie().some((value) => value.startsWith("ecommerce_invitation_context=") && value.includes("Max-Age=0"))).toBe(true);
+    expect(response.headers.getSetCookie().some((value) => value.startsWith("ecommerce_invitation_return="))).toBe(false);
   });
 
   it("transmet le jeton au seul endpoint Django prévu et conserve les erreurs métier", async () => {
@@ -102,8 +113,33 @@ describe("parcours BFF du lien d’invitation", () => {
 
     expect(response.status).toBe(200);
     expect(body.invitation).toEqual({ status: "ACCEPTED", business_public_id: "BUS123" });
+    expect(body.redirect_to).toBe("/espace/entreprises?invitation=accepted");
     expect(cookies.some((value) => value.startsWith("ecommerce_invitation_context=") && value.includes("Max-Age=0"))).toBe(true);
     expect(cookies.some((value) => value.startsWith("ecommerce_session="))).toBe(false);
+  });
+
+  it("ne finalise pas le contexte si Django ne confirme pas le statut terminal attendu", async () => {
+    mocks.request.mockResolvedValueOnce({ status: "PENDING" });
+
+    const response = await action(request("/api/invitation/accept", "POST"), { params: Promise.resolve({ action: "accept" }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(body.code).toBe("invitation_completion_invalid");
+    expect(response.headers.getSetCookie().some((value) => value.startsWith("ecommerce_invitation_context="))).toBe(false);
+  });
+
+  it("conserve le motif 409 et le statut terminal réel", async () => {
+    mocks.request
+      .mockRejectedValueOnce(new BackendApiError(409, "invitation_already_processed", "Cette invitation a déjà été traitée."))
+      .mockResolvedValueOnce([{ public_id: invitationId, status: "ACCEPTED" }]);
+
+    const response = await action(request("/api/invitation/accept", "POST"), { params: Promise.resolve({ action: "accept" }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toEqual({ code: "invitation_already_processed", detail: "Cette invitation a déjà été traitée.", invitation: { public_id: invitationId, status: "ACCEPTED" } });
+    expect(response.headers.getSetCookie().some((value) => value.startsWith("ecommerce_invitation_context="))).toBe(false);
   });
 
   it("bloque une action cross-site avant tout appel Django", async () => {
