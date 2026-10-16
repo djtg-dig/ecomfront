@@ -29,6 +29,7 @@ export class BackendApiError extends Error {
     readonly status: number,
     readonly code: string | null,
     readonly detail: string,
+    readonly fieldErrors?: Record<string, string[]>,
   ) {
     super(detail);
     this.name = "BackendApiError";
@@ -61,11 +62,21 @@ function assertBackendPath(path: string) {
 
 async function readError(response: Response): Promise<BackendApiError> {
   try {
-    const payload = (await response.json()) as { code?: unknown; detail?: unknown };
+    const payload = (await response.json()) as Record<string, unknown>;
+    const fieldErrors = Object.fromEntries(
+      Object.entries(payload).flatMap(([field, value]) => {
+        if (field === "code" || field === "detail") return [];
+        if (typeof value === "string") return [[field, [value]]];
+        if (Array.isArray(value) && value.every((item) => typeof item === "string")) return [[field, value]];
+        return [];
+      }),
+    );
+    const firstFieldMessage = Object.values(fieldErrors)[0]?.[0];
     return new BackendApiError(
       response.status,
       typeof payload.code === "string" ? payload.code : null,
-      typeof payload.detail === "string" ? payload.detail : "La requête a été refusée par le service E-commerce.",
+      typeof payload.detail === "string" ? payload.detail : firstFieldMessage ?? "La requête a été refusée par le service E-commerce.",
+      Object.keys(fieldErrors).length ? fieldErrors : undefined,
     );
   } catch {
     return new BackendApiError(response.status, null, "La requête a été refusée par le service E-commerce.");

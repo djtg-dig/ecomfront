@@ -9,6 +9,8 @@ vi.mock("@/lib/api/backend-client", async (importOriginal) => {
 
 import { GET as categories } from "@/app/api/private/catalog/categories/route";
 import { GET as attributes } from "@/app/api/private/catalog/categories/[code]/attributes/route";
+import { GET as registry } from "@/app/api/private/catalog/registry/route";
+import { GET as registryDetail } from "@/app/api/private/catalog/registry/[code]/route";
 import { DELETE as remove, GET as detail, PATCH as update } from "@/app/api/private/businesses/[businessId]/products/[productId]/route";
 import { GET as list, POST as create } from "@/app/api/private/businesses/[businessId]/products/route";
 import { BackendApiError, BackendNetworkError } from "@/lib/api/backend-client";
@@ -44,6 +46,19 @@ describe("routes BFF du catalogue", () => {
     expect((await categories(request("/api/private/catalog/categories"))).status).toBe(200);
     mocks.request.mockResolvedValueOnce([{ code: "weight", data_type: "DECIMAL" }]);
     expect((await attributes(request("/api/private/catalog/categories/HYGIENE/attributes"), { params: Promise.resolve({ code: "HYGIENE" }) })).status).toBe(200);
+
+    const registryCategories = Array.from({ length: 32 }, (_, index) => ({ code: `category_${index}`, label: `Catégorie ${index}`, parent: "general" }));
+    mocks.request.mockResolvedValueOnce(registryCategories);
+    const registryResponse = await registry(request("/api/private/catalog/registry"));
+    expect(registryResponse.status).toBe(200);
+    expect((await registryResponse.json() as { categories: unknown[] }).categories).toHaveLength(32);
+    expect(mocks.request).toHaveBeenLastCalledWith("/api/v1/product-categories/registry/", expect.objectContaining({ accessToken: expect.any(String) }));
+
+    mocks.request.mockResolvedValueOnce({ code: "televisions", attributes: [{ code: "screen_size", type: "decimal" }] });
+    const definition = await registryDetail(request("/api/private/catalog/registry/televisions"), { params: Promise.resolve({ code: "televisions" }) });
+    expect(definition.status).toBe(200);
+    expect(await definition.json()).toEqual({ category: { code: "televisions", attributes: [{ code: "screen_size", type: "decimal" }] } });
+    expect(mocks.request).toHaveBeenLastCalledWith("/api/v1/product-categories/registry/televisions/", expect.objectContaining({ accessToken: expect.any(String) }));
   });
 
   it("crée et modifie seulement après la protection CSRF", async () => {
@@ -71,6 +86,7 @@ describe("routes BFF du catalogue", () => {
   it("refuse les identifiants et filtres hors contrat avant le backend", async () => {
     expect((await list(request(`/api/private/businesses/${businessId}/products?status=DRAFT`), businessContext)).status).toBe(400);
     expect((await attributes(request("/api/private/catalog/categories/../attributes"), { params: Promise.resolve({ code: "../" }) })).status).toBe(400);
+    expect((await registryDetail(request("/api/private/catalog/registry/../"), { params: Promise.resolve({ code: "../" }) })).status).toBe(400);
     expect(mocks.request).not.toHaveBeenCalled();
   });
 
@@ -91,6 +107,27 @@ describe("routes BFF du catalogue", () => {
     const response = await detail(request(`/api/private/businesses/${businessId}/products/${productId}`), productContext);
     expect(response.status).toBe(expectedStatus);
     expect((await response.json()).code).toBe(code);
+  });
+
+  it("transmet les erreurs de validation produit sans les réduire à un message générique", async () => {
+    mocks.request.mockRejectedValueOnce(new BackendApiError(
+      400,
+      null,
+      "screen_size est obligatoire.",
+      { attributes: ["screen_size est obligatoire."] },
+    ));
+    const response = await create(mutation(`/api/private/businesses/${businessId}/products`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ category_code: "televisions", attributes: {} }),
+    }), businessContext);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "invalid_request",
+      detail: "screen_size est obligatoire.",
+      errors: { attributes: ["screen_size est obligatoire."] },
+    });
   });
 
   it("renouvelle une seule fois après un 401, puis signale une indisponibilité en 503", async () => {

@@ -1,19 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Modal } from "@/components/ui/modal";
-import { useBusinessPermissions } from "@/components/private/use-business-permissions";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
-type Category = { code: string; name: string };
+import { useBusinessPermissions } from "@/components/private/use-business-permissions";
+import { Modal } from "@/components/ui/modal";
+import {
+  categoryPayload,
+  filterRegistryCategories,
+  initialAttributeValues,
+  legacyAttributes,
+  normalizeProductAttributes,
+  registryAttributes,
+  type AttributeValue,
+  type CategorySource,
+  type DynamicAttribute,
+  type LegacyAttribute,
+  type RegistryCategoryDetail,
+  type RegistryCategorySummary,
+} from "@/lib/catalog/product-registry";
+
+type LegacyCategory = { code: string; name: string };
 type Status = "ACTIVE" | "INACTIVE" | "ARCHIVED";
 type Product = {
   public_id: string;
   name: string;
   description: string;
   category: string;
+  category_code: string | null;
   category_name: string;
+  category_source: CategorySource;
+  product_type_key: string | null;
   internal_reference: string | null;
   barcode: string | null;
   selling_price: string;
@@ -22,79 +40,206 @@ type Product = {
   attributes: Record<string, unknown>;
   status: Status;
 };
-type Attribute = {
+
+type CategoryChoice = {
   code: string;
-  name: string;
-  data_type: "TEXT" | "INTEGER" | "DECIMAL" | "BOOLEAN" | "DATE" | "CHOICE";
-  is_required: boolean;
-  is_variant_axis: boolean;
-  options?: { value: string; label: string }[];
+  label: string;
+  group: string;
+  source: CategorySource;
 };
 
-async function detail(response: Response) {
+type ApiProblem = { detail: string; errors: Record<string, string[]> };
+
+async function readProblem(response: Response): Promise<ApiProblem> {
   try {
-    return (await response.json() as { detail?: string }).detail ?? "Le catalogue est indisponible.";
+    const payload = await response.json() as { detail?: string; errors?: Record<string, string[]> };
+    return { detail: payload.detail ?? "Le catalogue est indisponible.", errors: payload.errors ?? {} };
   } catch {
-    return "Le catalogue est indisponible.";
+    return { detail: "Le catalogue est indisponible.", errors: {} };
   }
 }
 
-function stringifyAttribute(value: unknown) {
-  return typeof value === "boolean" ? String(value) : value == null ? "" : String(value);
+async function detail(response: Response) {
+  return (await readProblem(response)).detail;
 }
 
-function AttributeFields({ attributes, values, onChange }: {
-  attributes: Attribute[];
-  values: Record<string, string>;
-  onChange: (code: string, value: string) => void;
-}) {
-  const productAttributes = attributes.filter((attribute) => !attribute.is_variant_axis);
-  if (!productAttributes.length) return null;
+function sourceForProduct(product?: Product): CategorySource {
+  if (!product) return "registry";
+  return product.category_source ?? (product.category_code ? "registry" : "legacy");
+}
 
-  return <fieldset className="grid gap-3 border-t pt-3">
-    <legend className="font-medium">Attributs de la catégorie</legend>
-    {productAttributes.map((attribute) => {
-      const common = {
-        className: "mt-1 w-full rounded border p-2",
-        onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => onChange(attribute.code, event.target.value),
-        required: attribute.is_required,
-        value: values[attribute.code] ?? "",
-      };
-      return <label key={attribute.code}>
-        {attribute.name}{attribute.is_required ? " *" : ""}
-        {attribute.data_type === "CHOICE" ? <select {...common}><option value="">Choisir</option>{attribute.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : null}
-        {attribute.data_type === "BOOLEAN" ? <select {...common}><option value="">Choisir</option><option value="true">Oui</option><option value="false">Non</option></select> : null}
-        {attribute.data_type !== "CHOICE" && attribute.data_type !== "BOOLEAN" ? <input {...common} step={attribute.data_type === "DECIMAL" ? "any" : undefined} type={attribute.data_type === "DATE" ? "date" : attribute.data_type === "INTEGER" || attribute.data_type === "DECIMAL" ? "number" : "text"} /> : null}
-      </label>;
-    })}
+function defaultValues(schema: DynamicAttribute[], productValues?: Record<string, unknown>) {
+  const values = productValues ? initialAttributeValues(productValues) : {};
+  for (const attribute of schema) {
+    if (attribute.kind === "boolean" && values[attribute.code] === undefined) {
+      values[attribute.code] = "false";
+    }
+  }
+  return values;
+}
+
+function DynamicAttributeField({
+  attribute,
+  error,
+  onChange,
+  value,
+}: {
+  attribute: DynamicAttribute;
+  error?: string;
+  onChange: (value: AttributeValue) => void;
+  value?: AttributeValue;
+}) {
+  const fieldId = `product-attribute-${attribute.code}`;
+  const errorId = `${fieldId}-error`;
+  const helpId = `${fieldId}-help`;
+  const describedBy = [attribute.unit || attribute.minimum !== null || attribute.maximum !== null ? helpId : "", error ? errorId : ""]
+    .filter(Boolean)
+    .join(" ") || undefined;
+  const label = <>{attribute.label}{attribute.required ? " *" : ""}</>;
+  const className = "mt-1 w-full rounded border p-2";
+
+  let control;
+  if (attribute.kind === "boolean") {
+    control = <label className="mt-2 flex min-h-11 items-center gap-3 rounded border px-3 py-2" htmlFor={fieldId}>
+      <input aria-describedby={describedBy} aria-labelledby={`${fieldId}-label`} checked={value === "true"} id={fieldId} onChange={(event) => onChange(String(event.target.checked))} type="checkbox" />
+      <span>Activé</span>
+    </label>;
+  } else if (attribute.kind === "select") {
+    control = <select aria-describedby={describedBy} className={className} id={fieldId} onChange={(event) => onChange(event.target.value)} required={attribute.required} value={Array.isArray(value) ? "" : value ?? ""}>
+      <option value="">Choisir</option>
+      {attribute.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select>;
+  } else if (attribute.kind === "multi_select" && attribute.options.length) {
+    control = <select aria-describedby={describedBy} className={`${className} min-h-28`} id={fieldId} multiple onChange={(event) => onChange(Array.from(event.target.selectedOptions, (option) => option.value))} required={attribute.required} value={Array.isArray(value) ? value : []}>
+      {attribute.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select>;
+  } else {
+    const freeList = attribute.kind === "multi_select";
+    control = <input
+      aria-describedby={describedBy}
+      className={className}
+      id={fieldId}
+      max={attribute.maximum ?? undefined}
+      min={attribute.minimum ?? undefined}
+      onChange={(event) => onChange(freeList ? event.target.value.split(",").map((item) => item.trim()).filter(Boolean) : event.target.value)}
+      placeholder={freeList ? "Séparez les valeurs par des virgules" : undefined}
+      required={attribute.required}
+      step={attribute.kind === "integer" ? "1" : attribute.kind === "decimal" ? "any" : undefined}
+      type={attribute.kind === "integer" || attribute.kind === "decimal" ? "number" : attribute.kind === "date" ? "date" : "text"}
+      value={Array.isArray(value) ? value.join(", ") : value ?? ""}
+    />;
+  }
+
+  return <div>
+    {attribute.kind === "boolean" ? <span className="text-sm font-medium" id={`${fieldId}-label`}>{label}</span> : <label className="text-sm font-medium" htmlFor={fieldId}>{label}</label>}
+    {control}
+    {attribute.unit || attribute.minimum !== null || attribute.maximum !== null ? <p className="mt-1 text-xs text-[var(--muted)]" id={helpId}>
+      {attribute.unit ? `Unité : ${attribute.unit}. ` : ""}{attribute.minimum !== null ? `Minimum : ${attribute.minimum}. ` : ""}{attribute.maximum !== null ? `Maximum : ${attribute.maximum}.` : ""}
+    </p> : null}
+    {error ? <p className="mt-1 text-sm text-[var(--error)]" id={errorId} role="alert">{error}</p> : null}
+  </div>;
+}
+
+function AttributeSection({ attributes, errors, legend, onChange, values }: {
+  attributes: DynamicAttribute[];
+  errors: Record<string, string>;
+  legend: string;
+  onChange: (code: string, value: AttributeValue) => void;
+  values: Record<string, AttributeValue>;
+}) {
+  if (!attributes.length) return null;
+  return <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
+    <legend className="px-2 font-semibold text-[var(--brand-secondary)]">{legend}</legend>
+    {attributes.map((attribute) => <DynamicAttributeField attribute={attribute} error={errors[attribute.code]} key={attribute.code} onChange={(value) => onChange(attribute.code, value)} value={values[attribute.code]} />)}
   </fieldset>;
 }
 
-function ProductForm({ businessId, product, categories, onSaved }: {
+function CategorySelector({ choices, disabled, loading, onChange, value }: {
+  choices: CategoryChoice[];
+  disabled: boolean;
+  loading: boolean;
+  onChange: (source: CategorySource, code: string) => void;
+  value: string;
+}) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const registry = filterRegistryCategories(choices.filter((choice) => choice.source === "registry").map((choice) => ({ code: choice.code, description: "", label: choice.label, parent: choice.group })), query);
+    const registryCodes = new Set(registry.map((category) => category.code));
+    const normalized = query.trim().toLocaleLowerCase("fr");
+    return choices.filter((choice) => choice.source === "registry" ? registryCodes.has(choice.code) : !normalized || `${choice.label} ${choice.code}`.toLocaleLowerCase("fr").includes(normalized));
+  }, [choices, query]);
+  const groups = filtered.reduce<Map<string, CategoryChoice[]>>((result, choice) => {
+    result.set(choice.group, [...(result.get(choice.group) ?? []), choice]);
+    return result;
+  }, new Map());
+
+  return <div className="grid gap-2">
+    <label className="text-sm font-medium" htmlFor="product-category-search">Rechercher une catégorie</label>
+    <input autoComplete="off" className="w-full rounded border p-2" disabled={disabled || loading} id="product-category-search" onChange={(event) => setQuery(event.target.value)} placeholder="Téléviseurs, smartphones, chaussures…" type="search" value={query} />
+    <label className="text-sm font-medium" htmlFor="product-category">Catégorie *</label>
+    <select
+      className="w-full rounded border p-2"
+      disabled={disabled || loading}
+      id="product-category"
+      name="category_selection"
+      onChange={(event) => {
+        const [source, ...codeParts] = event.target.value.split(":");
+        if ((source === "legacy" || source === "registry") && codeParts.length) onChange(source, codeParts.join(":"));
+      }}
+      required
+      value={value}
+    >
+      <option value="">{loading ? "Chargement des catégories…" : "Choisir"}</option>
+      {[...groups.entries()].map(([group, options]) => <optgroup key={group} label={group}>{options.map((choice) => <option key={`${choice.source}:${choice.code}`} value={`${choice.source}:${choice.code}`}>{choice.label}</option>)}</optgroup>)}
+    </select>
+    {!loading && choices.length === 0 ? <p className="text-sm text-[var(--muted)]">Aucune catégorie disponible.</p> : null}
+    {!loading && choices.length > 0 && filtered.length === 0 ? <p className="text-sm text-[var(--muted)]">Aucune catégorie ne correspond à la recherche.</p> : null}
+  </div>;
+}
+
+function ProductForm({ businessId, categoriesLoading, legacyCategories, onSaved, product, registryCategories }: {
   businessId: string;
-  product?: Product;
-  categories: Category[];
+  categoriesLoading: boolean;
+  legacyCategories: LegacyCategory[];
   onSaved: (product: Product) => void;
+  product?: Product;
+  registryCategories: RegistryCategorySummary[];
 }) {
   const router = useRouter();
-  const [category, setCategory] = useState(product?.category ?? "");
-  const [attributes, setAttributes] = useState<Attribute[]>([]);
-  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
+  const initialSource = sourceForProduct(product);
+  const initialCode = product?.category_code ?? product?.category ?? "";
+  const [categorySource, setCategorySource] = useState<CategorySource>(initialSource);
+  const [categoryCode, setCategoryCode] = useState(initialCode);
+  const [attributes, setAttributes] = useState<DynamicAttribute[]>([]);
+  const [attributeValues, setAttributeValues] = useState<Record<string, AttributeValue>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [attributeError, setAttributeError] = useState<string | null>(null);
-  const [attributesLoading, setAttributesLoading] = useState(Boolean(product?.category));
+  const [attributesLoading, setAttributesLoading] = useState(Boolean(initialCode));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const choices = useMemo<CategoryChoice[]>(() => {
+    const registryChoices = registryCategories.map((category) => ({ code: category.code, group: category.parent, label: category.label, source: "registry" as const }));
+    if (!product) return registryChoices;
+    const combined: CategoryChoice[] = [...registryChoices, ...legacyCategories.map((category) => ({ code: category.code, group: "Catégories historiques", label: category.name, source: "legacy" as const }))];
+    if (!combined.some((choice) => choice.source === initialSource && choice.code === initialCode)) combined.push({ code: initialCode, group: initialSource === "legacy" ? "Catégories historiques" : "Registre", label: product.category_name, source: initialSource });
+    return combined;
+  }, [initialCode, initialSource, legacyCategories, product, registryCategories]);
+
   useEffect(() => {
-    if (!category) return;
+    if (!categoryCode) return;
     let cancelled = false;
-    void fetch(`/api/private/catalog/categories/${category}/attributes`, { credentials: "same-origin" }).then(async (response) => {
+    const path = categorySource === "registry" ? `/api/private/catalog/registry/${encodeURIComponent(categoryCode)}` : `/api/private/catalog/categories/${encodeURIComponent(categoryCode)}/attributes`;
+    void fetch(path, { credentials: "same-origin" }).then(async (response) => {
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
       if (!response.ok) throw new Error(await detail(response));
-      const result = await response.json() as { attributes: Attribute[] };
+      const schema = categorySource === "registry"
+        ? registryAttributes((await response.json() as { category: RegistryCategoryDetail }).category)
+        : legacyAttributes((await response.json() as { attributes: LegacyAttribute[] }).attributes);
       if (!cancelled) {
-        setAttributes(result.attributes);
-        setAttributeValues(Object.fromEntries(Object.entries(product?.category === category ? product.attributes : {}).map(([key, value]) => [key, stringifyAttribute(value)])));
+        setAttributes(schema);
+        const sameCategory = product && initialSource === categorySource && initialCode === categoryCode;
+        setAttributeValues(defaultValues(schema, sameCategory ? product.attributes : undefined));
       }
     }).catch((reason: unknown) => {
       if (!cancelled) setAttributeError(reason instanceof Error ? reason.message : "Les attributs de la catégorie sont indisponibles.");
@@ -102,30 +247,59 @@ function ProductForm({ businessId, product, categories, onSaved }: {
       if (!cancelled) setAttributesLoading(false);
     });
     return () => { cancelled = true; };
-  }, [category, product?.attributes, product?.category, router]);
+  }, [categoryCode, categorySource, initialCode, initialSource, product, router]);
+
+  function selectCategory(source: CategorySource, code: string) {
+    if (source === categorySource && code === categoryCode) return;
+    const hasValues = Object.values(attributeValues).some((value) => Array.isArray(value) ? value.length > 0 : value !== "" && value !== "false") || Boolean(product && Object.keys(product.attributes).length);
+    if (hasValues && !window.confirm("Changer de catégorie supprimera du formulaire les caractéristiques incompatibles. Continuer ?")) return;
+    setCategorySource(source);
+    setCategoryCode(code);
+    setAttributes([]);
+    setAttributeValues({});
+    setFieldErrors({});
+    setAttributeError(null);
+    setAttributesLoading(true);
+  }
 
   async function submit(form: HTMLFormElement) {
-    setSaving(true);
     setError(null);
-    const fields = new FormData(form);
-    const normalizedEntries: [string, unknown][] = [];
-    for (const attribute of attributes.filter((item) => !item.is_variant_axis)) {
-      const value = attributeValues[attribute.code];
-      if (value === undefined || value === "") continue;
-      normalizedEntries.push([attribute.code, attribute.data_type === "INTEGER" ? Number(value) : attribute.data_type === "BOOLEAN" ? value === "true" : value]);
+    setFieldErrors({});
+    if (!categoryCode) return setError("Choisissez une catégorie.");
+    const normalized = normalizeProductAttributes(attributes, attributeValues);
+    if (Object.keys(normalized.errors).length) {
+      setFieldErrors(normalized.errors);
+      setError("Corrigez les caractéristiques signalées avant d’enregistrer.");
+      return;
     }
-    const normalizedAttributes = Object.fromEntries(normalizedEntries);
+    setSaving(true);
+    const fields = new FormData(form);
+    const sameCategory = product && initialSource === categorySource && initialCode === categoryCode;
+    const schemaCodes = new Set(attributes.map((attribute) => attribute.code));
+    const preservedUnknownAttributes = sameCategory
+      ? Object.fromEntries(Object.entries(product.attributes).filter(([code]) => !schemaCodes.has(code)))
+      : {};
     const payload = {
-      name: fields.get("name"), description: fields.get("description"), category,
+      name: fields.get("name"), description: fields.get("description"), ...categoryPayload(categorySource, categoryCode),
       internal_reference: fields.get("internal_reference") || null, barcode: fields.get("barcode") || null,
       selling_price: fields.get("selling_price"), cost_price: fields.get("cost_price") || null,
-      currency: fields.get("currency"), status: fields.get("status"), attributes: normalizedAttributes,
+      currency: fields.get("currency"), status: fields.get("status"), attributes: { ...preservedUnknownAttributes, ...normalized.attributes },
     };
     const url = product ? `/api/private/businesses/${businessId}/products/${product.public_id}` : `/api/private/businesses/${businessId}/products`;
     try {
       const response = await fetch(url, { method: product ? "PATCH" : "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify(payload) });
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
-      if (!response.ok) return setError(await detail(response));
+      if (!response.ok) {
+        const problem = await readProblem(response);
+        const dynamicErrors = Object.fromEntries(attributes.flatMap((attribute) => {
+          const direct = problem.errors[attribute.code]?.[0];
+          const nested = problem.errors.attributes?.find((message) => message.includes(attribute.code));
+          return direct || nested ? [[attribute.code, direct ?? nested]] : [];
+        }));
+        setFieldErrors(dynamicErrors);
+        setError(problem.detail);
+        return;
+      }
       onSaved((await response.json() as { product: Product }).product);
     } catch {
       setError("Le catalogue est temporairement indisponible.");
@@ -134,23 +308,34 @@ function ProductForm({ businessId, product, categories, onSaved }: {
     }
   }
 
-  return <form aria-busy={saving} className="content-panel grid gap-3 p-5" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>
-    <h2 className="font-semibold">{product ? "Modifier le produit" : "Créer un produit"}</h2>
+  const commonAttributes = attributes.filter((attribute) => !attribute.variant && ["brand", "model"].includes(attribute.code));
+  const specificAttributes = attributes.filter((attribute) => !attribute.variant && !["brand", "model"].includes(attribute.code));
+  const variantAttributes = attributes.filter((attribute) => attribute.variant);
+
+  return <form aria-busy={saving} className="grid gap-5 p-1" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>
     {error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}
-    <label>Nom<input className="mt-1 w-full rounded border p-2" defaultValue={product?.name} name="name" required /></label>
-    <label>Catégorie<select className="mt-1 w-full rounded border p-2" name="category" onChange={(event) => { setCategory(event.target.value); setAttributes([]); setAttributeValues({}); setAttributeError(null); setAttributesLoading(Boolean(event.target.value)); }} required value={category}><option value="">Choisir</option>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+    <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
+      <legend className="px-2 font-semibold text-[var(--brand-secondary)]">Informations générales</legend>
+      <div><label className="text-sm font-medium" htmlFor="product-name">Nom *</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.name} id="product-name" name="name" required /></div>
+      <div className="sm:col-span-2"><CategorySelector choices={choices} disabled={saving} loading={categoriesLoading} onChange={selectCategory} value={categoryCode ? `${categorySource}:${categoryCode}` : ""} /></div>
+      {commonAttributes.map((attribute) => <DynamicAttributeField attribute={attribute} error={fieldErrors[attribute.code]} key={attribute.code} onChange={(value) => setAttributeValues((current) => ({ ...current, [attribute.code]: value }))} value={attributeValues[attribute.code]} />)}
+      <div><label className="text-sm font-medium" htmlFor="product-barcode">Code-barres</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.barcode ?? ""} id="product-barcode" name="barcode" /></div>
+      <div className="sm:col-span-2"><label className="text-sm font-medium" htmlFor="product-description">Description</label><textarea className="mt-1 min-h-24 w-full rounded border p-2" defaultValue={product?.description} id="product-description" name="description" /></div>
+    </fieldset>
     {attributeError ? <p className="text-sm text-[var(--error)]" role="alert">{attributeError}</p> : null}
-    {attributesLoading ? <p className="text-sm text-[var(--muted)]">Chargement des attributs de la catégorie…</p> : null}
-    <AttributeFields attributes={attributes} onChange={(code, value) => setAttributeValues((current) => ({ ...current, [code]: value }))} values={attributeValues} />
-    <label>Prix de vente<input className="mt-1 w-full rounded border p-2" defaultValue={product?.selling_price} min="0" name="selling_price" required step="0.01" type="number" /></label>
-    <label>Devise<select className="mt-1 w-full rounded border p-2" defaultValue={product?.currency ?? "CDF"} name="currency"><option value="CDF">CDF</option><option value="USD">USD</option></select></label>
-    <label>Référence interne<input className="mt-1 w-full rounded border p-2" defaultValue={product?.internal_reference ?? ""} name="internal_reference" /></label>
-    <label>Code-barres<input className="mt-1 w-full rounded border p-2" defaultValue={product?.barcode ?? ""} name="barcode" /></label>
-    <label>Prix de revient<input className="mt-1 w-full rounded border p-2" defaultValue={product?.cost_price ?? ""} min="0" name="cost_price" step="0.01" type="number" /></label>
-    <label>Statut<select className="mt-1 w-full rounded border p-2" defaultValue={product?.status ?? "ACTIVE"} name="status"><option value="ACTIVE">Actif</option><option value="INACTIVE">Inactif</option><option value="ARCHIVED">Archivé</option></select></label>
-    <label>Description<textarea className="mt-1 w-full rounded border p-2" defaultValue={product?.description} name="description" /></label>
-    <p className="text-xs text-[var(--muted)]">Les axes de variantes ne sont pas des attributs de produit : ils restent réservés aux variantes du produit.</p>
-    <button className="button button-primary w-fit" disabled={saving || Boolean(attributeError)} type="submit">{saving ? "Enregistrement…" : "Enregistrer"}</button>
+    {attributesLoading ? <p className="text-sm text-[var(--muted)]" role="status">Chargement des caractéristiques de la catégorie…</p> : null}
+    {!attributesLoading && categoryCode ? <AttributeSection attributes={specificAttributes} errors={fieldErrors} legend="Caractéristiques spécifiques" onChange={(code, value) => setAttributeValues((current) => ({ ...current, [code]: value }))} values={attributeValues} /> : null}
+    {variantAttributes.length ? <section aria-labelledby="variant-axes-title" className="rounded-lg border border-dashed p-4"><h3 className="font-semibold text-[var(--brand-secondary)]" id="variant-axes-title">Axes de variantes</h3><p className="mt-1 text-sm text-[var(--muted)]">Ces valeurs se renseignent lors de la création explicite d’une variante et ne sont pas enregistrées comme caractéristiques communes.</p><ul className="mt-2 list-inside list-disc text-sm">{variantAttributes.map((attribute) => <li key={attribute.code}>{attribute.label}</li>)}</ul></section> : null}
+    <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
+      <legend className="px-2 font-semibold text-[var(--brand-secondary)]">Informations commerciales</legend>
+      <div><label className="text-sm font-medium" htmlFor="product-selling-price">Prix de vente *</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.selling_price} id="product-selling-price" min="0" name="selling_price" required step="0.01" type="number" /></div>
+      <div><label className="text-sm font-medium" htmlFor="product-currency">Devise</label><select className="mt-1 w-full rounded border p-2" defaultValue={product?.currency ?? "CDF"} id="product-currency" name="currency"><option value="CDF">CDF</option><option value="USD">USD</option></select></div>
+      <div><label className="text-sm font-medium" htmlFor="product-cost-price">Prix de revient</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.cost_price ?? ""} id="product-cost-price" min="0" name="cost_price" step="0.01" type="number" /></div>
+      <div><label className="text-sm font-medium" htmlFor="product-reference">Référence interne</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.internal_reference ?? ""} id="product-reference" name="internal_reference" /></div>
+      <div><label className="text-sm font-medium" htmlFor="product-status">Statut</label><select className="mt-1 w-full rounded border p-2" defaultValue={product?.status ?? "ACTIVE"} id="product-status" name="status"><option value="ACTIVE">Actif</option><option value="INACTIVE">Inactif</option><option value="ARCHIVED">Archivé</option></select></div>
+    </fieldset>
+    <p className="text-xs text-[var(--muted)]">Le stock et les variantes restent gérés par leurs actions dédiées. Aucun stock ni aucune variante n’est créé automatiquement.</p>
+    <button className="button button-primary w-fit" disabled={saving || categoriesLoading || attributesLoading || Boolean(attributeError) || !categoryCode} type="submit">{saving ? "Enregistrement…" : "Enregistrer"}</button>
   </form>;
 }
 
@@ -158,10 +343,7 @@ export function ProductWorkspace({ businessId, productId }: { businessId: string
   const permissions = useBusinessPermissions(businessId);
   const canViewProducts = permissions?.includes("PRODUCT_VIEW") ?? false;
   const canDeleteProduct = permissions?.includes("PRODUCT_DELETE") ?? false;
-  return <>
-    {productId ? canViewProducts ? <ProductCatalog businessId={businessId} productId={productId} /> : null : <ProductCatalog businessId={businessId} />}
-    <ProductDeleteAction allowed={canDeleteProduct} businessId={businessId} productId={productId} />
-  </>;
+  return <>{productId ? canViewProducts ? <ProductCatalog businessId={businessId} productId={productId} /> : null : <ProductCatalog businessId={businessId} />}<ProductDeleteAction allowed={canDeleteProduct} businessId={businessId} productId={productId} /></>;
 }
 
 function ProductDeleteAction({ allowed, businessId, productId }: { allowed: boolean; businessId: string; productId?: string }) {
@@ -170,43 +352,21 @@ function ProductDeleteAction({ allowed, businessId, productId }: { allowed: bool
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
   async function removeProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const productPublicId = productId ?? target.trim();
     if (!productPublicId || saving || !window.confirm("Supprimer ce produit s’il n’est référencé par aucune opération ?")) return;
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
+    setSaving(true); setError(null); setSuccess(null);
     try {
-      const response = await fetch(`/api/private/businesses/${businessId}/products/${encodeURIComponent(productPublicId)}`, {
-        method: "DELETE",
-        credentials: "same-origin",
-        headers: { "x-csrf-protection": "1" },
-      });
+      const response = await fetch(`/api/private/businesses/${businessId}/products/${encodeURIComponent(productPublicId)}`, { method: "DELETE", credentials: "same-origin", headers: { "x-csrf-protection": "1" } });
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
       if (!response.ok) return setError(await detail(response));
       setSuccess("Produit supprimé.");
-      if (productId) router.replace(`/espace/entreprises/${businessId}/produits`);
-      else setTarget("");
-    } catch {
-      setError("La suppression du produit a échoué.");
-    } finally {
-      setSaving(false);
-    }
+      if (productId) router.replace(`/espace/entreprises/${businessId}/produits`); else setTarget("");
+    } catch { setError("La suppression du produit a échoué."); } finally { setSaving(false); }
   }
-
   if (!allowed) return null;
-  return <section className="content-panel mt-6 grid gap-3 p-5">
-    <h2 className="font-semibold">{productId ? "Supprimer ce produit" : "Supprimer un produit"}</h2>
-    <p className="text-sm text-[var(--muted)]">L’action est limitée à un identifiant connu. Un produit référencé ne peut pas être supprimé.</p>
-    {error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}
-    {success ? <p className="text-sm text-green-800" role="status">{success}</p> : null}
-    <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void removeProduct(event)}>
-      {!productId ? <label className="grid gap-1 text-sm">Identifiant du produit<input autoComplete="off" className="rounded border p-2" onChange={(event) => setTarget(event.target.value)} required value={target} /></label> : null}
-      <button className="button button-outline" disabled={saving || !allowed} type="submit">{saving ? "Suppression…" : "Supprimer"}</button>
-    </form>
-  </section>;
+  return <section className="content-panel mt-6 grid gap-3 p-5"><h2 className="font-semibold">{productId ? "Supprimer ce produit" : "Supprimer un produit"}</h2><p className="text-sm text-[var(--muted)]">L’action est limitée à un identifiant connu. Un produit référencé ne peut pas être supprimé.</p>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="text-sm text-green-800" role="status">{success}</p> : null}<form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void removeProduct(event)}>{!productId ? <label className="grid gap-1 text-sm">Identifiant du produit<input autoComplete="off" className="rounded border p-2" onChange={(event) => setTarget(event.target.value)} required value={target} /></label> : null}<button className="button button-outline" disabled={saving || !allowed} type="submit">{saving ? "Suppression…" : "Supprimer"}</button></form></section>;
 }
 
 export function ProductCatalog({ businessId, productId }: { businessId: string; productId?: string }) {
@@ -216,7 +376,9 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
   const canCreateProduct = permissions?.includes("PRODUCT_CREATE") ?? false;
   const canUpdateProduct = permissions?.includes("PRODUCT_UPDATE") ?? false;
   const [products, setProducts] = useState<Product[] | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [legacyCategories, setLegacyCategories] = useState<LegacyCategory[]>([]);
+  const [registryCategories, setRegistryCategories] = useState<RegistryCategorySummary[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -225,61 +387,43 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const filterCategories = useMemo(() => [...registryCategories.map((item) => ({ code: item.code, label: item.label, source: "registry" as const })), ...legacyCategories.map((item) => ({ code: item.code, label: item.name, source: "legacy" as const }))], [legacyCategories, registryCategories]);
 
   async function load() {
     setError(null);
     try {
       const query = new URLSearchParams();
-      if (search) query.set("search", search);
-      if (status) query.set("status", status);
-      if (category) query.set("category", category);
-      const [list, taxonomy] = await Promise.all([
-        fetch(`/api/private/businesses/${businessId}/products?${query}`, { credentials: "same-origin" }),
-        fetch("/api/private/catalog/categories", { credentials: "same-origin" }),
-      ]);
-      if (list.status === 401 || taxonomy.status === 401) return router.replace("/connexion?erreur=session_expired");
-      if (!list.ok) return setError(await detail(list));
-      if (!taxonomy.ok) return setError(await detail(taxonomy));
-      setProducts((await list.json() as { products: Product[] }).products);
-      setCategories((await taxonomy.json() as { categories: Category[] }).categories);
-    } catch {
-      setError("Le catalogue est temporairement indisponible.");
-    }
+      if (search) query.set("search", search); if (status) query.set("status", status); if (category) query.set("category", category);
+      const response = await fetch(`/api/private/businesses/${businessId}/products?${query}`, { credentials: "same-origin" });
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) return setError(await detail(response));
+      setProducts((await response.json() as { products: Product[] }).products);
+    } catch { setError("Le catalogue est temporairement indisponible."); }
   }
 
   useEffect(() => {
+    if (!canViewProducts && !canCreateProduct) return;
     let cancelled = false;
     async function syncCatalog() {
+      setCategoriesLoading(true);
       try {
-        if (canViewProducts) {
-          const [list, taxonomy] = await Promise.all([
-            fetch(`/api/private/businesses/${businessId}/products`, { credentials: "same-origin" }),
-            fetch("/api/private/catalog/categories", { credentials: "same-origin" }),
-          ]);
-          if (list.status === 401 || taxonomy.status === 401) return router.replace("/connexion?erreur=session_expired");
-          if (!list.ok) throw new Error(await detail(list));
-          if (!taxonomy.ok) throw new Error(await detail(taxonomy));
-          const productsData = await list.json() as { products: Product[] };
-          const categoriesData = await taxonomy.json() as { categories: Category[] };
-          if (!cancelled) {
-            setProducts(productsData.products);
-            setCategories(categoriesData.categories);
-          }
-          return;
-        }
-        if (canCreateProduct) {
-          const taxonomy = await fetch("/api/private/catalog/categories", { credentials: "same-origin" });
-          if (!taxonomy.ok) throw new Error(await detail(taxonomy));
-          const categoriesData = await taxonomy.json() as { categories: Category[] };
-          if (!cancelled) setCategories(categoriesData.categories);
-        }
-      } catch (reason) {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "Le catalogue est temporairement indisponible.");
-      }
+        const requests = [fetch("/api/private/catalog/categories", { credentials: "same-origin" }), fetch("/api/private/catalog/registry", { credentials: "same-origin" }), ...(canViewProducts ? [fetch(`/api/private/businesses/${businessId}/products`, { credentials: "same-origin" })] : [])];
+        const [legacyResponse, registryResponse, productsResponse] = await Promise.all(requests);
+        if ([legacyResponse, registryResponse, productsResponse].some((response) => response?.status === 401)) return router.replace("/connexion?erreur=session_expired");
+        if (!legacyResponse.ok) throw new Error(await detail(legacyResponse));
+        if (!registryResponse.ok) throw new Error(await detail(registryResponse));
+        if (productsResponse && !productsResponse.ok) throw new Error(await detail(productsResponse));
+        const legacyData = await legacyResponse.json() as { categories: LegacyCategory[] };
+        const registryData = await registryResponse.json() as { categories: RegistryCategorySummary[] };
+        const productsData = productsResponse ? await productsResponse.json() as { products: Product[] } : null;
+        if (!cancelled) { setLegacyCategories(legacyData.categories); setRegistryCategories(registryData.categories); if (productsData) setProducts(productsData.products); }
+      } catch (reason) { if (!cancelled) setError(reason instanceof Error ? reason.message : "Le catalogue est temporairement indisponible."); }
+      finally { if (!cancelled) setCategoriesLoading(false); }
     }
     void syncCatalog();
     return () => { cancelled = true; };
   }, [businessId, canCreateProduct, canViewProducts, router]);
+
   useEffect(() => {
     if (!productId || !canViewProducts) return;
     void fetch(`/api/private/businesses/${businessId}/products/${productId}`, { credentials: "same-origin" }).then(async (response) => {
@@ -289,6 +433,6 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
     }).catch(() => setError("Le catalogue est temporairement indisponible."));
   }, [businessId, productId, router, canViewProducts]);
 
-  if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{product ? <section className="content-panel mt-5 grid gap-2 p-5"><h2 className="font-semibold">{product.name}</h2><p>Catégorie : {product.category_name}</p><p>Prix de vente : {product.selling_price} {product.currency}</p><p>Statut : {product.status}</p>{product.internal_reference ? <p>Référence : {product.internal_reference}</p> : null}{product.description ? <p>{product.description}</p> : null}{canUpdateProduct ? <button className="button button-outline mt-2 w-fit" onClick={() => setEditOpen(true)} type="button">Modifier le produit</button> : null}</section> : !error ? <p className="mt-5">Chargement du produit…</p> : null}{editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title="Modifier le produit"><ProductForm businessId={businessId} categories={categories} onSaved={(updated) => { setProduct(updated); setEditOpen(false); setSuccess("Produit modifié."); }} product={product} /></Modal> : null}</main>;
-  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="py-3" key={item.public_id}><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{item.selling_price} {item.currency} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">La consultation du catalogue n’est pas autorisée. Les actions accordées restent disponibles ci-dessus.</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessId={businessId} categories={categories} onSaved={(created) => { setCreateOpen(false); setSuccess("Produit ajouté."); setProducts((current) => current ? [...current, created] : [created]); if (canViewProducts) void load(); }} /></Modal> : null}</main>;
+  if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{product ? <section className="content-panel mt-5 grid gap-2 p-5"><h2 className="font-semibold">{product.name}</h2><p>Catégorie : {product.category_name}</p><p className="text-sm text-[var(--muted)]">Source : {sourceForProduct(product) === "registry" ? "Registre produits" : "Catégorie historique"}</p><p>Prix de vente : {product.selling_price} {product.currency}</p><p>Statut : {product.status}</p>{product.internal_reference ? <p>Référence : {product.internal_reference}</p> : null}{product.description ? <p>{product.description}</p> : null}{canUpdateProduct ? <button className="button button-outline mt-2 w-fit" onClick={() => setEditOpen(true)} type="button">Modifier le produit</button> : null}</section> : !error ? <p className="mt-5">Chargement du produit…</p> : null}{editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title="Modifier le produit"><ProductForm businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(updated) => { setProduct(updated); setEditOpen(false); setSuccess("Produit modifié."); }} product={product} registryCategories={registryCategories} /></Modal> : null}</main>;
+  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input aria-label="Rechercher un produit" className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select aria-label="Filtrer par statut" className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select aria-label="Filtrer par catégorie" className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{filterCategories.map((item) => <option key={`${item.source}:${item.code}`} value={item.code}>{item.label}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="py-3" key={item.public_id}><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{item.selling_price} {item.currency} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">La consultation du catalogue n’est pas autorisée. Les actions accordées restent disponibles ci-dessus.</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(created) => { setCreateOpen(false); setSuccess("Produit ajouté."); setProducts((current) => current ? [...current, created] : [created]); if (canViewProducts) void load(); }} registryCategories={registryCategories} /></Modal> : null}</main>;
 }

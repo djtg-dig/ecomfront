@@ -51,6 +51,20 @@ describe("client HTTP BFF", () => {
     });
   });
 
+  it("préserve les erreurs de validation Django destinées aux champs", async () => {
+    const client = createBackendClient(config, vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ category_code: ["Catégorie inconnue."], attributes: ["screen_size est obligatoire."] }), { status: 400, headers: { "content-type": "application/json" } }),
+    ));
+    await expect(client.request("/api/v1/resource/")).rejects.toMatchObject<Partial<BackendApiError>>({
+      status: 400,
+      detail: "Catégorie inconnue.",
+      fieldErrors: {
+        category_code: ["Catégorie inconnue."],
+        attributes: ["screen_size est obligatoire."],
+      },
+    });
+  });
+
   it("convertit les erreurs réseau et refuse une cible hors API", async () => {
     const client = createBackendClient(config, vi.fn<typeof fetch>().mockRejectedValue(new Error("socket details")));
     await expect(client.request("/api/v1/resource/")).rejects.toBeInstanceOf(BackendNetworkError);
