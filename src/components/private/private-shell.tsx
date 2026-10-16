@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
@@ -15,6 +16,14 @@ function isActive(pathname: string, href: string) {
 }
 
 export function PrivateShell({ children }: Readonly<{ children: ReactNode }>) {
+  return <Suspense fallback={<PrivateShellFallback />}><PrivateShellContent>{children}</PrivateShellContent></Suspense>;
+}
+
+function PrivateShellFallback() {
+  return <div aria-busy="true" className="grid min-h-64 place-items-center p-6"><p className="text-sm text-[var(--muted)]">Chargement de votre espace…</p></div>;
+}
+
+function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   return pathname.startsWith("/espace/entreprises/") ? <BusinessShell>{children}</BusinessShell> : <PersonalShell>{children}</PersonalShell>;
 }
