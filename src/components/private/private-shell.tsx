@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
@@ -38,16 +38,17 @@ function ShellFrame({ children, navigation, title }: Readonly<{ children: ReactN
             <span className="brand-mark grid size-8 place-items-center text-sm font-bold">E</span>
             E-commerce
           </Link>
-          <div className="order-3 flex w-full items-center justify-between gap-3 border-t border-[var(--line)] pt-3 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
+          <div className="hidden items-center justify-between gap-3 md:flex">
             <div className="min-w-0 sm:text-right">
               <p className="text-xs font-medium text-[var(--muted)]">{title}</p>
             </div>
             <LogoutButton />
           </div>
+          <MobileNavigation navigation={navigation} pathname={pathname} title={title} />
         </div>
       </header>
-      <div className="site-container flex flex-1 flex-col gap-6 py-6 lg:flex-row">
-        <nav aria-label="Navigation privée" className="content-panel flex shrink-0 flex-wrap gap-2 p-3 lg:w-56 lg:flex-col lg:flex-nowrap">
+      <div className="site-container flex flex-1 flex-col gap-6 py-6 md:flex-row">
+        <nav aria-label="Navigation privée" className="content-panel hidden shrink-0 flex-wrap gap-2 p-3 md:flex md:w-56 md:flex-col md:flex-nowrap">
           {navigation.map((item) => (
             <Link
               aria-current={isActive(pathname, item.href) ? "page" : undefined}
@@ -64,6 +65,34 @@ function ShellFrame({ children, navigation, title }: Readonly<{ children: ReactN
       <SiteFooter />
     </div>
   );
+}
+
+function MobileNavigation({ navigation, pathname, title }: { navigation: { href: string; label: string }[]; pathname: string; title: string }) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const close = () => setOpen(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    document.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKeyDown); document.body.style.overflow = previousOverflow; buttonRef.current?.focus(); };
+  }, [open]);
+  return <div className="md:hidden">
+    <button aria-controls="private-mobile-navigation" aria-expanded={open} aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} className="button button-outline grid min-h-11 min-w-11 place-items-center px-3" onClick={() => setOpen((current) => !current)} ref={buttonRef} type="button">
+      <span aria-hidden="true" className="text-xl leading-none">{open ? "×" : "☰"}</span>
+    </button>
+    {open ? <div className="fixed inset-0 z-50" role="presentation">
+      <button aria-label="Fermer le menu" className="absolute inset-0 bg-black/30" onClick={close} type="button" />
+      <aside aria-label="Navigation privée mobile" aria-modal="true" className="absolute right-0 top-0 flex h-full w-[min(20rem,calc(100vw-1rem))] flex-col bg-[var(--background)] p-5 shadow-2xl" id="private-mobile-navigation" role="dialog">
+        <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">{title}</p><button aria-label="Fermer le menu" className="button button-outline min-h-11 min-w-11 px-3" onClick={close} type="button">×</button></div>
+        <p className="mt-5 text-xs font-medium text-[var(--muted)]">MON COMPTE</p>
+        <nav className="mt-2 grid gap-2" aria-label="Navigation mobile">{navigation.map((item) => <Link aria-current={isActive(pathname, item.href) ? "page" : undefined} className={isActive(pathname, item.href) ? "button button-primary" : "button button-outline"} href={item.href} key={item.href} onClick={close}>{item.label}</Link>)}</nav>
+        <div className="mt-auto border-t border-[var(--line)] pt-4"><LogoutButton /></div>
+      </aside>
+    </div> : null}
+  </div>;
 }
 
 function PersonalShell({ children }: Readonly<{ children: ReactNode }>) { return <ShellFrame navigation={personalNavigation} title="Mon compte">{children}</ShellFrame>; }
