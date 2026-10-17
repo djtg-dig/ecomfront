@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
+import { useBusinessNameState } from "@/components/private/business-name-provider";
 
 type Business = { public_id: string; name: string; primary_currency: string; status: string };
 
@@ -61,29 +62,15 @@ const moduleLinks = [
   { label: "Achats", path: "achats", permissions: ["PURCHASE_VIEW", "PURCHASE_CREATE", "PURCHASE_UPDATE", "PURCHASE_CONFIRM", "PURCHASE_RECEIVE", "PURCHASE_CANCEL", "PURCHASE_LINE_VIEW", "PURCHASE_LINE_CREATE"] },
   { label: "Ventes", path: "ventes", permissions: ["SALE_VIEW", "SALE_CREATE", "SALE_UPDATE", "SALE_COMPLETE", "SALE_CANCEL", "SALE_LINE_VIEW", "SALE_LINE_CREATE", "SALE_RETURN", "SALE_RETURN_VIEW"] },
   { label: "Finance", path: "finance", permissions: ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_CREATE"] },
-  { label: "Paramètres entreprise", path: "membres", permissions: ["MEMBER_VIEW", "MEMBER_PERMISSION_VIEW", "INVITATION_VIEW", "INVITATION_CREATE", "MEMBER_UPDATE"] },
+  { label: "Membres et accès", path: "membres", permissions: ["MEMBER_VIEW", "MEMBER_PERMISSION_VIEW", "INVITATION_VIEW", "INVITATION_CREATE", "MEMBER_UPDATE"] },
 ];
 
 export function BusinessEditor({ businessId }: { businessId: string }) {
-  const router = useRouter();
   const permissions = useBusinessPermissions(businessId);
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setBusiness(null);
-    setError(null);
-    void fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin", cache: "no-store" }).then(async (response) => {
-      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
-      if (!response.ok) throw new Error(await detail(response));
-      if (active) setBusiness((await response.json() as { business: Business }).business);
-    }).catch((reason: unknown) => {
-      if (active) setError(reason instanceof Error ? reason.message : "Le service E-commerce est indisponible.");
-    });
-    return () => { active = false; };
-  }, [businessId, router]);
+  const businessState = useBusinessNameState();
+  const business = businessState?.business ?? null;
+  const error = businessState?.error ?? null;
 
   const links = permissions ? moduleLinks.filter((link) => link.permissions.some((permission) => permissions.includes(permission))) : [];
-  return <main><Link className="nav-link text-sm" href="/espace">← Retour à mon espace</Link><p className="eyebrow mt-4">ESPACE ENTREPRISE</p><h1 className="mt-2 text-3xl font-semibold text-[var(--brand-secondary)]">{business ? business.name : "Tableau de bord entreprise"}</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-6"><h2 className="font-semibold">Modules</h2>{permissions === null ? <p className="mt-4 text-sm text-[var(--muted)]">Chargement de vos accès…</p> : links.length ? <div className="mt-4 flex flex-wrap gap-3">{links.map((link) => <Link className="button button-outline" href={`/espace/entreprises/${businessId}/${link.path}`} key={link.path}>{link.label}</Link>)}</div> : <p className="mt-4 text-sm text-[var(--muted)]">Aucun module n’est accessible avec vos permissions actuelles.</p>}</section></main>;
+  return <main><Link className="nav-link text-sm" href="/espace">← Retour à mon espace</Link><p className="eyebrow mt-4">ESPACE ENTREPRISE</p><h1 className="mt-2 text-2xl font-semibold text-[var(--brand-secondary)] sm:text-3xl">{business ? business.name : "Tableau de bord entreprise"}</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-4 sm:p-6"><h2 className="font-semibold">Modules</h2>{permissions === null ? <p className="mt-4 text-sm text-[var(--muted)]">Chargement de vos accès…</p> : links.length ? <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{links.map((link) => <Link className="button button-outline w-full" href={`/espace/entreprises/${businessId}/${link.path}`} key={link.path}>{link.label}</Link>)}</div> : <p className="mt-4 text-sm text-[var(--muted)]">Aucun module n’est accessible avec vos permissions actuelles.</p>}</section></main>;
 }

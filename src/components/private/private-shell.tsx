@@ -7,9 +7,13 @@ import { useParams, usePathname } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { BusinessNameProvider, useBusinessNameState } from "@/components/private/business-name-provider";
 import { BusinessPermissionsProvider, useBusinessPermissionsState } from "@/components/private/business-permissions-provider";
 import { hasAnyPermission } from "@/lib/permissions/catalog";
-const personalNavigation = [{ href: "/espace", label: "Accueil" }, { href: "/espace/entreprises", label: "Mes entreprises" }, { href: "/espace/invitations", label: "Invitations reçues" }, { href: "/espace/parametres", label: "Paramètres du compte" }];
+
+type NavigationItem = { href: string; label: string; secondary?: boolean };
+
+const personalNavigation: NavigationItem[] = [{ href: "/espace", label: "Accueil" }, { href: "/espace/entreprises", label: "Mes entreprises" }, { href: "/espace/invitations", label: "Invitations reçues" }, { href: "/espace/parametres", label: "Paramètres du compte" }];
 
 function isActive(pathname: string, href: string) {
   return pathname === href || (href !== "/espace" && pathname.startsWith(`${href}/`));
@@ -28,13 +32,13 @@ function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
   return pathname.startsWith("/espace/entreprises/") ? <BusinessShell>{children}</BusinessShell> : <PersonalShell>{children}</PersonalShell>;
 }
 
-function ShellFrame({ children, navigation, title }: Readonly<{ children: ReactNode; navigation: { href: string; label: string }[]; title: string }>) {
+function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ children: ReactNode; navigation: NavigationItem[]; title: string; mobileSection: string }>) {
   const pathname = usePathname();
   return (
     <div className="page-shell flex min-h-screen flex-col">
       <header className="site-header">
         <div className="site-container flex flex-wrap items-center justify-between gap-4 py-3">
-          <Link className="brand-lockup flex items-center gap-3 font-semibold" href="/espace">
+          <Link className="brand-lockup hidden items-center gap-3 font-semibold md:flex" href="/espace">
             <span className="brand-mark grid size-8 place-items-center text-sm font-bold">E</span>
             E-commerce
           </Link>
@@ -44,11 +48,11 @@ function ShellFrame({ children, navigation, title }: Readonly<{ children: ReactN
             </div>
             <LogoutButton />
           </div>
-          <MobileNavigation navigation={navigation} pathname={pathname} title={title} />
+          <MobileNavigation mobileSection={mobileSection} navigation={navigation} pathname={pathname} title={title} />
         </div>
       </header>
       <div className="site-container flex flex-1 flex-col gap-6 py-6 md:flex-row">
-        <nav aria-label="Navigation privée" className="content-panel hidden shrink-0 flex-wrap gap-2 p-3 md:flex md:w-56 md:flex-col md:flex-nowrap">
+        <nav aria-label="Navigation privée" className="content-panel order-3 flex w-full hidden shrink-0 flex-wrap gap-2 p-3 md:order-none md:flex md:w-56 md:flex-col md:flex-nowrap">
           {navigation.map((item) => (
             <Link
               aria-current={isActive(pathname, item.href) ? "page" : undefined}
@@ -67,49 +71,67 @@ function ShellFrame({ children, navigation, title }: Readonly<{ children: ReactN
   );
 }
 
-function MobileNavigation({ navigation, pathname, title }: { navigation: { href: string; label: string }[]; pathname: string; title: string }) {
+function MobileNavigation({ mobileSection, navigation, pathname, title }: { mobileSection: string; navigation: NavigationItem[]; pathname: string; title: string }) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const close = () => setOpen(false);
+  useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") return close();
+      if (event.key !== "Tab") return;
+      const focusable = panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? [];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
     document.addEventListener("keydown", onKeyDown);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKeyDown); document.body.style.overflow = previousOverflow; buttonRef.current?.focus(); };
+    const focusTimer = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+    return () => { window.cancelAnimationFrame(focusTimer); document.removeEventListener("keydown", onKeyDown); document.body.style.overflow = previousOverflow; buttonRef.current?.focus(); };
   }, [open]);
-  return <div className="md:hidden">
-    <button aria-controls="private-mobile-navigation" aria-expanded={open} aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} className="button button-outline grid min-h-11 min-w-11 place-items-center px-3" onClick={() => setOpen((current) => !current)} ref={buttonRef} type="button">
+  const primaryNavigation = navigation.filter((item) => !item.secondary);
+  const secondaryNavigation = navigation.filter((item) => item.secondary);
+  return <div className="flex min-w-0 flex-1 items-center justify-between gap-3 md:hidden">
+    <p className="truncate text-sm font-semibold" title={title}>{title}</p>
+    <button aria-controls="private-mobile-navigation" aria-expanded={open} aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} className="button button-outline grid min-h-11 min-w-11 shrink-0 place-items-center px-3" onClick={() => setOpen((current) => !current)} ref={buttonRef} type="button">
       <span aria-hidden="true" className="text-xl leading-none">{open ? "×" : "☰"}</span>
     </button>
     {open ? <div className="fixed inset-0 z-50" role="presentation">
       <button aria-label="Fermer le menu" className="absolute inset-0 bg-black/30" onClick={close} type="button" />
-      <aside aria-label="Navigation privée mobile" aria-modal="true" className="absolute right-0 top-0 flex h-full w-[min(20rem,calc(100vw-1rem))] flex-col bg-[var(--background)] p-5 shadow-2xl" id="private-mobile-navigation" role="dialog">
-        <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">{title}</p><button aria-label="Fermer le menu" className="button button-outline min-h-11 min-w-11 px-3" onClick={close} type="button">×</button></div>
-        <p className="mt-5 text-xs font-medium text-[var(--muted)]">MON COMPTE</p>
-        <nav className="mt-2 grid gap-2" aria-label="Navigation mobile">{navigation.map((item) => <Link aria-current={isActive(pathname, item.href) ? "page" : undefined} className={isActive(pathname, item.href) ? "button button-primary" : "button button-outline"} href={item.href} key={item.href} onClick={close}>{item.label}</Link>)}</nav>
-        <div className="mt-auto border-t border-[var(--line)] pt-4"><LogoutButton /></div>
+      <aside aria-label="Navigation privée mobile" aria-modal="true" className="absolute right-0 top-0 flex h-full w-[min(20rem,calc(100vw-1rem))] flex-col overflow-y-auto bg-[var(--background)] p-5 shadow-2xl" id="private-mobile-navigation" ref={panelRef} role="dialog">
+        <div className="flex items-center justify-between gap-3"><p className="min-w-0 truncate text-sm font-semibold">{title}</p><button aria-label="Fermer le menu" className="button button-outline min-h-11 min-w-11 shrink-0 px-3" onClick={close} ref={closeButtonRef} type="button">×</button></div>
+        <p className="mt-5 text-xs font-medium text-[var(--muted)]">{mobileSection}</p>
+        <nav className="mt-2 grid gap-2" aria-label="Navigation mobile">{primaryNavigation.map((item) => <Link aria-current={isActive(pathname, item.href) ? "page" : undefined} className={isActive(pathname, item.href) ? "button button-primary" : "button button-outline"} href={item.href} key={item.href} onClick={close}>{item.label}</Link>)}</nav>
+        {secondaryNavigation.length ? <div className="mt-5 border-t border-[var(--line)] pt-4">{secondaryNavigation.map((item) => <Link aria-current={isActive(pathname, item.href) ? "page" : undefined} className="button button-outline w-full" href={item.href} key={item.href} onClick={close}>← {item.label}</Link>)}</div> : null}
+        <div className="mt-4 border-t border-[var(--line)] pt-4"><LogoutButton /></div>
       </aside>
     </div> : null}
   </div>;
 }
 
-function PersonalShell({ children }: Readonly<{ children: ReactNode }>) { return <ShellFrame navigation={personalNavigation} title="Mon compte">{children}</ShellFrame>; }
+function PersonalShell({ children }: Readonly<{ children: ReactNode }>) { return <ShellFrame mobileSection="MON COMPTE" navigation={personalNavigation} title="Mon compte">{children}</ShellFrame>; }
 
 function BusinessShell({ children }: Readonly<{ children: ReactNode }>) {
   const params = useParams<{ businessId: string }>();
   const businessId = params.businessId;
-  return <BusinessPermissionsProvider businessId={businessId}><BusinessShellNavigation businessId={businessId}>{children}</BusinessShellNavigation></BusinessPermissionsProvider>;
+  return <BusinessPermissionsProvider businessId={businessId}><BusinessNameProvider businessId={businessId}><BusinessShellNavigation businessId={businessId}>{children}</BusinessShellNavigation></BusinessNameProvider></BusinessPermissionsProvider>;
 }
 
 function BusinessShellNavigation({ businessId, children }: Readonly<{ businessId: string; children: ReactNode }>) {
   const permissionState = useBusinessPermissionsState();
+  const businessState = useBusinessNameState();
   const permissions = permissionState?.permissions ?? null;
   const status = permissionState?.status ?? "loading";
-  const navigation = [
+  const navigation: NavigationItem[] = [
     { href: `/espace/entreprises/${businessId}`, label: "Tableau de bord" },
-    { href: "/espace", label: "Retour à mon espace" },
+    { href: "/espace", label: "Retour à mon espace", secondary: true },
   ].concat(status === "ready" && permissions ? [
     ...(hasAnyPermission(permissions, ["PRODUCT_VIEW", "PRODUCT_CREATE", "PRODUCT_UPDATE", "PRODUCT_DELETE", "PRODUCT_DEACTIVATE", "PRODUCT_VARIANT_VIEW", "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE"]) ? [{ href: `/espace/entreprises/${businessId}/produits`, label: "Produits" }] : []),
     ...(hasAnyPermission(permissions, ["INVENTORY_VIEW", "INVENTORY_INITIALIZE", "INVENTORY_IN", "INVENTORY_OUT", "INVENTORY_ADJUST", "INVENTORY_MOVEMENT_VIEW"]) ? [{ href: `/espace/entreprises/${businessId}/stocks`, label: "Stocks" }] : []),
@@ -119,5 +141,5 @@ function BusinessShellNavigation({ businessId, children }: Readonly<{ businessId
     ...(permissions.some((permission) => ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_PAYMENT_VIEW", "RECEIVABLE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_VIEW", "SUPPLIER_PAYMENT_CREATE", "SUPPLIER_PAYMENT_REVERSE"].includes(permission)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: "Finance" }] : []),
     ...(permissions.some((permission) => permission.startsWith("MEMBER_") || permission.startsWith("INVITATION_")) ? [{ href: `/espace/entreprises/${businessId}/membres`, label: "Membres et accès" }] : []),
   ] : []);
-  return <ShellFrame navigation={navigation} title="Espace entreprise">{children}</ShellFrame>;
+  return <ShellFrame mobileSection="ESPACE ENTREPRISE" navigation={navigation} title={businessState?.business?.name ?? "Espace entreprise"}>{children}</ShellFrame>;
 }
