@@ -35,19 +35,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ busi
     );
     let session = access.session;
     let refreshed = access.refreshed;
-    let members: unknown = [];
-    let invitations: unknown = [];
-    if (access.data.permissions.includes("MEMBER_VIEW")) {
-      const result = await authenticatedBackendRequest<unknown>(
+    const [membersResult, invitationsResult] = await Promise.all([
+      access.data.permissions.includes("MEMBER_VIEW")
+        ? authenticatedBackendRequest<unknown>(
         `/api/v1/businesses/${businessId}/members/`,
         session,
         { query: { page: "1", page_size: "50" } },
-      );
-      members = result.data; session = result.session; refreshed ||= result.refreshed;
-    }
-    if (access.data.permissions.includes("INVITATION_VIEW")) {
-      const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/invitations/`, session);
-      invitations = result.data; session = result.session; refreshed ||= result.refreshed;
+      )
+        : Promise.resolve(null),
+      access.data.permissions.includes("INVITATION_VIEW")
+        ? authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/invitations/`, session)
+        : Promise.resolve(null),
+    ]);
+    const members = membersResult?.data ?? [];
+    const invitations = invitationsResult?.data ?? [];
+    for (const result of [membersResult, invitationsResult]) {
+      if (result?.refreshed) {
+        session = result.session;
+        refreshed = true;
+      }
     }
     const response = NextResponse.json({ members, invitations });
     return refreshed ? persistPrivateSession(response, session) : response;

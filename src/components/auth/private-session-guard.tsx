@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { clearBusinessPermissionsCache } from "@/components/private/business-permissions-provider";
+
 export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode }>) {
   const [status, setStatus] = useState<"checking" | "ready" | "unavailable">("checking");
   const router = useRouter();
@@ -17,6 +19,7 @@ export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode
       signal: controller.signal,
     }).then((response) => {
       if (response.status === 401) {
+        clearBusinessPermissionsCache();
         router.replace("/connexion?erreur=session_expired");
         return;
       }

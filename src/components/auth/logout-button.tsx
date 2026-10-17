@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { clearBusinessPermissionsCache } from "@/components/private/business-permissions-provider";
+
 export function LogoutButton() {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -18,7 +20,10 @@ export function LogoutButton() {
         credentials: "same-origin",
         headers: { "x-csrf-protection": "1" },
       });
-      if (response.ok || response.status === 503) router.replace("/");
+      if (response.ok || response.status === 503) {
+        clearBusinessPermissionsCache();
+        router.replace("/");
+      }
       else setFailed(true);
     } catch {
       setFailed(true);

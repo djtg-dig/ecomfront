@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { BusinessPermissionsProvider, useBusinessPermissionsState } from "@/components/private/business-permissions-provider";
 import { hasAnyPermission } from "@/lib/permissions/catalog";
 const personalNavigation = [{ href: "/espace", label: "Accueil" }, { href: "/espace/entreprises", label: "Mes entreprises" }, { href: "/espace/invitations", label: "Invitations reçues" }, { href: "/espace/parametres", label: "Paramètres du compte" }];
 
@@ -71,9 +71,13 @@ function PersonalShell({ children }: Readonly<{ children: ReactNode }>) { return
 function BusinessShell({ children }: Readonly<{ children: ReactNode }>) {
   const params = useParams<{ businessId: string }>();
   const businessId = params.businessId;
-  const [permissions, setPermissions] = useState<string[] | null>(null);
-  const [status, setStatus] = useState<"loading" | "forbidden" | "unavailable" | "ready">("loading");
-  useEffect(() => { let active = true; setStatus("loading"); setPermissions(null); fetch(`/api/private/businesses/${businessId}/my-permissions`, { credentials: "same-origin", cache: "no-store" }).then(async (response) => { if (!active) return; if (!response.ok) return setStatus(response.status === 403 || response.status === 401 ? "forbidden" : "unavailable"); const data = await response.json() as { permissions: string[] }; setPermissions(data.permissions); setStatus("ready"); }).catch(() => active && setStatus("unavailable")); return () => { active = false; }; }, [businessId]);
+  return <BusinessPermissionsProvider businessId={businessId}><BusinessShellNavigation businessId={businessId}>{children}</BusinessShellNavigation></BusinessPermissionsProvider>;
+}
+
+function BusinessShellNavigation({ businessId, children }: Readonly<{ businessId: string; children: ReactNode }>) {
+  const permissionState = useBusinessPermissionsState();
+  const permissions = permissionState?.permissions ?? null;
+  const status = permissionState?.status ?? "loading";
   const navigation = [
     { href: `/espace/entreprises/${businessId}`, label: "Tableau de bord" },
     { href: "/espace", label: "Retour à mon espace" },

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useBusinessPermissionsState } from "@/components/private/business-permissions-provider";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { MemberPermissionGroups } from "@/components/members/member-permission-groups";
 import { Modal } from "@/components/ui/modal";
@@ -33,6 +34,7 @@ function items<T>(data: Paginated<T>) { return Array.isArray(data) ? data : data
 export function TeamManager({ businessId }: { businessId: string }) {
   const router = useRouter();
   const effectivePermissions = useBusinessPermissions(businessId);
+  const permissionState = useBusinessPermissionsState();
   const canViewMembers = effectivePermissions?.includes("MEMBER_VIEW") ?? false;
   const canViewInvitations = effectivePermissions?.includes("INVITATION_VIEW") ?? false;
   const canInvite = effectivePermissions?.includes("INVITATION_CREATE") ?? false;
@@ -104,6 +106,7 @@ export function TeamManager({ businessId }: { businessId: string }) {
         if (body.member) setSelected(body.member);
       }
       setConfirmingRemoval(false);
+      await permissionState?.refresh(true);
       await load();
     } catch { setError("L’action a échoué. Veuillez réessayer."); }
     finally { setPending(null); }
@@ -123,6 +126,7 @@ export function TeamManager({ businessId }: { businessId: string }) {
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
       if (!response.ok) return setError(await message(response));
       setInviteOpen(false);
+      await permissionState?.refresh(true);
       await load();
     } catch { setError("L’invitation n’a pas pu être envoyée."); }
     finally { setPending(null); }
@@ -151,6 +155,7 @@ export function TeamManager({ businessId }: { businessId: string }) {
       }
       setSelected({ ...selected, permissions: permissionDraft });
       setPermissionDraft(null);
+      await permissionState?.refresh(true);
       await load();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "La mise à jour des permissions a échoué."); }
     finally { setPending(null); }
