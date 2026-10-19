@@ -18,6 +18,9 @@ export function isLocalSameSiteConfig(config: ServerConfig): boolean {
   return process.env.NODE_ENV !== "production" &&
     frontend.protocol === "http:" &&
     backend.protocol === "http:" &&
+    // A Lax transaction cookie must accompany the handoff POST. `localhost`
+    // and 127.0.0.1 are both loopback, but are different schemeful sites.
+    // Keep one explicit loopback hostname across the browser-facing flow.
     frontend.hostname === backend.hostname &&
     isLoopback(frontend.hostname);
 }

@@ -1,6 +1,6 @@
 export const authenticationErrors: Record<string, string> = {
   configuration_locale: "La connexion n'est pas configurée sur ce serveur.",
-  configuration_https: "La connexion sécurisée exige HTTPS entre les services.",
+  configuration_https: "La connexion est momentanément indisponible en raison d'un problème de configuration. Veuillez réessayer ou contacter l’administrateur.",
   origine_invalide: "La demande de connexion n'est pas autorisée.",
   oauth_login_csrf_detected: "La tentative de connexion a expiré. Recommencez.",
   oauth_state_invalid_or_expired: "La demande de connexion a expiré ou n'est plus valide. Veuillez recommencer.",

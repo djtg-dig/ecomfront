@@ -26,7 +26,10 @@ export async function GET(request: Request) {
   let cookiePolicy;
   try {
     cookiePolicy = transactionCookieOptions(config);
-  } catch {
+  } catch (error) {
+    // Keep the diagnostic code on the server without exposing configuration
+    // details to the browser.
+    console.error("[auth] OAuth transport configuration rejected", error);
     return NextResponse.redirect(new URL("/connexion?erreur=configuration_https", config.frontendUrl), 303);
   }
 

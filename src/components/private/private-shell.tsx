@@ -38,7 +38,7 @@ function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ c
     <div className="page-shell flex min-h-screen flex-col">
       <header className="site-header">
         <div className="site-container flex flex-wrap items-center justify-between gap-4 py-3">
-          <Link className="brand-lockup hidden items-center gap-3 font-semibold md:flex" href="/espace">
+          <Link aria-label="Retour à l’accueil" className="brand-lockup hidden items-center gap-3 font-semibold md:flex" href="/">
             <span className="brand-mark grid size-8 place-items-center text-sm font-bold">E</span>
             E-commerce
           </Link>
@@ -52,7 +52,7 @@ function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ c
         </div>
       </header>
       <div className="site-container flex flex-1 flex-col gap-6 py-6 md:flex-row">
-        <nav aria-label="Navigation privée" className="content-panel order-3 flex w-full hidden shrink-0 flex-wrap gap-2 p-3 md:order-none md:flex md:w-56 md:flex-col md:flex-nowrap">
+        <nav aria-label="Navigation privée" className="content-panel order-3 flex w-full hidden shrink-0 flex-wrap gap-2 p-3 md:order-none md:sticky md:top-20 md:flex md:w-56 md:flex-col md:flex-nowrap">
           {navigation.map((item) => (
             <Link
               aria-current={isActive(pathname, item.href) ? "page" : undefined}
@@ -98,8 +98,9 @@ function MobileNavigation({ mobileSection, navigation, pathname, title }: { mobi
   }, [open]);
   const primaryNavigation = navigation.filter((item) => !item.secondary);
   const secondaryNavigation = navigation.filter((item) => item.secondary);
-  return <div className="flex min-w-0 flex-1 items-center justify-between gap-3 md:hidden">
-    <p className="truncate text-sm font-semibold" title={title}>{title}</p>
+  return <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
+    <Link aria-label="Retour à l’accueil" className="brand-mark grid size-8 shrink-0 place-items-center text-sm font-bold" href="/" onClick={close}>E</Link>
+    <p className="min-w-0 flex-1 truncate text-sm font-semibold" title={title}>{title}</p>
     <button aria-controls="private-mobile-navigation" aria-expanded={open} aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} className="button button-outline grid min-h-11 min-w-11 shrink-0 place-items-center px-3" onClick={() => setOpen((current) => !current)} ref={buttonRef} type="button">
       <span aria-hidden="true" className="text-xl leading-none">{open ? "×" : "☰"}</span>
     </button>

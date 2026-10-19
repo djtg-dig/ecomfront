@@ -131,6 +131,34 @@ describe("routes d’authentification BFF", () => {
     expect(cookie).toContain("Path=/api/auth/carri/handoff");
   });
 
+  it("n’autorise HTTP que pour le même hôte loopback en développement", async () => {
+    vi.stubEnv("DJANGO_BACKEND_URL", "http://127.0.0.1:8000");
+    const response = await startLogin(new Request(`${frontendUrl}/api/auth/carri/login`));
+
+    expect(new URL(response.headers.get("location") ?? "").searchParams.get("erreur"))
+      .toBe("configuration_https");
+  });
+
+  it("refuse HTTP vers un domaine public", async () => {
+    vi.stubEnv("DJANGO_BACKEND_URL", "http://backend.example.test");
+    const response = await startLogin(new Request(`${frontendUrl}/api/auth/carri/login`));
+
+    expect(new URL(response.headers.get("location") ?? "").searchParams.get("erreur"))
+      .toBe("configuration_https");
+  });
+
+  it("conserve un cookie de transaction Secure et SameSite=None en production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_FRONTEND_URL", "https://web.example.test");
+    vi.stubEnv("DJANGO_BACKEND_URL", "https://api.example.test");
+    const response = await startLogin(new Request("https://web.example.test/api/auth/carri/login"));
+    const cookie = cookies(response).find((entry) => entry.startsWith("ecommerce_oauth_transaction="));
+
+    expect(response.status).toBe(303);
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=none");
+  });
+
   it("refuse une origine ou un binding différent sans consommer le handoff", async () => {
     const wrongOrigin = await receiveHandoff(handoffRequest({ origin: "https://attacker.example" }));
     const wrongBinding = await receiveHandoff(

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { HomeAuthenticationAction } from "@/components/auth/home-authentication-action";
 import { createPublicMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPublicMetadata("/");
@@ -18,9 +19,7 @@ export default function Home() {
           <Link className="button button-outline mt-8" href="/fonctionnalites">
             Découvrir les fonctionnalités
           </Link>
-          <a className="button button-primary ml-0 mt-3 sm:ml-3" href="/api/auth/carri/login">
-            Se connecter avec Carri Account
-          </a>
+          <HomeAuthenticationAction />
         </div>
 
         <aside className="content-panel accent-rule border-l-4 p-6 sm:p-8">

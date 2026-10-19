@@ -55,6 +55,19 @@ describe("layouts et pied de page", () => {
     expect(privateShell).toContain("MobileNavigation");
   });
 
+  it("garde les navigations visibles et fournit un retour accessible à l’accueil", () => {
+    const styles = source("src/app/globals.css");
+    const publicHeader = source("src/components/public/public-header.tsx");
+    const privateShell = source("src/components/private/private-shell.tsx");
+
+    expect(styles).toMatch(/\.site-header\s*\{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*z-index: 40;/);
+    expect(publicHeader).toContain('aria-label="Retour à l’accueil"');
+    expect(publicHeader).toContain('href="/"');
+    expect(privateShell).toContain('aria-label="Retour à l’accueil"');
+    expect(privateShell).toContain('md:sticky md:top-20');
+    expect(privateShell).toContain('className="brand-lockup hidden items-center gap-3 font-semibold md:flex" href="/"');
+  });
+
   it("place l’attente des paramètres privés dynamiques derrière Suspense", () => {
     const pages = [
       "page.tsx",
