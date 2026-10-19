@@ -7,14 +7,27 @@ const sessionSource = readFileSync(resolve(process.cwd(), "src/lib/auth/private-
 
 describe("gestionnaire de médias produit", () => {
   it("affiche le détail JSON de l’API et libère l’interface après un échec", () => {
-    expect(source).toContain("payload.detail ?? \"Un téléversement a échoué.\"");
+    expect(source).toContain("responseMessage(response");
     expect(source).toContain("catch (reason)");
     expect(source).toContain("finally { setBusy(false);");
   });
 
   it("ne modifie pas la galerie avant un upload réussi", () => {
     expect(source).toContain("if (!response.ok) throw new Error");
+    expect(source).toContain("payload.media.media_type !== type");
     expect(source).toContain("await load();");
+  });
+
+  it("annonce les états d’une vidéo et n’envoie jamais de Content-Type multipart manuel", () => {
+    expect(source).toContain("sélectionné"); expect(source).toContain("Validation de la ${mediaLabel}"); expect(source).toContain("Téléversement en cours…"); expect(source).toContain("Vidéo ajoutée avec succès."); expect(source).toContain("validateSelectedVideo"); expect(source).not.toContain('"content-type": "multipart/form-data"');
+  });
+
+  it("garde les vidéos hors du contrôle d’image principale et les affiche avec le lecteur HTML5", () => {
+    expect(source).toContain('item.media_type === "IMAGE" && !item.is_primary'); expect(source).toContain("<video className=");
+  });
+
+  it("n’annonce plus de restriction de résolution", () => {
+    expect(source).not.toContain("480p à 1080p");
   });
 
   it("préserve les codes de stockage retournés par Django à travers le BFF", () => {

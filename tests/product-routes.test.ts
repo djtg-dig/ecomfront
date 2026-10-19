@@ -13,6 +13,7 @@ import { GET as registry } from "@/app/api/private/catalog/registry/route";
 import { GET as registryDetail } from "@/app/api/private/catalog/registry/[code]/route";
 import { DELETE as remove, GET as detail, PATCH as update } from "@/app/api/private/businesses/[businessId]/products/[productId]/route";
 import { GET as list, POST as create } from "@/app/api/private/businesses/[businessId]/products/route";
+import { GET as listMedia, POST as uploadMedia } from "@/app/api/private/businesses/[businessId]/products/[productId]/media/route";
 import { BackendApiError, BackendNetworkError } from "@/lib/api/backend-client";
 import { encryptSession, type EcommerceSession } from "@/lib/auth/session";
 
@@ -72,6 +73,37 @@ describe("routes BFF du catalogue", () => {
     expect((await update(mutation(`/api/private/businesses/${businessId}/products/${productId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "INACTIVE" }) }), productContext)).status).toBe(200);
 
     expect((await create(request(`/api/private/businesses/${businessId}/products`, { method: "POST", body: "{}" }), businessContext)).status).toBe(403);
+  });
+
+  it("transmet le multipart vidéo et sa boundary sans la reconstruire", async () => {
+    const form = new FormData();
+    form.set("media_type", "VIDEO");
+    form.set("file", new File(["video-bytes"], "demo.mp4", { type: "video/mp4" }));
+    mocks.request.mockResolvedValueOnce({ id: "11111111-1111-1111-1111-111111111111", media_type: "VIDEO", secure_url: "https://media.example/video.mp4" });
+    const response = await uploadMedia(mutation(`/api/private/businesses/${businessId}/products/${productId}/media`, { method: "POST", body: form }), productContext);
+
+    expect(response.status).toBe(201);
+    const [, options] = mocks.request.mock.calls[0] as [string, { contentType: string; rawBody: ArrayBuffer; method: string }];
+    expect(mocks.request.mock.calls[0][0]).toBe(`/api/v1/businesses/${businessId}/products/${productId}/media/`);
+    expect(options.method).toBe("POST");
+    expect(options.contentType).toMatch(/^multipart\/form-data;.*boundary=/);
+    expect(new TextDecoder().decode(options.rawBody)).toContain('name="media_type"');
+    expect(new TextDecoder().decode(options.rawBody)).toContain("VIDEO");
+  });
+
+  it("refuse un multipart sans boundary avant Django", async () => {
+    const response = await uploadMedia(mutation(`/api/private/businesses/${businessId}/products/${productId}/media`, {
+      method: "POST", headers: { "content-type": "multipart/form-data" }, body: "not-a-multipart-body",
+    }), productContext);
+    expect(response.status).toBe(400);
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
+  it("renvoie la galerie vidéo fournie par Django", async () => {
+    mocks.request.mockResolvedValueOnce([{ id: "video-1", media_type: "VIDEO", secure_url: "https://media.example/video.mp4" }]);
+    const response = await listMedia(request(`/api/private/businesses/${businessId}/products/${productId}/media`), productContext);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ media: [{ id: "video-1", media_type: "VIDEO", secure_url: "https://media.example/video.mp4" }] });
   });
 
   it("supprime par identifiant connu seulement après la protection CSRF", async () => {
