@@ -1,8 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { TeamManager } from "@/components/members/team-manager";
-import { PrivatePageFallback } from "@/components/private/private-page-fallback";
-
-type Props = { params: Promise<{ businessId: string }> };
-export default function MembersPage({ params }: Props) { return <Suspense fallback={<PrivatePageFallback />}><MembersContent params={params} /></Suspense>; }
-async function MembersContent({ params }: Props) { return <TeamManager businessId={(await params).businessId} />; }
+export default async function MembersPage({ params, searchParams }: { params: Promise<{ businessId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const { businessId } = await params; const query = new URLSearchParams(); for (const [key, value] of Object.entries(await searchParams)) for (const item of Array.isArray(value) ? value : [value]) if (item !== undefined) query.append(key, item);
+  redirect(`/espace/entreprises/${businessId}/parametres/membres${query.size ? `?${query}` : ""}`);
+}

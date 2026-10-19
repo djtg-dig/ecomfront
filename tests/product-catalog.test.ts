@@ -13,6 +13,7 @@ import {
   type RegistryCategoryDetail,
   type RegistryCategorySummary,
 } from "@/lib/catalog/product-registry";
+import { formatPriceRange } from "@/lib/money/format";
 
 const source = readFileSync(resolve(process.cwd(), "src/components/catalog/product-catalog.tsx"), "utf8");
 
@@ -89,14 +90,22 @@ describe("registre produits", () => {
 });
 
 describe("interface catalogue dynamique", () => {
+  it("affiche une fourchette compacte sans dupliquer une borne égale", () => {
+    expect(formatPriceRange("150", "200", "USD")).toContain("–");
+    expect(formatPriceRange("150", "150", "USD")).not.toContain("–");
+    expect(formatPriceRange("150", "200", "USD")).toContain("USD");
+  });
   it("avertit avant un changement de catégorie et préremplit une modification", () => {
     expect(source).toContain("Changer de catégorie supprimera du formulaire");
     expect(source).toContain("sameCategory ? product.attributes");
     expect(source).toContain("preservedUnknownAttributes");
   });
 
-  it("conserve prix, devise, référence, statut et séparation des variantes", () => {
-    for (const name of ["selling_price", "cost_price", "currency", "internal_reference", "status"]) expect(source).toContain(`name=\"${name}\"`);
+  it("utilise une fourchette, la devise entreprise et la séparation des variantes", () => {
+    for (const name of ["min_price", "max_price", "cost_price", "internal_reference", "status"]) expect(source).toContain(`name=\"${name}\"`);
+    expect(source).not.toContain('name="currency"');
+    expect(source).toContain("Devise de l’entreprise");
+    expect(source).toContain("formatPriceRange");
     expect(source).toContain("Aucun stock ni aucune variante n’est créé automatiquement");
     expect(source).toContain("attribute.variant");
   });

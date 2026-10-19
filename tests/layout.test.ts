@@ -52,7 +52,7 @@ describe("layouts et pied de page", () => {
     expect(publicHeader).not.toContain("max-w-6xl");
     expect(privateShell).toContain('className="site-container flex flex-wrap items-center justify-between');
     expect(privateShell).toContain("Mon compte");
-    expect(privateShell).toContain("order-3 flex w-full");
+    expect(privateShell).toContain("MobileNavigation");
   });
 
   it("place l’attente des paramètres privés dynamiques derrière Suspense", () => {
@@ -61,7 +61,6 @@ describe("layouts et pied de page", () => {
       "achats/page.tsx",
       "achats/[purchaseId]/page.tsx",
       "finance/page.tsx",
-      "membres/page.tsx",
       "produits/page.tsx",
       "produits/[productId]/page.tsx",
       "stocks/page.tsx",
@@ -77,5 +76,15 @@ describe("layouts et pied de page", () => {
       expect(content).toContain("await params");
       expect(content).not.toContain("export default async function");
     }
+  });
+
+  it("redirige les anciennes pages de paramètres sans perdre les query strings", () => {
+    const base = "src/app/(private)/espace/entreprises/[businessId]/";
+    const members = source(`${base}membres/page.tsx`);
+    const currencies = source(`${base}devises/page.tsx`);
+    expect(members).toContain('redirect(`/espace/entreprises/${businessId}/parametres/membres');
+    expect(currencies).toContain('redirect(`/espace/entreprises/${businessId}/parametres/devises');
+    expect(members).toContain("URLSearchParams");
+    expect(currencies).toContain("URLSearchParams");
   });
 });

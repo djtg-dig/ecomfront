@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { Modal } from "@/components/ui/modal";
+import { formatPriceRange } from "@/lib/money/format";
 import {
   categoryPayload,
   filterRegistryCategories,
@@ -35,8 +36,11 @@ type Product = {
   internal_reference: string | null;
   barcode: string | null;
   selling_price: string;
+  min_price?: string | null;
+  max_price?: string | null;
+  is_negotiable: boolean;
   cost_price: string | null;
-  currency: "CDF" | "USD";
+  currency: string;
   attributes: Record<string, unknown>;
   status: Status;
 };
@@ -66,6 +70,12 @@ async function detail(response: Response) {
 function sourceForProduct(product?: Product): CategorySource {
   if (!product) return "registry";
   return product.category_source ?? (product.category_code ? "registry" : "legacy");
+}
+
+function priceRange(product: Product) {
+  return product.min_price !== null && product.min_price !== undefined && product.max_price !== null && product.max_price !== undefined
+    ? formatPriceRange(product.min_price, product.max_price, product.currency)
+    : null;
 }
 
 function defaultValues(schema: DynamicAttribute[], productValues?: Record<string, unknown>) {
@@ -197,7 +207,8 @@ function CategorySelector({ choices, disabled, loading, onChange, value }: {
   </div>;
 }
 
-function ProductForm({ businessId, categoriesLoading, legacyCategories, onSaved, product, registryCategories }: {
+function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCategories, onSaved, product, registryCategories }: {
+  businessCurrency: string;
   businessId: string;
   categoriesLoading: boolean;
   legacyCategories: LegacyCategory[];
@@ -217,6 +228,8 @@ function ProductForm({ businessId, categoriesLoading, legacyCategories, onSaved,
   const [attributesLoading, setAttributesLoading] = useState(Boolean(initialCode));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [minimumPreview, setMinimumPreview] = useState(product?.min_price ?? product?.selling_price ?? "");
+  const [maximumPreview, setMaximumPreview] = useState(product?.max_price ?? product?.selling_price ?? "");
 
   const choices = useMemo<CategoryChoice[]>(() => {
     const registryChoices = registryCategories.map((category) => ({ code: category.code, group: category.parent, label: category.label, source: "registry" as const }));
@@ -282,8 +295,8 @@ function ProductForm({ businessId, categoriesLoading, legacyCategories, onSaved,
     const payload = {
       name: fields.get("name"), description: fields.get("description"), ...categoryPayload(categorySource, categoryCode),
       internal_reference: fields.get("internal_reference") || null, barcode: fields.get("barcode") || null,
-      selling_price: fields.get("selling_price"), cost_price: fields.get("cost_price") || null,
-      currency: fields.get("currency"), status: fields.get("status"), attributes: { ...preservedUnknownAttributes, ...normalized.attributes },
+      min_price: fields.get("min_price"), max_price: fields.get("max_price"), is_negotiable: fields.get("is_negotiable") === "on",
+      cost_price: fields.get("cost_price") || null, status: fields.get("status"), attributes: { ...preservedUnknownAttributes, ...normalized.attributes },
     };
     const url = product ? `/api/private/businesses/${businessId}/products/${product.public_id}` : `/api/private/businesses/${businessId}/products`;
     try {
@@ -328,8 +341,11 @@ function ProductForm({ businessId, categoriesLoading, legacyCategories, onSaved,
     {variantAttributes.length ? <section aria-labelledby="variant-axes-title" className="rounded-lg border border-dashed p-4"><h3 className="font-semibold text-[var(--brand-secondary)]" id="variant-axes-title">Axes de variantes</h3><p className="mt-1 text-sm text-[var(--muted)]">Ces valeurs se renseignent lors de la création explicite d’une variante et ne sont pas enregistrées comme caractéristiques communes.</p><ul className="mt-2 list-inside list-disc text-sm">{variantAttributes.map((attribute) => <li key={attribute.code}>{attribute.label}</li>)}</ul></section> : null}
     <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
       <legend className="px-2 font-semibold text-[var(--brand-secondary)]">Informations commerciales</legend>
-      <div><label className="text-sm font-medium" htmlFor="product-selling-price">Prix de vente *</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.selling_price} id="product-selling-price" min="0" name="selling_price" required step="0.01" type="number" /></div>
-      <div><label className="text-sm font-medium" htmlFor="product-currency">Devise</label><select className="mt-1 w-full rounded border p-2" defaultValue={product?.currency ?? "CDF"} id="product-currency" name="currency"><option value="CDF">CDF</option><option value="USD">USD</option></select></div>
+      <div><label className="text-sm font-medium" htmlFor="product-min-price">Prix minimum *</label><input className="mt-1 w-full rounded border p-2" defaultValue={minimumPreview} id="product-min-price" min="0" name="min_price" onChange={(event) => setMinimumPreview(event.target.value)} required step="0.01" type="number" /></div>
+      <div><label className="text-sm font-medium" htmlFor="product-max-price">Prix maximum *</label><input className="mt-1 w-full rounded border p-2" defaultValue={maximumPreview} id="product-max-price" min="0" name="max_price" onChange={(event) => setMaximumPreview(event.target.value)} required step="0.01" type="number" /></div>
+      <p className="sm:col-span-2 text-sm text-[var(--muted)]">Devise de l’entreprise : {businessCurrency}</p>
+      {minimumPreview && maximumPreview ? <p className="sm:col-span-2 text-sm text-[var(--muted)]">Fourchette affichée : {formatPriceRange(minimumPreview, maximumPreview, businessCurrency)}</p> : null}
+      <label className="flex items-center gap-2 text-sm"><input defaultChecked={product?.is_negotiable ?? false} name="is_negotiable" type="checkbox" />Prix négociable</label>
       <div><label className="text-sm font-medium" htmlFor="product-cost-price">Prix de revient</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.cost_price ?? ""} id="product-cost-price" min="0" name="cost_price" step="0.01" type="number" /></div>
       <div><label className="text-sm font-medium" htmlFor="product-reference">Référence interne</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.internal_reference ?? ""} id="product-reference" name="internal_reference" /></div>
       <div><label className="text-sm font-medium" htmlFor="product-status">Statut</label><select className="mt-1 w-full rounded border p-2" defaultValue={product?.status ?? "ACTIVE"} id="product-status" name="status"><option value="ACTIVE">Actif</option><option value="INACTIVE">Inactif</option><option value="ARCHIVED">Archivé</option></select></div>
@@ -379,6 +395,7 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
   const [legacyCategories, setLegacyCategories] = useState<LegacyCategory[]>([]);
   const [registryCategories, setRegistryCategories] = useState<RegistryCategorySummary[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [businessCurrency, setBusinessCurrency] = useState("CDF");
   const [product, setProduct] = useState<Product | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -407,16 +424,18 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
     async function syncCatalog() {
       setCategoriesLoading(true);
       try {
-        const requests = [fetch("/api/private/catalog/categories", { credentials: "same-origin" }), fetch("/api/private/catalog/registry", { credentials: "same-origin" }), ...(canViewProducts ? [fetch(`/api/private/businesses/${businessId}/products`, { credentials: "same-origin" })] : [])];
-        const [legacyResponse, registryResponse, productsResponse] = await Promise.all(requests);
-        if ([legacyResponse, registryResponse, productsResponse].some((response) => response?.status === 401)) return router.replace("/connexion?erreur=session_expired");
+        const requests = [fetch("/api/private/catalog/categories", { credentials: "same-origin" }), fetch("/api/private/catalog/registry", { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin" }), ...(canViewProducts ? [fetch(`/api/private/businesses/${businessId}/products`, { credentials: "same-origin" })] : [])];
+        const [legacyResponse, registryResponse, businessResponse, productsResponse] = await Promise.all(requests);
+        if ([legacyResponse, registryResponse, businessResponse, productsResponse].some((response) => response?.status === 401)) return router.replace("/connexion?erreur=session_expired");
         if (!legacyResponse.ok) throw new Error(await detail(legacyResponse));
         if (!registryResponse.ok) throw new Error(await detail(registryResponse));
+        if (!businessResponse.ok) throw new Error(await detail(businessResponse));
         if (productsResponse && !productsResponse.ok) throw new Error(await detail(productsResponse));
         const legacyData = await legacyResponse.json() as { categories: LegacyCategory[] };
         const registryData = await registryResponse.json() as { categories: RegistryCategorySummary[] };
+        const businessData = await businessResponse.json() as { business: { primary_currency: string } };
         const productsData = productsResponse ? await productsResponse.json() as { products: Product[] } : null;
-        if (!cancelled) { setLegacyCategories(legacyData.categories); setRegistryCategories(registryData.categories); if (productsData) setProducts(productsData.products); }
+        if (!cancelled) { setLegacyCategories(legacyData.categories); setRegistryCategories(registryData.categories); setBusinessCurrency(businessData.business.primary_currency); if (productsData) setProducts(productsData.products); }
       } catch (reason) { if (!cancelled) setError(reason instanceof Error ? reason.message : "Le catalogue est temporairement indisponible."); }
       finally { if (!cancelled) setCategoriesLoading(false); }
     }
@@ -433,6 +452,6 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
     }).catch(() => setError("Le catalogue est temporairement indisponible."));
   }, [businessId, productId, router, canViewProducts]);
 
-  if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{product ? <section className="content-panel mt-5 grid gap-2 p-5"><h2 className="font-semibold">{product.name}</h2><p>Catégorie : {product.category_name}</p><p className="text-sm text-[var(--muted)]">Source : {sourceForProduct(product) === "registry" ? "Registre produits" : "Catégorie historique"}</p><p>Prix de vente : {product.selling_price} {product.currency}</p><p>Statut : {product.status}</p>{product.internal_reference ? <p>Référence : {product.internal_reference}</p> : null}{product.description ? <p>{product.description}</p> : null}{canUpdateProduct ? <button className="button button-outline mt-2 w-fit" onClick={() => setEditOpen(true)} type="button">Modifier le produit</button> : null}</section> : !error ? <p className="mt-5">Chargement du produit…</p> : null}{editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title="Modifier le produit"><ProductForm businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(updated) => { setProduct(updated); setEditOpen(false); setSuccess("Produit modifié."); }} product={product} registryCategories={registryCategories} /></Modal> : null}</main>;
-  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input aria-label="Rechercher un produit" className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select aria-label="Filtrer par statut" className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select aria-label="Filtrer par catégorie" className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{filterCategories.map((item) => <option key={`${item.source}:${item.code}`} value={item.code}>{item.label}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="py-3" key={item.public_id}><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{item.selling_price} {item.currency} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">La consultation du catalogue n’est pas autorisée. Les actions accordées restent disponibles ci-dessus.</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(created) => { setCreateOpen(false); setSuccess("Produit ajouté."); setProducts((current) => current ? [...current, created] : [created]); if (canViewProducts) void load(); }} registryCategories={registryCategories} /></Modal> : null}</main>;
+  if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{product ? <section className="content-panel mt-5 grid gap-2 p-5"><h2 className="font-semibold">{product.name}</h2><p>Catégorie : {product.category_name}</p><p className="text-sm text-[var(--muted)]">Source : {sourceForProduct(product) === "registry" ? "Registre produits" : "Catégorie historique"}</p>{priceRange(product) ? <p>Prix : {priceRange(product)}</p> : null}{product.is_negotiable ? <p className="text-sm text-[var(--muted)]">Prix négociable</p> : null}<p>Statut : {product.status}</p>{product.internal_reference ? <p>Référence : {product.internal_reference}</p> : null}{product.description ? <p>{product.description}</p> : null}{canUpdateProduct ? <button className="button button-outline mt-2 w-fit" onClick={() => setEditOpen(true)} type="button">Modifier le produit</button> : null}</section> : !error ? <p className="mt-5">Chargement du produit…</p> : null}{editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title="Modifier le produit"><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(updated) => { setProduct(updated); setEditOpen(false); setSuccess("Produit modifié."); }} product={product} registryCategories={registryCategories} /></Modal> : null}</main>;
+  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input aria-label="Rechercher un produit" className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select aria-label="Filtrer par statut" className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select aria-label="Filtrer par catégorie" className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{filterCategories.map((item) => <option key={`${item.source}:${item.code}`} value={item.code}>{item.label}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="py-3" key={item.public_id}><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{priceRange(item)}{item.is_negotiable ? " · Prix négociable" : ""} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">La consultation du catalogue n’est pas autorisée. Les actions accordées restent disponibles ci-dessus.</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(created) => { setCreateOpen(false); setSuccess("Produit ajouté."); setProducts((current) => current ? [...current, created] : [created]); if (canViewProducts) void load(); }} registryCategories={registryCategories} /></Modal> : null}</main>;
 }

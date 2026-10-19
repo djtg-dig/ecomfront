@@ -61,7 +61,7 @@ const moduleLinks = [
   { label: "Achats", path: "achats", permissions: ["PURCHASE_VIEW", "PURCHASE_CREATE", "PURCHASE_UPDATE", "PURCHASE_CONFIRM", "PURCHASE_RECEIVE", "PURCHASE_CANCEL", "PURCHASE_LINE_VIEW", "PURCHASE_LINE_CREATE"] },
   { label: "Ventes", path: "ventes", permissions: ["SALE_VIEW", "SALE_CREATE", "SALE_UPDATE", "SALE_COMPLETE", "SALE_CANCEL", "SALE_LINE_VIEW", "SALE_LINE_CREATE", "SALE_RETURN", "SALE_RETURN_VIEW"] },
   { label: "Finance", path: "finance", permissions: ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_CREATE"] },
-  { label: "Paramètres entreprise", path: "membres", permissions: ["MEMBER_VIEW", "MEMBER_PERMISSION_VIEW", "INVITATION_VIEW", "INVITATION_CREATE", "MEMBER_UPDATE"] },
+  { label: "Paramètres entreprise", path: "parametres", permissions: ["BUSINESS_UPDATE", "MEMBER_VIEW", "MEMBER_PERMISSION_VIEW", "INVITATION_VIEW", "INVITATION_CREATE", "MEMBER_UPDATE"] },
 ];
 
 export function BusinessEditor({ businessId }: { businessId: string }) {

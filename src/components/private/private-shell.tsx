@@ -117,7 +117,7 @@ function BusinessShellNavigation({ businessId, children }: Readonly<{ businessId
     ...(permissions.some((permission) => permission.startsWith("SALE_")) ? [{ href: `/espace/entreprises/${businessId}/ventes`, label: "Ventes" }] : []),
     ...(permissions.some((permission) => permission.startsWith("CUSTOMER_") || permission.startsWith("SUPPLIER_")) ? [{ href: `/espace/entreprises/${businessId}/partenaires`, label: "Partenaires commerciaux" }] : []),
     ...(permissions.some((permission) => ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_PAYMENT_VIEW", "RECEIVABLE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_VIEW", "SUPPLIER_PAYMENT_CREATE", "SUPPLIER_PAYMENT_REVERSE"].includes(permission)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: "Finance" }] : []),
-    ...(permissions.some((permission) => permission.startsWith("MEMBER_") || permission.startsWith("INVITATION_")) ? [{ href: `/espace/entreprises/${businessId}/membres`, label: "Membres et accès" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("MEMBER_") || permission.startsWith("INVITATION_") || permission === "BUSINESS_UPDATE") ? [{ href: `/espace/entreprises/${businessId}/parametres`, label: "Paramètres entreprise" }] : []),
   ] : []);
   return <ShellFrame navigation={navigation} title="Espace entreprise">{children}</ShellFrame>;
 }
