@@ -26,6 +26,16 @@ describe("gestionnaire de médias produit", () => {
     expect(source).toContain('item.media_type === "IMAGE" && !item.is_primary'); expect(source).toContain("<video className=");
   });
 
+  it("affiche l’ordre global et des contrôles accessibles dans les deux directions", () => {
+    expect(source).toContain("media.map((item, index)");
+    expect(source).toContain("Position {index + 1}");
+    expect(source).toContain('aria-label="Déplacer vers le haut"');
+    expect(source).toContain('aria-label="Déplacer vers le bas"');
+    expect(source).toContain("disabled={busy || index === 0}");
+    expect(source).toContain("disabled={busy || index === media.length - 1}");
+    expect(source).not.toContain(">Monter<");
+  });
+
   it("n’annonce plus de restriction de résolution", () => {
     expect(source).not.toContain("480p à 1080p");
   });
