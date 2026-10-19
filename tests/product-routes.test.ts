@@ -37,11 +37,11 @@ beforeEach(() => {
 
 describe("routes BFF du catalogue", () => {
   it("relaie les filtres documentés, les catégories et les attributs sans exposer de JWT", async () => {
-    mocks.request.mockResolvedValueOnce([{ public_id: productId, name: "Savon" }]);
-    const products = await list(request(`/api/private/businesses/${businessId}/products?status=ACTIVE&category=HYGIENE&search=savon`), businessContext);
+    mocks.request.mockResolvedValueOnce({ count: 21, next: "https://api.example.test/products?page=2", previous: null, results: [{ public_id: productId, name: "Savon" }] });
+    const products = await list(request(`/api/private/businesses/${businessId}/products?status=ACTIVE&category=HYGIENE&search=savon&page=2`), businessContext);
     expect(products.status).toBe(200);
-    expect(await products.json()).toEqual({ products: [{ public_id: productId, name: "Savon" }] });
-    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/products/`, expect.objectContaining({ query: { status: "ACTIVE", category: "HYGIENE", search: "savon" }, accessToken: expect.any(String) }));
+    expect(await products.json()).toEqual({ products: [{ public_id: productId, name: "Savon" }], pagination: { count: 21, next: "https://api.example.test/products?page=2", previous: null } });
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/products/`, expect.objectContaining({ query: { status: "ACTIVE", category: "HYGIENE", search: "savon", page: "2" }, accessToken: expect.any(String) }));
 
     mocks.request.mockResolvedValueOnce([{ code: "HYGIENE", name: "Hygiène" }]);
     expect((await categories(request("/api/private/catalog/categories"))).status).toBe(200);

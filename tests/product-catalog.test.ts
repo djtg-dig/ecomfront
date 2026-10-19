@@ -119,10 +119,21 @@ describe("interface catalogue dynamique", () => {
   });
 
   it("préserve les filtres réellement pris en charge par Django", () => {
-    expect(source).toContain('query.set("search", search)');
-    expect(source).toContain('query.set("status", status)');
-    expect(source).toContain('query.set("category", category)');
+    expect(source).toContain('query.set("search", values.search)');
+    expect(source).toContain('query.set("status", values.status)');
+    expect(source).toContain('query.set("category", values.category)');
     expect(source).not.toContain('query.set("ordering"');
+  });
+
+  it("synchronise la pagination avec l’URL et conserve les filtres", () => {
+    expect(source).toContain("useSearchParams");
+    expect(source).toContain("query.set(\"page\", String(nextPage))");
+    expect(source).toContain("router.push(catalogUrl(1))");
+    expect(source).toContain("Pagination des produits");
+    expect(source).toContain("Affichage de {(page - 1) * 10 + 1}");
+    expect(source).toContain("disabled={page === 1}");
+    expect(source).toContain("disabled={page >= totalPages}");
+    expect(source).toContain("productsResponse?.status === 404 && page > 1");
   });
 
   it("affiche la miniature principale ou un remplacement accessible dans la liste", () => {

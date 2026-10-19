@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
@@ -55,6 +55,7 @@ type CategoryChoice = {
 };
 
 type ApiProblem = { detail: string; errors: Record<string, string[]> };
+type ProductListResponse = { products: Product[]; pagination: { count: number; next: string | null; previous: string | null } };
 
 async function readProblem(response: Response): Promise<ApiProblem> {
   try {
@@ -393,37 +394,52 @@ function ProductDeleteAction({ allowed, businessId, productId }: { allowed: bool
   return <section className="content-panel mt-6 grid gap-3 p-5"><h2 className="font-semibold">{productId ? "Supprimer ce produit" : "Supprimer un produit"}</h2><p className="text-sm text-[var(--muted)]">L’action est limitée à un identifiant connu. Un produit référencé ne peut pas être supprimé.</p>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="text-sm text-green-800" role="status">{success}</p> : null}<form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void removeProduct(event)}>{!productId ? <label className="grid gap-1 text-sm">Identifiant du produit<input autoComplete="off" className="rounded border p-2" onChange={(event) => setTarget(event.target.value)} required value={target} /></label> : null}<button className="button button-outline" disabled={saving || !allowed} type="submit">{saving ? "Suppression…" : "Supprimer"}</button></form></section>;
 }
 
+function positivePage(value: string | null) {
+  return value && /^[1-9]\d*$/.test(value) ? Number(value) : 1;
+}
+
 export function ProductCatalog({ businessId, productId }: { businessId: string; productId?: string }) {
+  const searchParams = useSearchParams();
+  return <ProductCatalogContent businessId={businessId} key={`${productId ?? "catalog"}:${searchParams}`} productId={productId} searchParams={searchParams} />;
+}
+
+function ProductCatalogContent({ businessId, productId, searchParams }: { businessId: string; productId?: string; searchParams: ReadonlyURLSearchParams }) {
   const router = useRouter();
   const permissions = useBusinessPermissions(businessId);
   const canViewProducts = permissions?.includes("PRODUCT_VIEW") ?? false;
   const canCreateProduct = permissions?.includes("PRODUCT_CREATE") ?? false;
   const canUpdateProduct = permissions?.includes("PRODUCT_UPDATE") ?? false;
   const [products, setProducts] = useState<Product[] | null>(null);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [legacyCategories, setLegacyCategories] = useState<LegacyCategory[]>([]);
   const [registryCategories, setRegistryCategories] = useState<RegistryCategorySummary[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [businessCurrency, setBusinessCurrency] = useState("CDF");
   const [product, setProduct] = useState<Product | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [category, setCategory] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [status, setStatus] = useState(searchParams.get("status") ?? "");
+  const [category, setCategory] = useState(searchParams.get("category") ?? "");
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const filterCategories = useMemo(() => [...registryCategories.map((item) => ({ code: item.code, label: item.label, source: "registry" as const })), ...legacyCategories.map((item) => ({ code: item.code, label: item.name, source: "legacy" as const }))], [legacyCategories, registryCategories]);
+  const page = positivePage(searchParams.get("page"));
+  const totalPages = Math.max(1, Math.ceil(totalProducts / 10));
+  const visiblePages = [...new Set([1, page - 1, page, page + 1, totalPages].filter((value) => value >= 1 && value <= totalPages))].sort((left, right) => left - right);
+
+  function catalogUrl(nextPage = page, values = { search, status, category }) {
+    const query = new URLSearchParams();
+    if (values.search) query.set("search", values.search);
+    if (values.status) query.set("status", values.status);
+    if (values.category) query.set("category", values.category);
+    if (nextPage > 1) query.set("page", String(nextPage));
+    const suffix = query.toString();
+    return `/espace/entreprises/${businessId}/produits${suffix ? `?${suffix}` : ""}`;
+  }
 
   async function load() {
-    setError(null);
-    try {
-      const query = new URLSearchParams();
-      if (search) query.set("search", search); if (status) query.set("status", status); if (category) query.set("category", category);
-      const response = await fetch(`/api/private/businesses/${businessId}/products?${query}`, { credentials: "same-origin" });
-      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
-      if (!response.ok) return setError(await detail(response));
-      setProducts((await response.json() as { products: Product[] }).products);
-    } catch { setError("Le catalogue est temporairement indisponible."); }
+    router.push(catalogUrl(1));
   }
 
   useEffect(() => {
@@ -432,24 +448,32 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
     async function syncCatalog() {
       setCategoriesLoading(true);
       try {
-        const requests = [fetch("/api/private/catalog/categories", { credentials: "same-origin" }), fetch("/api/private/catalog/registry", { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin" }), ...(canViewProducts ? [fetch(`/api/private/businesses/${businessId}/products`, { credentials: "same-origin" })] : [])];
+        const query = new URLSearchParams(searchParams);
+        query.set("page", String(page));
+        const requests = [fetch("/api/private/catalog/categories", { credentials: "same-origin" }), fetch("/api/private/catalog/registry", { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin" }), ...(canViewProducts ? [fetch(`/api/private/businesses/${businessId}/products?${query}`, { credentials: "same-origin" })] : [])];
         const [legacyResponse, registryResponse, businessResponse, productsResponse] = await Promise.all(requests);
         if ([legacyResponse, registryResponse, businessResponse, productsResponse].some((response) => response?.status === 401)) return router.replace("/connexion?erreur=session_expired");
         if (!legacyResponse.ok) throw new Error(await detail(legacyResponse));
         if (!registryResponse.ok) throw new Error(await detail(registryResponse));
         if (!businessResponse.ok) throw new Error(await detail(businessResponse));
+        if (productsResponse?.status === 404 && page > 1) {
+          const recoveryQuery = new URLSearchParams(searchParams);
+          if (page === 2) recoveryQuery.delete("page"); else recoveryQuery.set("page", String(page - 1));
+          const suffix = recoveryQuery.toString();
+          return router.replace(`/espace/entreprises/${businessId}/produits${suffix ? `?${suffix}` : ""}`);
+        }
         if (productsResponse && !productsResponse.ok) throw new Error(await detail(productsResponse));
         const legacyData = await legacyResponse.json() as { categories: LegacyCategory[] };
         const registryData = await registryResponse.json() as { categories: RegistryCategorySummary[] };
         const businessData = await businessResponse.json() as { business: { primary_currency: string } };
-        const productsData = productsResponse ? await productsResponse.json() as { products: Product[] } : null;
-        if (!cancelled) { setLegacyCategories(legacyData.categories); setRegistryCategories(registryData.categories); setBusinessCurrency(businessData.business.primary_currency); if (productsData) setProducts(productsData.products); }
+        const productsData = productsResponse ? await productsResponse.json() as ProductListResponse : null;
+        if (!cancelled) { setLegacyCategories(legacyData.categories); setRegistryCategories(registryData.categories); setBusinessCurrency(businessData.business.primary_currency); if (productsData) { setProducts(productsData.products); setTotalProducts(productsData.pagination.count); } }
       } catch (reason) { if (!cancelled) setError(reason instanceof Error ? reason.message : "Le catalogue est temporairement indisponible."); }
       finally { if (!cancelled) setCategoriesLoading(false); }
     }
     void syncCatalog();
     return () => { cancelled = true; };
-  }, [businessId, canCreateProduct, canViewProducts, router]);
+  }, [businessId, canCreateProduct, canViewProducts, page, router, searchParams]);
 
   useEffect(() => {
     if (!productId || !canViewProducts) return;
@@ -461,5 +485,5 @@ export function ProductCatalog({ businessId, productId }: { businessId: string; 
   }, [businessId, productId, router, canViewProducts]);
 
   if (productId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/produits`}>← Produits</Link><h1 className="mt-3 text-3xl font-semibold">Produit</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{product ? <><section className="content-panel mt-5 grid gap-2 p-5"><h2 className="font-semibold">{product.name}</h2><p>Catégorie : {product.category_name}</p><p className="text-sm text-[var(--muted)]">Source : {sourceForProduct(product) === "registry" ? "Registre produits" : "Catégorie historique"}</p>{priceRange(product) ? <p>Prix : {priceRange(product)}</p> : null}{product.is_negotiable ? <p className="text-sm text-[var(--muted)]">Prix négociable</p> : null}<p>Statut : {product.status}</p>{product.internal_reference ? <p>Référence : {product.internal_reference}</p> : null}{product.description ? <p>{product.description}</p> : null}{canUpdateProduct ? <button className="button button-outline mt-2 w-fit" onClick={() => setEditOpen(true)} type="button">Modifier le produit</button> : null}</section><ProductMediaManager businessId={businessId} productId={product.public_id} /></> : !error ? <p className="mt-5">Chargement du produit…</p> : null}{editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title="Modifier le produit"><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(updated) => { setProduct(updated); setEditOpen(false); setSuccess("Produit modifié."); }} product={product} registryCategories={registryCategories} /></Modal> : null}</main>;
-  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input aria-label="Rechercher un produit" className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select aria-label="Filtrer par statut" className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select aria-label="Filtrer par catégorie" className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{filterCategories.map((item) => <option key={`${item.source}:${item.code}`} value={item.code}>{item.label}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <ul className="mt-3 divide-y">{products.map((item) => <li className="flex items-center gap-3 py-3" key={item.public_id}><ProductThumbnail product={item} /><div className="min-w-0"><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{priceRange(item)}{item.is_negotiable ? " · Prix négociable" : ""} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></div></li>)}</ul> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">La consultation du catalogue n’est pas autorisée. Les actions accordées restent disponibles ci-dessus.</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(created) => { setCreateOpen(false); setSuccess("Produit ajouté."); setProducts((current) => current ? [...current, created] : [created]); if (canViewProducts) void load(); }} registryCategories={registryCategories} /></Modal> : null}</main>;
+  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">CATALOGUE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Produits</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input aria-label="Rechercher un produit" className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom" value={search} /><select aria-label="Filtrer par statut" className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">Tous les statuts</option><option value="ACTIVE">Actifs</option><option value="INACTIVE">Inactifs</option><option value="ARCHIVED">Archivés</option></select><select aria-label="Filtrer par catégorie" className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">Toutes les catégories</option>{filterCategories.map((item) => <option key={`${item.source}:${item.code}`} value={item.code}>{item.label}</option>)}</select><button className="button button-outline" type="submit">Filtrer</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">Ajouter un produit</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">Produits de l’entreprise</h2>{products === null ? <p className="mt-3">Chargement…</p> : products.length ? <><ul className="mt-3 divide-y">{products.map((item) => <li className="flex items-center gap-3 py-3" key={item.public_id}><ProductThumbnail product={item} /><div className="min-w-0"><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{priceRange(item)}{item.is_negotiable ? " · Prix négociable" : ""} · {item.status}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></div></li>)}</ul><nav aria-label="Pagination des produits" className="mt-5 flex flex-wrap items-center gap-2"><p className="mr-auto text-sm text-[var(--muted)]">Affichage de {(page - 1) * 10 + 1} à {(page - 1) * 10 + products.length} sur {totalProducts} produits</p><button className="button button-outline" disabled={page === 1} onClick={() => router.push(catalogUrl(page - 1))} type="button">Précédent</button>{visiblePages.map((number) => <button aria-current={number === page ? "page" : undefined} className="button button-outline min-w-11" disabled={number === page} key={number} onClick={() => router.push(catalogUrl(number))} type="button">{number}</button>)}<span className="text-sm text-[var(--muted)]">sur {totalPages}</span><button className="button button-outline" disabled={page >= totalPages} onClick={() => router.push(catalogUrl(page + 1))} type="button">Suivant</button></nav></> : <p className="mt-3 text-sm">Aucun produit ne correspond aux filtres.</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">La consultation du catalogue n’est pas autorisée. Les actions accordées restent disponibles ci-dessus.</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title="Ajouter un produit"><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={() => { setCreateOpen(false); setSuccess("Produit ajouté."); if (canViewProducts) router.push(catalogUrl(1)); }} registryCategories={registryCategories} /></Modal> : null}</main>;
 }
