@@ -14,7 +14,7 @@ import {
 import { requestCookie } from "@/lib/auth/security";
 
 export class PrivateSessionError extends Error {
-  constructor(readonly status: 400 | 401 | 403 | 409 | 410 | 503, readonly code: string, detail: string, readonly fieldErrors?: Record<string, string[]>) {
+  constructor(readonly status: 400 | 401 | 403 | 409 | 410 | 502 | 503, readonly code: string, detail: string, readonly fieldErrors?: Record<string, string[]>) {
     super(detail);
     this.name = "PrivateSessionError";
   }
@@ -94,6 +94,9 @@ function mapBackendError(error: unknown): PrivateSessionError {
     if (error.status === 403) return new PrivateSessionError(403, "access_forbidden", "Vous n’êtes pas autorisé à accéder à cette ressource.");
     if (error.status === 404) return new PrivateSessionError(403, "resource_not_allowed", "Cette ressource n’est pas accessible.");
     if (error.status === 409) return new PrivateSessionError(409, "conflict", error.detail);
+    if (error.code && ["media_storage_permission_denied", "media_storage_unavailable"].includes(error.code) && [502, 503].includes(error.status)) {
+      return new PrivateSessionError(error.status as 502 | 503, error.code, error.detail);
+    }
     return new PrivateSessionError(503, "backend_unavailable", error.detail);
   }
   if (error instanceof BackendNetworkError) return new PrivateSessionError(503, "backend_unavailable", error.message);
