@@ -21,9 +21,63 @@ export function CurrencySettings({ businessId }: { businessId: string }) {
   const choices = useMemo(() => (registry ?? []).filter((currency) => matchesCurrency(currency, query)), [registry, query]);
   const accepted = useMemo(() => entries.filter((entry) => entry.is_enabled).map((entry) => entry.currency), [entries]);
   const primary = entries.find((entry) => entry.is_primary)?.currency;
-  const load = async () => { setError(null); const [registryResponse, entriesResponse, ratesResponse] = await Promise.all([fetch("/api/private/currencies", { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/currencies`, { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/exchange-rates`, { credentials: "same-origin" })]); if ([registryResponse, entriesResponse, ratesResponse].some((response) => response.status === 401)) return router.replace("/connexion?erreur=session_expired"); if (!registryResponse.ok) return setError(await problem(registryResponse)); if (!entriesResponse.ok) return setError(await problem(entriesResponse)); if (!ratesResponse.ok) return setError(await problem(ratesResponse)); setRegistry((await registryResponse.json() as { currencies: Currency[] }).currencies); setEntries((await entriesResponse.json() as { currencies: Entry[] }).currencies); setRates((await ratesResponse.json() as { rates: Rate[] }).rates); };
+  const load = async () => {
+    setError(null);
+    try {
+      const [registryResponse, entriesResponse, ratesResponse] = await Promise.all([fetch("/api/private/currencies", { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/currencies`, { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/exchange-rates`, { credentials: "same-origin" })]);
+      if ([registryResponse, entriesResponse, ratesResponse].some((response) => response.status === 401)) return router.replace("/connexion?erreur=session_expired");
+      if (!registryResponse.ok) return setError(await problem(registryResponse));
+      if (!entriesResponse.ok) return setError(await problem(entriesResponse));
+      if (!ratesResponse.ok) return setError(await problem(ratesResponse));
+      setRegistry((await registryResponse.json() as { currencies: Currency[] }).currencies);
+      setEntries((await entriesResponse.json() as { currencies: Entry[] }).currencies);
+      setRates((await ratesResponse.json() as { rates: Rate[] }).rates);
+    } catch {
+      setError("La configuration monétaire est temporairement indisponible.");
+    }
+  };
   useEffect(() => { if (allowed) void load(); }, [allowed, businessId]);
-  async function addCurrency(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); setSuccess(null); const form = new FormData(event.currentTarget); const response = await fetch(`/api/private/businesses/${businessId}/currencies`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ code: form.get("code") }) }); setSaving(false); if (!response.ok) return setError(await problem(response)); event.currentTarget.reset(); setQuery(""); setSuccess("Devise acceptée ajoutée."); void load(); }
-  async function addRate(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); setSuccess(null); const form = new FormData(event.currentTarget); const response = await fetch(`/api/private/businesses/${businessId}/exchange-rates`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ from_currency: form.get("from_currency"), to_currency: form.get("to_currency"), rate: form.get("rate"), effective_at: new Date(String(form.get("effective_at"))).toISOString(), expires_at: form.get("expires_at") ? new Date(String(form.get("expires_at"))).toISOString() : null }) }); setSaving(false); if (!response.ok) return setError(await problem(response)); event.currentTarget.reset(); setSuccess("Taux enregistré."); void load(); }
+  async function addCurrency(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    if (saving) return;
+    setSaving(true); setError(null); setSuccess(null);
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/currencies`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ code: form.get("code") }) });
+      if (!response.ok) { setError(await problem(response)); return; }
+      const currency = (await response.json() as { currency: Entry }).currency;
+      setEntries((current) => current.some((entry) => entry.code === currency.code) ? current.map((entry) => entry.code === currency.code ? currency : entry) : [...current, currency]);
+      formElement.reset();
+      setQuery("");
+      setSuccess("Devise acceptée ajoutée.");
+      void load();
+    } catch {
+      setError("La configuration monétaire est temporairement indisponible.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addRate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    if (saving) return;
+    setSaving(true); setError(null); setSuccess(null);
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/exchange-rates`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ from_currency: form.get("from_currency"), to_currency: form.get("to_currency"), rate: form.get("rate"), effective_at: new Date(String(form.get("effective_at"))).toISOString(), expires_at: form.get("expires_at") ? new Date(String(form.get("expires_at"))).toISOString() : null }) });
+      if (!response.ok) { setError(await problem(response)); return; }
+      const rate = (await response.json() as { rate: Rate }).rate;
+      setRates((current) => current.some((item) => item.id === rate.id) ? current.map((item) => item.id === rate.id ? rate : item) : [...current, rate]);
+      formElement.reset();
+      setSuccess("Taux enregistré.");
+      void load();
+    } catch {
+      setError("La configuration monétaire est temporairement indisponible.");
+    } finally {
+      setSaving(false);
+    }
+  }
   return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/parametres`}>← Paramètres entreprise</Link><p className="eyebrow mt-4">PARAMÈTRES ENTREPRISE</p><h1 className="mt-2 text-3xl font-semibold text-[var(--brand-secondary)]">Devises et paiements</h1>{!allowed ? <p className="content-panel mt-6 p-5">Vous n’êtes pas autorisé à gérer la configuration monétaire.</p> : <><p className="mt-3 text-sm text-[var(--muted)]">{primary ? `Devise principale : ${primary.code} — ${primary.name}. ` : "Devise principale en cours de chargement. "}Les taux sont manuels et leur sens est explicite.</p>{error ? <p className="mt-4 text-sm text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}<section className="content-panel mt-6 p-5"><h2 className="font-semibold">Devises acceptées</h2>{registry === null ? <p className="mt-3 text-sm text-[var(--muted)]">Chargement des devises disponibles…</p> : <><div className="mt-3 grid gap-2">{entries.map((entry) => <p className="rounded border p-3" key={entry.code}><strong>{entry.code}</strong> — {entry.currency.name}{entry.is_primary ? " · Devise principale" : ""}{!entry.is_enabled ? " · Désactivée" : ""}</p>)}</div><form className="mt-4 grid max-w-xl gap-2" onSubmit={addCurrency}><label className="text-sm font-medium" htmlFor="currency-search">Rechercher une devise</label><input className="rounded border p-2" id="currency-search" onChange={(event) => setQuery(event.target.value)} placeholder="Code, nom ou symbole" type="search" value={query} /><label className="text-sm font-medium" htmlFor="currency-code">Devise</label>{choices.length ? <Options currencies={choices} disabledCodes={acceptedCodes} id="currency-code" name="code" /> : <p className="text-sm text-[var(--muted)]">Aucune devise ne correspond à la recherche.</p>}<p className="text-xs text-[var(--muted)]">Les devises déjà acceptées sont désactivées dans cette liste.</p><button className="button button-outline w-fit" disabled={saving || !choices.some((currency) => !acceptedCodes.has(currency.code))} type="submit">Ajouter une devise</button></form></>}</section><section className="content-panel mt-6 p-5"><h2 className="font-semibold">Taux de conversion manuels</h2><p className="mt-1 text-sm text-[var(--muted)]">1 unité de la devise source = taux unités de la devise cible.</p><form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={addRate}><label className="grid gap-1 text-sm">Devise source<Options currencies={accepted} id="rate-from-currency" name="from_currency" /></label><label className="grid gap-1 text-sm">Devise cible<Options currencies={accepted} id="rate-to-currency" name="to_currency" /></label><label className="grid gap-1 text-sm">Taux<input className="rounded border p-2" min="0.000000000001" name="rate" required step="0.000000000001" type="number" /></label><label className="grid gap-1 text-sm">Effectif le<input className="rounded border p-2" name="effective_at" required type="datetime-local" /></label><label className="grid gap-1 text-sm">Expiration facultative<input className="rounded border p-2" name="expires_at" type="datetime-local" /></label><button className="button button-primary w-fit self-end" disabled={saving || accepted.length < 2} type="submit">Enregistrer le taux</button></form><div className="mt-5 grid gap-2">{rates.map((rate) => <p className="rounded border p-3 text-sm" key={rate.id}>1 {rate.from_currency} = {rate.rate} {rate.to_currency} · effectif le {new Date(rate.effective_at).toLocaleString("fr-CD")}{rate.expires_at ? ` · expire le ${new Date(rate.expires_at).toLocaleString("fr-CD")}` : ""}</p>)}</div></section></>}</main>;
 }
