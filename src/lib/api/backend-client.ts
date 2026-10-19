@@ -17,6 +17,8 @@ type BackendRequestOptions = {
   method?: BackendMethod;
   query?: QueryParameters;
   json?: unknown;
+  rawBody?: ArrayBuffer;
+  contentType?: string;
   headers?: Record<string, string>;
   accessToken?: string;
   timeoutMs?: number;
@@ -96,8 +98,10 @@ export function createBackendClient(
       const method = options.method ?? "GET";
       const url = new URL(path, `${config.backendUrl.replace(/\/$/, "")}/`);
       appendQuery(url, options.query);
-      const body = options.json === undefined ? undefined : JSON.stringify(options.json);
-      const bodyBytes = new TextEncoder().encode(body ?? "");
+      if (options.json !== undefined && options.rawBody !== undefined) throw new Error("json and rawBody are mutually exclusive.");
+      const jsonBody = options.json === undefined ? undefined : JSON.stringify(options.json);
+      const body = options.rawBody ?? jsonBody;
+      const bodyBytes = options.rawBody ? new Uint8Array(options.rawBody) : new TextEncoder().encode(jsonBody ?? "");
       const hmacHeaders = signEcommerceRequest(
         { clientId: config.hmacClientId, secret: config.hmacSecret },
         { method, path: url.pathname, query: url.search.slice(1), body: bodyBytes },
@@ -115,7 +119,8 @@ export function createBackendClient(
           signal: controller.signal,
           headers: {
             Accept: "application/json",
-            ...(body ? { "Content-Type": "application/json" } : {}),
+            ...(jsonBody ? { "Content-Type": "application/json" } : {}),
+            ...(options.contentType ? { "Content-Type": options.contentType } : {}),
             ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}),
             ...hmacHeaders,
             ...options.headers,
