@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   BackendApiError,
   BackendNetworkError,
+  BackendTimeoutError,
   createBackendClient,
 } from "@/lib/api/backend-client";
 
@@ -13,6 +14,9 @@ const config = {
 };
 
 describe("client HTTP BFF", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   it("signe une requête JSON, garde les queries répétées et n'envoie pas les cookies", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } }),
@@ -69,5 +73,18 @@ describe("client HTTP BFF", () => {
     const client = createBackendClient(config, vi.fn<typeof fetch>().mockRejectedValue(new Error("socket details")));
     await expect(client.request("/api/v1/resource/")).rejects.toBeInstanceOf(BackendNetworkError);
     await expect(client.request("https://other.example/")).rejects.toThrow("/api/v1/");
+  });
+
+  it("distingue un délai d’expiration configuré d’une erreur réseau", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation((_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    }));
+    const client = createBackendClient(config, fetchMock);
+
+    const request = client.request("/api/v1/resource/", { timeoutMs: 25 });
+    const rejection = expect(request).rejects.toBeInstanceOf(BackendTimeoutError);
+    await vi.advanceTimersByTimeAsync(25);
+    await rejection;
   });
 });

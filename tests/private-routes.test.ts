@@ -11,7 +11,7 @@ import { GET as overview } from "@/app/api/private/overview/route";
 import { POST as selectBusiness } from "@/app/api/private/business-selection/route";
 import { GET as businesses, POST as createBusiness } from "@/app/api/private/businesses/route";
 import { PATCH as updateBusiness } from "@/app/api/private/businesses/[businessId]/route";
-import { BackendApiError } from "@/lib/api/backend-client";
+import { BackendApiError, BackendTimeoutError } from "@/lib/api/backend-client";
 import { encryptSession, type EcommerceSession } from "@/lib/auth/session";
 
 const frontendUrl = "http://localhost:3001";
@@ -156,6 +156,18 @@ describe("routes BFF de l’espace privé", () => {
 
     expect(response.status).toBe(503);
     expect((await response.json()).code).toBe("backend_unavailable");
+  });
+
+  it("distingue le délai BFF d’une indisponibilité du backend", async () => {
+    mocks.request.mockRejectedValueOnce(new BackendTimeoutError(10_000));
+
+    const response = await businesses(request("/api/private/businesses"));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      code: "backend_timeout",
+      detail: "Le service E-commerce a mis trop de temps à répondre. Réessayez dans un instant.",
+    });
   });
 
   it("valide la sélection auprès du backend avant de mémoriser la préférence", async () => {

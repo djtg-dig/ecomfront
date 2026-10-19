@@ -2,7 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import { BackendApiError, BackendNetworkError, backendClient, type QueryParameters } from "@/lib/api/backend-client";
+import { BackendApiError, BackendNetworkError, BackendTimeoutError, backendClient, type QueryParameters } from "@/lib/api/backend-client";
 import { refreshEcommerceSession } from "@/lib/auth/refresh";
 import {
   decryptSession,
@@ -99,6 +99,7 @@ function mapBackendError(error: unknown): PrivateSessionError {
     }
     return new PrivateSessionError(503, "backend_unavailable", error.detail);
   }
+  if (error instanceof BackendTimeoutError) return new PrivateSessionError(503, "backend_timeout", error.message);
   if (error instanceof BackendNetworkError) return new PrivateSessionError(503, "backend_unavailable", error.message);
   return new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est temporairement indisponible.");
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { useBusinessNameState } from "@/components/private/business-name-provider";
+import { BusinessListRequestError, fetchBusinesses, type ListedBusiness } from "@/lib/businesses/list-client";
 
-type Business = { public_id: string; name: string; primary_currency: string; status: string };
+type Business = ListedBusiness;
 
 async function detail(response: Response) {
   try { return (await response.json() as { detail?: string }).detail ?? "Le service E-commerce est indisponible."; }
@@ -18,16 +19,26 @@ export function BusinessList({ invitationOutcome }: { invitationOutcome?: string
   const router = useRouter();
   const [items, setItems] = useState<Business[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const load = async () => {
-    const response = await fetch("/api/private/businesses", { cache: "no-store" });
-    if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
-    if (!response.ok) return setError(await detail(response));
-    setItems((await response.json() as { businesses: Business[] }).businesses);
-  };
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setItems(await fetchBusinesses());
+    } catch (caught) {
+      if (caught instanceof BusinessListRequestError && caught.status === 401) {
+        router.replace("/connexion?erreur=session_expired");
+        return;
+      }
+      setError(caught instanceof BusinessListRequestError ? caught.message : "Le service E-commerce est indisponible.");
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [load]);
 
-  if (error) return <section className="content-panel p-6" role="alert"><p>{error}</p><button className="button button-primary mt-4" onClick={() => void load()} type="button">Réessayer</button></section>;
+  if (error) return <section className="content-panel p-6" role="alert"><p>{error}</p><button className="button button-primary mt-4" disabled={loading} onClick={() => void load()} type="button">{loading ? "Nouvelle tentative…" : "Réessayer"}</button></section>;
   if (!items) return <p className="p-6 text-sm text-[var(--muted)]">Chargement des entreprises…</p>;
 
   const invitationNotice = invitationOutcome === "accepted"

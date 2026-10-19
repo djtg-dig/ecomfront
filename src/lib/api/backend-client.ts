@@ -39,9 +39,16 @@ export class BackendApiError extends Error {
 }
 
 export class BackendNetworkError extends Error {
-  constructor() {
-    super("Le service E-commerce est temporairement indisponible.");
+  constructor(message = "Le service E-commerce est temporairement indisponible.") {
+    super(message);
     this.name = "BackendNetworkError";
+  }
+}
+
+export class BackendTimeoutError extends BackendNetworkError {
+  constructor(readonly timeoutMs: number) {
+    super("Le service E-commerce a mis trop de temps à répondre. Réessayez dans un instant.");
+    this.name = "BackendTimeoutError";
   }
 }
 
@@ -107,7 +114,12 @@ export function createBackendClient(
         { method, path: url.pathname, query: url.search.slice(1), body: bodyBytes },
       );
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 10_000);
+      const timeoutMs = options.timeoutMs ?? 10_000;
+      let timedOut = false;
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutMs);
 
       try {
         const response = await fetchImplementation(url, {
@@ -138,6 +150,7 @@ export function createBackendClient(
         if (error instanceof BackendApiError) {
           throw error;
         }
+        if (timedOut) throw new BackendTimeoutError(timeoutMs);
         throw new BackendNetworkError();
       } finally {
         clearTimeout(timeout);

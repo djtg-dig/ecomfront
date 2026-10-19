@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   try {
     const result = await authenticatedBackendRequest<unknown[]>("/api/v1/businesses/", readPrivateSession(request));
     const response = NextResponse.json({ businesses: result.data });
+    response.headers.set("Cache-Control", "no-store");
     return result.refreshed ? persistPrivateSession(response, result.session) : response;
   } catch (error) { return failure(error); }
 }
