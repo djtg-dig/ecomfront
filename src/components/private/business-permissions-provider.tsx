@@ -50,6 +50,11 @@ function cachedPermissions(businessId: string) {
   return cached.permissions;
 }
 
+function initialState(businessId: string): ProviderState {
+  const permissions = cachedPermissions(businessId);
+  return permissions ? { businessId, permissions, status: "ready" } : { businessId, permissions: null, status: "loading" };
+}
+
 export function clearBusinessPermissionsCache() {
   cacheState.activeUserId = null;
   cacheState.cache.clear();
@@ -62,7 +67,9 @@ function invalidateBusinessPermissionsCache(businessId: string) {
 
 export function BusinessPermissionsProvider({ businessId, children }: Readonly<{ businessId: string; children: ReactNode }>) {
   const router = useRouter();
-  const [state, setState] = useState<ProviderState>({ businessId, permissions: null, status: "loading" });
+  // Read the short-lived tenant cache during render. This prevents every
+  // route change under an already-open business from flashing a loading state.
+  const [state, setState] = useState<ProviderState>(() => initialState(businessId));
 
   const refresh = useCallback(async (force = false) => {
     const cached = force ? null : cachedPermissions(businessId);
@@ -108,6 +115,10 @@ export function BusinessPermissionsProvider({ businessId, children }: Readonly<{
   }, [businessId, router]);
 
   useEffect(() => {
+    // A provider can be retained while only the route parameter changes.
+    // Restore a known value synchronously before considering a refresh.
+    const cached = cachedPermissions(businessId);
+    if (cached) setState({ businessId, permissions: cached, status: "ready" });
     void refresh();
     const interval = window.setInterval(() => { void refresh(true); }, BUSINESS_PERMISSIONS_FRESHNESS_MS);
     return () => window.clearInterval(interval);
