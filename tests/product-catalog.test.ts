@@ -124,4 +124,12 @@ describe("interface catalogue dynamique", () => {
     expect(source).toContain('query.set("category", category)');
     expect(source).not.toContain('query.set("ordering"');
   });
+
+  it("affiche la miniature principale ou un remplacement accessible dans la liste", () => {
+    expect(source).toContain("primary_image_url: string | null");
+    expect(source).toContain("function ProductThumbnail");
+    expect(source).toContain('aria-label="Aucune photo disponible"');
+    expect(source).toContain("src={product.primary_image_url}");
+    expect(source).toContain("<ProductThumbnail product={item} />");
+  });
 });

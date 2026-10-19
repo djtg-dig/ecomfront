@@ -64,7 +64,8 @@ describe("layouts et pied de page", () => {
     expect(publicHeader).toContain('aria-label="Retour à l’accueil"');
     expect(publicHeader).toContain('href="/"');
     expect(privateShell).toContain('aria-label="Retour à l’accueil"');
-    expect(privateShell).toContain('md:sticky md:top-20');
+    expect(privateShell).toContain('md:h-full md:w-56');
+    expect(privateShell).toContain('md:overflow-y-auto md:overscroll-contain');
     expect(privateShell).toContain('className="brand-lockup hidden items-center gap-3 font-semibold md:flex" href="/"');
   });
 
