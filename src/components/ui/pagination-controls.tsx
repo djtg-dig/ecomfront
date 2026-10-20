@@ -1,5 +1,3 @@
-type PaginationItem = number | "ellipsis";
-
 type PaginationControlsProps = {
   currentPage: number;
   totalItems: number;
@@ -11,15 +9,11 @@ type PaginationControlsProps = {
   onPageChange: (page: number) => void;
 };
 
-export function paginationItems(currentPage: number, totalPages: number): PaginationItem[] {
-  const pages = [...new Set([1, 2, 3, currentPage - 1, currentPage, currentPage + 1, totalPages - 2, totalPages - 1, totalPages]
-    .filter((page) => page >= 1 && page <= totalPages))]
-    .sort((left, right) => left - right);
-
-  return pages.flatMap<PaginationItem>((page, index) => {
-    const previous = pages[index - 1];
-    return previous !== undefined && page - previous > 1 ? ["ellipsis", page] : [page];
-  });
+export function paginationItems(currentPage: number, totalPages: number): number[] {
+  if (totalPages <= 3) return Array.from({ length: totalPages }, (_, index) => index + 1);
+  if (currentPage <= 2) return [1, 2, 3];
+  if (currentPage >= totalPages - 1) return [totalPages - 2, totalPages - 1, totalPages];
+  return [currentPage - 1, currentPage, currentPage + 1];
 }
 
 export function paginationSearchParams(current: string, updates: Record<string, string | null>) {
@@ -59,9 +53,7 @@ export function PaginationControls({
       >
         <span aria-hidden="true">&lt;</span>
       </button>
-      {paginationItems(currentPage, totalPages).map((item, index) => item === "ellipsis"
-        ? <span aria-hidden="true" className="hidden px-1 text-[var(--muted)] md:inline" key={`ellipsis-${index}`}>…</span>
-        : <button
+      {paginationItems(currentPage, totalPages).map((item) => <button
           aria-current={item === currentPage ? "page" : undefined}
           aria-label={`Page ${item}`}
           className={`button min-w-10 px-2 ${item === currentPage ? "button-primary" : "button-outline"} hidden md:inline-flex`}

@@ -27,10 +27,10 @@ describe("PaginationControls", () => {
     />);
 
     expect(html).toContain("Affichage de 1 à 10 sur 148 produits");
-    expect(html).toContain('aria-label="Page 15"');
+    expect(html).toContain('aria-label="Page 3"');
     expect(html).toContain('aria-label="Page précédente"');
     expect(html).toContain('aria-label="Page suivante"');
-    expect(paginationItems(1, 15)).toEqual([1, 2, 3, "ellipsis", 13, 14, 15]);
+    expect(paginationItems(1, 15)).toEqual([1, 2, 3]);
   });
 
   it("distingue la page active et désactive les boutons aux limites", () => {
@@ -52,7 +52,8 @@ describe("PaginationControls", () => {
   });
 
   it("calcule des numéros compacts autour de la page courante", () => {
-    expect(paginationItems(8, 15)).toEqual([1, 2, 3, "ellipsis", 7, 8, 9, "ellipsis", 13, 14, 15]);
+    expect(paginationItems(8, 15)).toEqual([7, 8, 9]);
+    expect(paginationItems(15, 15)).toEqual([13, 14, 15]);
   });
 
   it("déclenche indépendamment la page suivante de chaque tableau", () => {
