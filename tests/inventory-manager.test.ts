@@ -30,4 +30,19 @@ describe("gestionnaire de stocks", () => {
     expect(source).toContain('<Modal onClose={() => setModal(null)} title="Nouveau mouvement">');
     expect(source).toContain('<Modal onClose={() => setModal(null)} title="Initialiser un stock">');
   });
+  it("rend deux paginations indépendantes synchronisées avec l’URL", () => {
+    expect(source).toContain('searchParams.get("inventory_page")');
+    expect(source).toContain('searchParams.get("movements_page")');
+    expect(source).toContain('changePage("inventory_page", page)');
+    expect(source).toContain('changePage("movements_page", page)');
+    expect(source).toContain('ariaLabel="Pagination de l’inventaire"');
+    expect(source).toContain('ariaLabel="Pagination de l’historique"');
+    expect(source).toContain("paginationSearchParams(searchParams.toString(), updates)");
+  });
+  it("remet uniquement la page du tableau filtré à la première page", () => {
+    expect(source).toContain('updateUrl({ q: event.target.value || null, inventory_page: null }, true)');
+    expect(source).toContain('updateUrl({ status: event.target.value || null, inventory_page: null }, true)');
+    expect(source).toContain('updateUrl({ type: event.target.value || null, movements_page: null }, true)');
+    expect(source).toContain('updateUrl({ origin: event.target.value || null, movements_page: null }, true)');
+  });
 });

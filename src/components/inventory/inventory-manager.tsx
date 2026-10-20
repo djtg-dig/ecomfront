@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { Modal } from "@/components/ui/modal";
+import { PaginationControls, paginationSearchParams } from "@/components/ui/pagination-controls";
 
 type StockStatus = "AVAILABLE" | "LOW_STOCK" | "OUT_OF_STOCK";
 type InventoryItem = {
@@ -46,9 +47,15 @@ type Summary = {
   recent_movements: Movement[];
 };
 type History = { count: number; next: string | null; previous: string | null; results: Movement[] };
+type Pagination = { count: number; next: string | null; previous: string | null };
 
 const statusLabels: Record<StockStatus, string> = { AVAILABLE: "Disponible", LOW_STOCK: "Stock faible", OUT_OF_STOCK: "Rupture" };
 const movementLabels: Record<Movement["movement_type"], string> = { IN: "Entrée", OUT: "Sortie", ADJUSTMENT: "Ajustement", TRANSFER: "Transfert", SALE: "Vente", RETURN: "Retour" };
+
+function positivePage(value: string | null) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
 
 async function message(response: Response) {
   try { return (await response.json() as { detail?: string }).detail ?? "Le service E-commerce est indisponible."; }
@@ -129,6 +136,8 @@ function MovementForm({ businessId, inventory, fixedInventoryId, idempotencyKey,
 
 export function InventoryManager({ businessId, inventoryId }: { businessId: string; inventoryId?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const permissions = useBusinessPermissions(businessId);
   const canViewInventory = permissions?.includes("INVENTORY_VIEW") ?? false;
   const canViewMovements = permissions?.includes("INVENTORY_MOVEMENT_VIEW") ?? false;
@@ -141,6 +150,7 @@ export function InventoryManager({ businessId, inventoryId }: { businessId: stri
   const canMove = allowedMovementTypes.length > 0;
   const canManage = canMove;
   const [inventory, setInventory] = useState<InventoryItem[] | null>(null);
+  const [inventoryPagination, setInventoryPagination] = useState<Pagination | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [history, setHistory] = useState<History | null>(null);
   const [item, setItem] = useState<InventoryItem | null>(null);
@@ -148,25 +158,46 @@ export function InventoryManager({ businessId, inventoryId }: { businessId: stri
   const [modal, setModal] = useState<"initialize" | "movement" | null>(null);
   const [movementTarget, setMovementTarget] = useState<string | undefined>(inventoryId);
   const [idempotencyKey, setIdempotencyKey] = useState("");
-  const [query, setQuery] = useState("");
-  const [stockStatus, setStockStatus] = useState("");
-  const [ordering, setOrdering] = useState("");
-  const [movementType, setMovementType] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [movementsLoading, setMovementsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const inventoryPage = positivePage(searchParams.get("inventory_page"));
+  const movementsPage = positivePage(searchParams.get("movements_page"));
+  const query = searchParams.get("q") ?? "";
+  const stockStatus = searchParams.get("status") ?? "";
+  const ordering = searchParams.get("ordering") ?? "";
+  const movementType = searchParams.get("type") ?? "";
+  const origin = searchParams.get("origin") ?? "";
+  const dateFrom = searchParams.get("date_from") ?? "";
+  const dateTo = searchParams.get("date_to") ?? "";
+
+  function updateUrl(updates: Record<string, string | null>, replace = false) {
+    const params = paginationSearchParams(searchParams.toString(), updates);
+    const queryString = params.toString();
+    const url = `${pathname}${queryString ? `?${queryString}` : ""}`;
+    if (replace) router.replace(url, { scroll: false });
+    else router.push(url, { scroll: false });
+  }
+
+  function changePage(parameter: "inventory_page" | "movements_page", page: number) {
+    updateUrl({ [parameter]: page > 1 ? String(page) : null });
+  }
 
   async function loadList() {
+    setInventoryLoading(true);
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (stockStatus) params.set("status", stockStatus);
     if (ordering) params.set("ordering", ordering);
-    const response = await fetch(`/api/private/businesses/${businessId}/inventory${params.size ? `?${params}` : ""}`, { credentials: "same-origin", cache: "no-store" });
-    if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
-    if (!response.ok) throw new Error(await message(response));
-    setInventory((await response.json() as { inventory: InventoryItem[] }).inventory);
+    params.set("page", String(inventoryPage));
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/inventory${params.size ? `?${params}` : ""}`, { credentials: "same-origin", cache: "no-store" });
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) throw new Error(await message(response));
+      const payload = await response.json() as { inventory: InventoryItem[]; pagination: Pagination };
+      setInventory(payload.inventory); setInventoryPagination(payload.pagination);
+    } finally { setInventoryLoading(false); }
   }
 
   async function loadSummary() {
@@ -176,14 +207,19 @@ export function InventoryManager({ businessId, inventoryId }: { businessId: stri
   }
 
   async function loadHistory() {
+    setMovementsLoading(true);
     const params = new URLSearchParams();
     if (movementType) params.set("type", movementType);
     if (origin) params.set("origin", origin);
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo) params.set("date_to", dateTo);
-    const response = await fetch(`/api/private/businesses/${businessId}/inventory/movements${params.size ? `?${params}` : ""}`, { credentials: "same-origin", cache: "no-store" });
-    if (!response.ok) throw new Error(await message(response));
-    setHistory((await response.json() as { movements: History }).movements);
+    params.set("page", String(movementsPage));
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/inventory/movements${params.size ? `?${params}` : ""}`, { credentials: "same-origin", cache: "no-store" });
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) throw new Error(await message(response));
+      setHistory((await response.json() as { movements: History }).movements);
+    } finally { setMovementsLoading(false); }
   }
 
   async function loadDetail() {
@@ -200,8 +236,11 @@ export function InventoryManager({ businessId, inventoryId }: { businessId: stri
     setItemMovements((await movements.json() as { movements: Movement[] }).movements);
   }
 
-  useEffect(() => { if (!canViewInventory) return; setError(null); void (inventoryId ? loadDetail() : Promise.all([loadList(), loadSummary()])).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "L’inventaire est indisponible.")); }, [businessId, inventoryId, query, stockStatus, ordering, canViewInventory]);
-  useEffect(() => { if (!inventoryId && canViewMovements) void loadHistory().catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "L’historique est indisponible.")); }, [businessId, inventoryId, movementType, origin, dateFrom, dateTo, canViewMovements]);
+  // Les fonctions de chargement sont volontairement relancées quand les valeurs listées changent.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!canViewInventory) return; void Promise.resolve().then(async () => { setError(null); if (inventoryId) await loadDetail(); else await Promise.all([loadList(), loadSummary()]); }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "L’inventaire est indisponible.")); }, [businessId, inventoryId, query, stockStatus, ordering, inventoryPage, canViewInventory]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!inventoryId && canViewMovements) void Promise.resolve().then(loadHistory).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "L’historique est indisponible.")); }, [businessId, inventoryId, movementType, origin, dateFrom, dateTo, movementsPage, canViewMovements]);
 
   function openMovement(target?: string) {
     setMovementTarget(target);
@@ -220,8 +259,26 @@ export function InventoryManager({ businessId, inventoryId }: { businessId: stri
     <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">INVENTAIRE</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">Stocks</h1></div>{canInitialize || canMove ? <div className="flex flex-wrap gap-2">{canInitialize ? <button className="button button-outline" onClick={() => setModal("initialize")} type="button">Initialiser un stock</button> : null}{canMove ? <button className="button button-primary" onClick={() => openMovement()} type="button">Nouveau mouvement</button> : null}</div> : null}</div>
     {error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{notice ? <p className="mt-4" role="status">{notice}</p> : null}
     <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{summary ? <><Metric label="Produits suivis" value={summary.tracked_products} /><Metric label="En stock" value={summary.in_stock} /><Metric label="Ruptures" value={summary.out_of_stock} alert={summary.out_of_stock > 0} /><Metric label="Stock faible" value={summary.low_stock} alert={summary.low_stock > 0} /><Metric label="Quantité disponible" value={summary.total_available_quantity} /></> : <p className="text-sm text-[var(--muted)]">Chargement des indicateurs…</p>}</section>
-    <section className="content-panel mt-6 p-5"><div className="flex flex-wrap gap-3"><input aria-label="Rechercher un produit" className="min-w-0 flex-1 rounded border p-2" onChange={(event) => setQuery(event.target.value)} placeholder="Produit ou référence" value={query} /><select aria-label="Filtrer par état" className="rounded border p-2" onChange={(event) => setStockStatus(event.target.value)} value={stockStatus}><option value="">Tous les états</option><option value="AVAILABLE">Disponible</option><option value="LOW_STOCK">Stock faible</option><option value="OUT_OF_STOCK">Rupture</option></select><select aria-label="Trier les stocks" className="rounded border p-2" onChange={(event) => setOrdering(event.target.value)} value={ordering}><option value="">Tri par défaut</option><option value="quantity">Quantité croissante</option><option value="-quantity">Quantité décroissante</option></select></div><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead><tr className="border-b"><th className="p-2">Produit</th><th className="p-2">Référence</th><th className="p-2">Disponible</th><th className="p-2">Seuil</th><th className="p-2">État</th><th className="p-2">Dernier mouvement</th><th className="p-2">Actions</th></tr></thead><tbody>{inventory?.map((entry) => <tr className="border-b" key={entry.public_id}><td className="p-2"><Link className="underline" href={`/espace/entreprises/${businessId}/stocks/${entry.public_id}`}>{entry.item_name}</Link></td><td className="p-2">{entry.internal_reference || "—"}</td><td className="p-2">{entry.available_quantity}</td><td className="p-2">{entry.low_stock_threshold ?? "—"}</td><td className="p-2">{statusLabels[entry.stock_status]}</td><td className="p-2">{entry.last_movement_at ? new Date(entry.last_movement_at).toLocaleString() : "—"}</td><td className="p-2">{canManage ? <button className="button button-outline" onClick={() => openMovement(entry.public_id)} type="button">Mouvement</button> : <Link className="nav-link" href={`/espace/entreprises/${businessId}/stocks/${entry.public_id}`}>Consulter</Link>}</td></tr>)}</tbody></table>{inventory === null ? <p className="p-4">Chargement des stocks…</p> : inventory.length === 0 ? <p className="p-4 text-[var(--muted)]">Aucun stock ne correspond aux filtres.</p> : null}</div></section>
-    <section className="content-panel mt-6 p-5"><h2 className="font-semibold">Historique des mouvements</h2><div className="mt-3 flex flex-wrap gap-3"><select aria-label="Type de mouvement" className="rounded border p-2" onChange={(event) => setMovementType(event.target.value)} value={movementType}><option value="">Tous les types</option>{Object.entries(movementLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><select aria-label="Origine du mouvement" className="rounded border p-2" onChange={(event) => setOrigin(event.target.value)} value={origin}><option value="">Toutes les origines</option><option value="PURCHASE">Achat</option><option value="SALE">Vente</option><option value="SALE_RETURN_LINE">Retour de vente</option></select><label className="text-sm">Du <input className="rounded border p-2" onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} /></label><label className="text-sm">Au <input className="rounded border p-2" onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} /></label></div><div className="mt-4 overflow-x-auto"><MovementTable movements={history?.results ?? null} /></div></section>
+    <section className="content-panel mt-6 p-5">
+      <div className="flex flex-wrap gap-3">
+        <input aria-label="Rechercher un produit" className="min-w-0 flex-1 rounded border p-2" onChange={(event) => updateUrl({ q: event.target.value || null, inventory_page: null }, true)} placeholder="Produit ou référence" value={query} />
+        <select aria-label="Filtrer par état" className="rounded border p-2" onChange={(event) => updateUrl({ status: event.target.value || null, inventory_page: null }, true)} value={stockStatus}><option value="">Tous les états</option><option value="AVAILABLE">Disponible</option><option value="LOW_STOCK">Stock faible</option><option value="OUT_OF_STOCK">Rupture</option></select>
+        <select aria-label="Trier les stocks" className="rounded border p-2" onChange={(event) => updateUrl({ ordering: event.target.value || null, inventory_page: null }, true)} value={ordering}><option value="">Tri par défaut</option><option value="quantity">Quantité croissante</option><option value="-quantity">Quantité décroissante</option></select>
+      </div>
+      <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead><tr className="border-b"><th className="p-2">Produit</th><th className="p-2">Référence</th><th className="p-2">Disponible</th><th className="p-2">Seuil</th><th className="p-2">État</th><th className="p-2">Dernier mouvement</th><th className="p-2">Actions</th></tr></thead><tbody>{inventory?.map((entry) => <tr className="border-b" key={entry.public_id}><td className="p-2"><Link className="underline" href={`/espace/entreprises/${businessId}/stocks/${entry.public_id}`}>{entry.item_name}</Link></td><td className="p-2">{entry.internal_reference || "—"}</td><td className="p-2">{entry.available_quantity}</td><td className="p-2">{entry.low_stock_threshold ?? "—"}</td><td className="p-2">{statusLabels[entry.stock_status]}</td><td className="p-2">{entry.last_movement_at ? new Date(entry.last_movement_at).toLocaleString() : "—"}</td><td className="p-2">{canManage ? <button className="button button-outline" onClick={() => openMovement(entry.public_id)} type="button">Mouvement</button> : <Link className="nav-link" href={`/espace/entreprises/${businessId}/stocks/${entry.public_id}`}>Consulter</Link>}</td></tr>)}</tbody></table>{inventory === null ? <p className="p-4">Chargement des stocks…</p> : inventory.length === 0 ? <p className="p-4 text-[var(--muted)]">Aucun stock ne correspond aux filtres.</p> : null}</div>
+      {inventoryPagination ? <PaginationControls ariaLabel="Pagination de l’inventaire" currentItemCount={inventory?.length ?? 0} currentPage={inventoryPage} itemLabel="produits" loading={inventoryLoading} onPageChange={(page) => changePage("inventory_page", page)} pageSize={10} totalItems={inventoryPagination.count} /> : null}
+    </section>
+    <section className="content-panel mt-6 p-5">
+      <h2 className="font-semibold">Historique des mouvements</h2>
+      <div className="mt-3 flex flex-wrap gap-3">
+        <select aria-label="Type de mouvement" className="rounded border p-2" onChange={(event) => updateUrl({ type: event.target.value || null, movements_page: null }, true)} value={movementType}><option value="">Tous les types</option>{Object.entries(movementLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <select aria-label="Origine du mouvement" className="rounded border p-2" onChange={(event) => updateUrl({ origin: event.target.value || null, movements_page: null }, true)} value={origin}><option value="">Toutes les origines</option><option value="PURCHASE">Achat</option><option value="SALE">Vente</option><option value="SALE_RETURN_LINE">Retour de vente</option></select>
+        <label className="text-sm">Du <input className="rounded border p-2" onChange={(event) => updateUrl({ date_from: event.target.value || null, movements_page: null }, true)} type="date" value={dateFrom} /></label>
+        <label className="text-sm">Au <input className="rounded border p-2" onChange={(event) => updateUrl({ date_to: event.target.value || null, movements_page: null }, true)} type="date" value={dateTo} /></label>
+      </div>
+      <div className="mt-4 overflow-x-auto"><MovementTable movements={history?.results ?? null} /></div>
+      {history ? <PaginationControls ariaLabel="Pagination de l’historique" currentItemCount={history.results.length} currentPage={movementsPage} itemLabel="mouvements" loading={movementsLoading} onPageChange={(page) => changePage("movements_page", page)} pageSize={10} totalItems={history.count} /> : null}
+    </section>
     {modal === "initialize" ? <Modal onClose={() => setModal(null)} title="Initialiser un stock"><InitializeStockForm businessId={businessId} onSuccess={() => void mutationSucceeded("Stock initialisé.")} /></Modal> : null}
     {modal === "movement" ? <Modal onClose={() => setModal(null)} title="Nouveau mouvement"><MovementForm allowedTypes={allowedMovementTypes} businessId={businessId} fixedInventoryId={movementTarget} idempotencyKey={idempotencyKey} inventory={inventory ?? []} onSuccess={() => void mutationSucceeded("Mouvement enregistré.")} /></Modal> : null}
   </main>;

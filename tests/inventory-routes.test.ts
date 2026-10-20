@@ -33,9 +33,11 @@ beforeEach(() => {
 
 describe("routes BFF inventaire", () => {
   it("relaie les filtres autorisés, le détail et l’historique sous le bon tenant", async () => {
-    mocks.request.mockResolvedValueOnce([{ public_id: inventoryId, available_quantity: "3.000" }]);
-    expect((await list(request(`/api/private/businesses/${businessId}/inventory?product=PR123&low_stock=true`), businessContext)).status).toBe(200);
-    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/`, expect.objectContaining({ query: { product: "PR123", variant: undefined, low_stock: "true", q: undefined, status: undefined, ordering: undefined }, accessToken: expect.any(String) }));
+    mocks.request.mockResolvedValueOnce({ count: 148, next: "next", previous: null, results: [{ public_id: inventoryId, available_quantity: "3.000" }] });
+    const listResponse = await list(request(`/api/private/businesses/${businessId}/inventory?product=PR123&low_stock=true&page=2`), businessContext);
+    expect(listResponse.status).toBe(200);
+    expect(await listResponse.json()).toEqual(expect.objectContaining({ inventory: [expect.objectContaining({ public_id: inventoryId })], pagination: { count: 148, next: "next", previous: null } }));
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/`, expect.objectContaining({ query: { product: "PR123", variant: undefined, low_stock: "true", q: undefined, status: undefined, ordering: undefined, page: "2" }, accessToken: expect.any(String) }));
     mocks.request.mockResolvedValueOnce({ public_id: inventoryId });
     expect((await detail(request(`/api/private/businesses/${businessId}/inventory/${inventoryId}`), inventoryContext)).status).toBe(200);
     mocks.request.mockResolvedValueOnce([]);
@@ -59,8 +61,8 @@ describe("routes BFF inventaire", () => {
     expect((await summary(request(`/api/private/businesses/${businessId}/inventory/summary`), businessContext)).status).toBe(200);
     expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/summary/`, expect.objectContaining({ accessToken: expect.any(String) }));
     mocks.request.mockResolvedValueOnce({ count: 1, results: [] });
-    expect((await history(request(`/api/private/businesses/${businessId}/inventory/movements?type=SALE&origin=SALE&date_from=2026-01-01`), businessContext)).status).toBe(200);
-    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/movements/`, expect.objectContaining({ query: expect.objectContaining({ type: "SALE", origin: "SALE", date_from: "2026-01-01" }) }));
+    expect((await history(request(`/api/private/businesses/${businessId}/inventory/movements?type=SALE&origin=SALE&date_from=2026-01-01&page=3`), businessContext)).status).toBe(200);
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/inventory/movements/`, expect.objectContaining({ query: expect.objectContaining({ type: "SALE", origin: "SALE", date_from: "2026-01-01", page: "3" }) }));
   });
 
   it("exige une clé d’idempotence pour un mouvement", async () => {
@@ -71,6 +73,7 @@ describe("routes BFF inventaire", () => {
 
   it("rejette les filtres et identifiants hors contrat avant Django", async () => {
     expect((await list(request(`/api/private/businesses/${businessId}/inventory?low_stock=false`), businessContext)).status).toBe(400);
+    expect((await history(request(`/api/private/businesses/${businessId}/inventory/movements?page=0`), businessContext)).status).toBe(400);
     expect((await detail(request("/api/private/businesses/x/inventory/y"), { params: Promise.resolve({ businessId: "../", inventoryId: "y" }) })).status).toBe(400);
     expect(mocks.request).not.toHaveBeenCalled();
   });
