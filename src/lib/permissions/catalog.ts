@@ -1,4 +1,4 @@
-export type PermissionGroup = "Entreprise" | "Équipe" | "Produits" | "Stocks" | "Achats" | "Ventes" | "Partenaires" | "Finance" | "Dépenses" | "Rapports";
+export type PermissionGroup = "Entreprise" | "Équipe" | "Produits" | "Stocks" | "Achats" | "Ventes" | "Factures" | "Partenaires" | "Finance" | "Dépenses" | "Rapports";
 export type PermissionDefinition = { code: string; label: string; description: string; group: PermissionGroup };
 
 const entries: Array<[PermissionGroup, string, string, string]> = [
@@ -56,6 +56,12 @@ const entries: Array<[PermissionGroup, string, string, string]> = [
   ["Ventes", "SALE_LINE_CREATE", "Ajouter une ligne de vente", "Ajouter une ligne à un brouillon."],
   ["Ventes", "SALE_RETURN_VIEW", "Consulter les retours", "Afficher les retours d’une vente."],
   ["Ventes", "SALE_RETURN", "Créer un retour", "Créer un retour de vente atomique."],
+  ["Factures", "INVOICE_VIEW", "Consulter les factures", "Afficher uniquement les factures autorisées."],
+  ["Factures", "INVOICE_CREATE", "Créer une facture", "Créer un brouillon de facture."],
+  ["Factures", "INVOICE_UPDATE", "Modifier une facture", "Modifier les lignes et informations d’un brouillon de facture."],
+  ["Factures", "INVOICE_ISSUE", "Émettre une facture", "Émettre une facture et enregistrer son paiement initial éventuel."],
+  ["Factures", "INVOICE_CANCEL", "Annuler une facture", "Annuler un brouillon de facture."],
+  ["Factures", "INVOICE_PAYMENT_CREATE", "Encaisser une facture", "Enregistrer un règlement sur une facture."],
   ["Partenaires", "CUSTOMER_VIEW", "Consulter les clients", "Afficher le répertoire clients."],
   ["Partenaires", "CUSTOMER_CREATE", "Créer un client", "Ajouter un client."],
   ["Partenaires", "CUSTOMER_UPDATE", "Modifier un client", "Modifier les coordonnées d’un client."],

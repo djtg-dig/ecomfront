@@ -16,16 +16,16 @@ export type PermissionGroupView = {
 
 const collator = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
 const groupOrder: Array<PermissionGroup | "Autres"> = [
-  "Produits", "Stocks", "Ventes", "Achats", "Partenaires", "Finance",
+  "Produits", "Stocks", "Ventes", "Factures", "Achats", "Partenaires", "Finance",
   "Dépenses", "Rapports", "Équipe", "Entreprise", "Autres",
 ];
 const groupLabels: Record<PermissionGroup | "Autres", string> = {
-  Produits: "Produits", Stocks: "Stocks", Ventes: "Ventes", Achats: "Achats",
+  Produits: "Produits", Stocks: "Stocks", Ventes: "Ventes", Factures: "Factures", Achats: "Achats",
   Partenaires: "Partenaires", Finance: "Finance", Dépenses: "Dépenses",
   Rapports: "Rapports", Équipe: "Membres", Entreprise: "Entreprise", Autres: "Autres",
 };
 const groupIcons: Record<PermissionGroup | "Autres", string> = {
-  Produits: "▦", Stocks: "▤", Ventes: "↗", Achats: "↙", Partenaires: "♙",
+  Produits: "▦", Stocks: "▤", Ventes: "↗", Factures: "▤", Achats: "↙", Partenaires: "♙",
   Finance: "¤", Dépenses: "−", Rapports: "▥", Équipe: "♟", Entreprise: "⌂", Autres: "…",
 };
 
