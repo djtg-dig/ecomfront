@@ -92,9 +92,12 @@ function MobileNavigation({ mobileSection, navigation, pathname, title }: { mobi
     };
     document.addEventListener("keydown", onKeyDown);
     const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = "hidden";
-    const focusTimer = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
-    return () => { window.cancelAnimationFrame(focusTimer); document.removeEventListener("keydown", onKeyDown); document.body.style.overflow = previousOverflow; button?.focus(); };
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+    const focusTimer = window.requestAnimationFrame(() => closeButtonRef.current?.focus({ preventScroll: true }));
+    return () => { window.cancelAnimationFrame(focusTimer); document.removeEventListener("keydown", onKeyDown); document.body.style.overflow = previousOverflow; document.body.style.paddingRight = previousPaddingRight; if (button?.isConnected) button.focus({ preventScroll: true }); };
   }, [open]);
   const primaryNavigation = navigation.filter((item) => !item.secondary);
   const secondaryNavigation = navigation.filter((item) => item.secondary);

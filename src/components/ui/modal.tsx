@@ -17,8 +17,8 @@ export function Modal({ title, children, onClose, confirmOnClose = true, size = 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const firstField = dialogRef.current?.querySelector<HTMLElement>("input:not([type=hidden]), select, textarea, button");
-    (firstField ?? closeRef.current)?.focus();
-    return () => previousFocus?.focus();
+    (firstField ?? closeRef.current)?.focus({ preventScroll: true });
+    return () => { if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true }); };
   }, []);
 
   useEffect(() => {
