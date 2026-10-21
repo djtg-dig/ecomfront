@@ -17,7 +17,7 @@ export function SiteFooter() {
     { title: "Support", links: [{ href: "/fonctionnalites", label: "Help center" }, { href: "/contact", label: "Contact us" }] },
   ] : sections;
   return (
-    <footer className="site-footer mt-auto">
+    <footer className="site-footer mt-auto shrink-0">
       <div className="site-container grid gap-8 py-10 text-sm md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
         <div>
           <Link className="text-base font-semibold text-white" href="/">Carri Business</Link>

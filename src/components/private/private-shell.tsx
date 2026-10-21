@@ -65,8 +65,9 @@ function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ c
             </Link>
           ))}
         </nav>
-        <main className="min-w-0 flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain"><div>{children}</div><SiteFooter /></main>
+        <main className="min-w-0 flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain"><div>{children}</div></main>
       </div>
+      <SiteFooter />
     </div>
   );
 }

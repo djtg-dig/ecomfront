@@ -21,6 +21,7 @@ describe("layouts et pied de page", () => {
     expect(footer).toContain("Cookies");
     expect(footer).toContain("Assistance");
     expect(footer).toContain('className="footer-link"');
+    expect(footer).toContain('className="site-footer mt-auto shrink-0"');
     expect(footer).toContain('href: "/fonctionnalites"');
     expect(footer).toContain('href: "/contact"');
     expect(publicLayout).toContain("<SiteFooter />");
