@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { formatPriceRange } from "@/lib/money/format";
 import { ProductMediaManager } from "@/components/catalog/product-media-manager";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { formatMessage } from "@/lib/i18n/messages";
+import { formatMessage, unitLabel } from "@/lib/i18n/messages";
 import {
   categoryPayload,
   filterRegistryCategories,
@@ -87,7 +87,7 @@ function priceRange(product: Product) {
 }
 
 function ProductThumbnail({ product }: { product: Product }) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [failed, setFailed] = useState(false);
   if (!product.primary_image_url || failed) return <div aria-label={t("catalog", "unavailablePhoto")} className="grid size-14 shrink-0 place-items-center rounded bg-[var(--surface-muted)] text-xs text-[var(--muted)]">{t("catalog", "photo")}</div>;
   return <img alt="" className="size-14 shrink-0 rounded object-cover" onError={() => setFailed(true)} src={product.primary_image_url} />;
@@ -238,7 +238,7 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
   unitsLoading: boolean;
   onRetryUnits: () => void;
 }) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const router = useRouter();
   const initialSource = sourceForProduct(product);
   const initialCode = product?.category_code ?? product?.category ?? "";
@@ -356,7 +356,7 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
       <legend className="px-2 font-semibold text-[var(--brand-secondary)]">Informations générales</legend>
       <div><label className="text-sm font-medium" htmlFor="product-name">Nom *</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.name} id="product-name" name="name" required /></div>
       <div className="sm:col-span-2"><CategorySelector choices={choices} disabled={saving} loading={categoriesLoading} onChange={selectCategory} value={categoryCode ? `${categorySource}:${categoryCode}` : ""} /></div>
-      <div><label className="text-sm font-medium" htmlFor="product-unit">{t("catalog", "unit")} *</label>{unitsLoading ? <p className="mt-1 text-sm text-[var(--muted)]">{t("feedback", "loading")}</p> : units.length ? <select className="mt-1 w-full rounded border p-2" defaultValue={product?.unit_of_measure ?? "PCS"} id="product-unit" name="unit_of_measure" required>{units.map((unit) => <option key={unit.code} value={unit.code}>{unit.name} ({unit.symbol})</option>)}</select> : <><input name="unit_of_measure" type="hidden" value={product?.unit_of_measure ?? ""} />{product?.unit_of_measure ? <p className="mt-1 text-sm text-[var(--muted)]">{product.unit_of_measure}{product.unit_symbol ? ` (${product.unit_symbol})` : ""}</p> : <p className="mt-1 text-sm text-[var(--error)]" role="alert">{t("catalog", "catalogUnavailable")}</p>}{unitsError ? <button className="mt-2 text-sm underline" onClick={onRetryUnits} type="button">{t("common", "retry")}</button> : null}</>}</div>
+      <div><label className="text-sm font-medium" htmlFor="product-unit">{t("catalog", "unit")} *</label>{unitsLoading ? <p className="mt-1 text-sm text-[var(--muted)]">{t("feedback", "loading")}</p> : units.length ? <select className="mt-1 w-full rounded border p-2" defaultValue={product?.unit_of_measure ?? "PCS"} id="product-unit" name="unit_of_measure" required>{units.map((unit) => <option key={unit.code} value={unit.code}>{unitLabel(locale, unit.code, unit.name)} ({unit.symbol})</option>)}</select> : <><input name="unit_of_measure" type="hidden" value={product?.unit_of_measure ?? ""} />{product?.unit_of_measure ? <p className="mt-1 text-sm text-[var(--muted)]">{product.unit_of_measure}{product.unit_symbol ? ` (${product.unit_symbol})` : ""}</p> : <p className="mt-1 text-sm text-[var(--error)]" role="alert">{t("catalog", "catalogUnavailable")}</p>}{unitsError ? <button className="mt-2 text-sm underline" onClick={onRetryUnits} type="button">{t("common", "retry")}</button> : null}</>}</div>
       {commonAttributes.map((attribute) => <DynamicAttributeField attribute={attribute} error={fieldErrors[attribute.code]} key={attribute.code} onChange={(value) => setAttributeValues((current) => ({ ...current, [attribute.code]: value }))} value={attributeValues[attribute.code]} />)}
       <div><label className="text-sm font-medium" htmlFor="product-barcode">Code-barres</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.barcode ?? ""} id="product-barcode" name="barcode" /></div>
       <div className="sm:col-span-2"><label className="text-sm font-medium" htmlFor="product-description">Description</label><textarea className="mt-1 min-h-24 w-full rounded border p-2" defaultValue={product?.description} id="product-description" name="description" /></div>

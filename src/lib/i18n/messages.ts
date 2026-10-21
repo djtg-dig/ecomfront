@@ -27,6 +27,16 @@ export const messages = {
   },
 } as const;
 
+/** Unit codes are backend contracts; labels are presentation-only and localized here. */
+export const unitMessages = {
+  fr: { PCS: "Pièce", PAIR: "Paire", DOZEN: "Douzaine", LOT: "Lot", MG: "Milligramme", G: "Gramme", KG: "Kilogramme", T: "Tonne", ML: "Millilitre", L: "Litre", M3: "Mètre cube", CM: "Centimètre", M: "Mètre", KM: "Kilomètre", M2: "Mètre carré", BAG: "Sac", BOX: "Boîte", CARTON: "Carton", PACK: "Paquet", SACHET: "Sachet", BOTTLE: "Bouteille", CAN: "Bidon", ROLL: "Rouleau", PALLET: "Palette" },
+  en: { PCS: "Piece", PAIR: "Pair", DOZEN: "Dozen", LOT: "Lot", MG: "Milligram", G: "Gram", KG: "Kilogram", T: "Tonne", ML: "Milliliter", L: "Liter", M3: "Cubic meter", CM: "Centimeter", M: "Meter", KM: "Kilometer", M2: "Square meter", BAG: "Bag", BOX: "Box", CARTON: "Carton", PACK: "Pack", SACHET: "Sachet", BOTTLE: "Bottle", CAN: "Canister", ROLL: "Roll", PALLET: "Pallet" },
+} as const;
+
+export function unitLabel(locale: Locale, code: string, fallback: string): string {
+  return (unitMessages[locale] as Record<string, string>)[code] ?? fallback;
+}
+
 export type MessageKey = keyof typeof messages.fr;
 export function message(locale: Locale, section: MessageKey, key: string): string {
   const group = messages[locale][section] as Record<string, string>;
