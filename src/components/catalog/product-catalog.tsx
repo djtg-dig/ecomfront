@@ -38,6 +38,8 @@ type Product = {
   product_type_key: string | null;
   internal_reference: string | null;
   barcode: string | null;
+  unit_of_measure?: string;
+  unit_symbol?: string;
   selling_price: string;
   min_price?: string | null;
   max_price?: string | null;
@@ -55,6 +57,7 @@ type CategoryChoice = {
   group: string;
   source: CategorySource;
 };
+type UnitOfMeasure = { code: string; name: string; symbol: string; category: string };
 
 type ApiProblem = { detail: string; errors: Record<string, string[]> };
 type ProductListResponse = { products: Product[]; pagination: { count: number; next: string | null; previous: string | null } };
@@ -79,7 +82,7 @@ function sourceForProduct(product?: Product): CategorySource {
 
 function priceRange(product: Product) {
   return product.min_price !== null && product.min_price !== undefined && product.max_price !== null && product.max_price !== undefined
-    ? formatPriceRange(product.min_price, product.max_price, product.currency)
+    ? `${formatPriceRange(product.min_price, product.max_price, product.currency)}${product.unit_symbol ? ` / ${product.unit_symbol}` : ""}`
     : null;
 }
 
@@ -222,7 +225,7 @@ function CategorySelector({ choices, disabled, loading, onChange, value }: {
   </div>;
 }
 
-function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCategories, onSaved, product, registryCategories }: {
+function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCategories, onRetryUnits, onSaved, product, registryCategories, units = [], unitsError, unitsLoading }: {
   businessCurrency: string;
   businessId: string;
   categoriesLoading: boolean;
@@ -230,7 +233,12 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
   onSaved: (product: Product) => void;
   product?: Product;
   registryCategories: RegistryCategorySummary[];
+  units?: UnitOfMeasure[];
+  unitsError: boolean;
+  unitsLoading: boolean;
+  onRetryUnits: () => void;
 }) {
+  const { t } = useLocale();
   const router = useRouter();
   const initialSource = sourceForProduct(product);
   const initialCode = product?.category_code ?? product?.category ?? "";
@@ -294,6 +302,8 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
     setError(null);
     setFieldErrors({});
     if (!categoryCode) return setError("Choisissez une catégorie.");
+    const selectedUnit = String(new FormData(form).get("unit_of_measure") ?? "");
+    if (!selectedUnit) return setError("Choisissez une unité de mesure.");
     const normalized = normalizeProductAttributes(attributes, attributeValues);
     if (Object.keys(normalized.errors).length) {
       setFieldErrors(normalized.errors);
@@ -309,7 +319,7 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
       : {};
     const payload = {
       name: fields.get("name"), description: fields.get("description"), ...categoryPayload(categorySource, categoryCode),
-      internal_reference: fields.get("internal_reference") || null, barcode: fields.get("barcode") || null,
+      internal_reference: fields.get("internal_reference") || null, barcode: fields.get("barcode") || null, unit_of_measure: selectedUnit,
       min_price: fields.get("min_price"), max_price: fields.get("max_price"), is_negotiable: fields.get("is_negotiable") === "on",
       cost_price: fields.get("cost_price") || null, status: fields.get("status"), attributes: { ...preservedUnknownAttributes, ...normalized.attributes },
     };
@@ -346,6 +356,7 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
       <legend className="px-2 font-semibold text-[var(--brand-secondary)]">Informations générales</legend>
       <div><label className="text-sm font-medium" htmlFor="product-name">Nom *</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.name} id="product-name" name="name" required /></div>
       <div className="sm:col-span-2"><CategorySelector choices={choices} disabled={saving} loading={categoriesLoading} onChange={selectCategory} value={categoryCode ? `${categorySource}:${categoryCode}` : ""} /></div>
+      <div><label className="text-sm font-medium" htmlFor="product-unit">{t("catalog", "unit")} *</label>{unitsLoading ? <p className="mt-1 text-sm text-[var(--muted)]">{t("feedback", "loading")}</p> : units.length ? <select className="mt-1 w-full rounded border p-2" defaultValue={product?.unit_of_measure ?? "PCS"} id="product-unit" name="unit_of_measure" required>{units.map((unit) => <option key={unit.code} value={unit.code}>{unit.name} ({unit.symbol})</option>)}</select> : <><input name="unit_of_measure" type="hidden" value={product?.unit_of_measure ?? ""} />{product?.unit_of_measure ? <p className="mt-1 text-sm text-[var(--muted)]">{product.unit_of_measure}{product.unit_symbol ? ` (${product.unit_symbol})` : ""}</p> : <p className="mt-1 text-sm text-[var(--error)]" role="alert">{t("catalog", "catalogUnavailable")}</p>}{unitsError ? <button className="mt-2 text-sm underline" onClick={onRetryUnits} type="button">{t("common", "retry")}</button> : null}</>}</div>
       {commonAttributes.map((attribute) => <DynamicAttributeField attribute={attribute} error={fieldErrors[attribute.code]} key={attribute.code} onChange={(value) => setAttributeValues((current) => ({ ...current, [attribute.code]: value }))} value={attributeValues[attribute.code]} />)}
       <div><label className="text-sm font-medium" htmlFor="product-barcode">Code-barres</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.barcode ?? ""} id="product-barcode" name="barcode" /></div>
       <div className="sm:col-span-2"><label className="text-sm font-medium" htmlFor="product-description">Description</label><textarea className="mt-1 min-h-24 w-full rounded border p-2" defaultValue={product?.description} id="product-description" name="description" /></div>
@@ -366,7 +377,7 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
       <div><label className="text-sm font-medium" htmlFor="product-status">Statut</label><select className="mt-1 w-full rounded border p-2" defaultValue={product?.status ?? "ACTIVE"} id="product-status" name="status"><option value="ACTIVE">Actif</option><option value="INACTIVE">Inactif</option><option value="ARCHIVED">Archivé</option></select></div>
     </fieldset>
     <p className="text-xs text-[var(--muted)]">Le stock et les variantes restent gérés par leurs actions dédiées. Aucun stock ni aucune variante n’est créé automatiquement.</p>
-    <button className="button button-primary w-fit" disabled={saving || categoriesLoading || attributesLoading || Boolean(attributeError) || !categoryCode} type="submit">{saving ? "Enregistrement…" : "Enregistrer"}</button>
+    <button className="button button-primary w-fit" disabled={saving || categoriesLoading || attributesLoading || Boolean(attributeError) || !categoryCode || (!product && (unitsLoading || !units.length))} type="submit">{saving ? "Enregistrement…" : "Enregistrer"}</button>
   </form>;
 }
 
@@ -420,6 +431,10 @@ function ProductCatalogContent({ businessId, productId, searchParams }: { busine
   const [totalProducts, setTotalProducts] = useState(0);
   const [legacyCategories, setLegacyCategories] = useState<LegacyCategory[]>([]);
   const [registryCategories, setRegistryCategories] = useState<RegistryCategorySummary[]>([]);
+  const [units, setUnits] = useState<UnitOfMeasure[]>([]);
+  const [unitsLoading, setUnitsLoading] = useState(true);
+  const [unitsError, setUnitsError] = useState(false);
+  const [unitsReload, setUnitsReload] = useState(0);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [businessCurrency, setBusinessCurrency] = useState("CDF");
   const [product, setProduct] = useState<Product | null>(null);
@@ -483,6 +498,17 @@ function ProductCatalogContent({ businessId, productId, searchParams }: { busine
   }, [businessId, canCreateProduct, canViewProducts, page, router, searchParams]);
 
   useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/private/catalog/units-of-measure", { credentials: "same-origin" }).then(async (response) => {
+      if (!response.ok) throw new Error("Units unavailable");
+      const payload = await response.json() as { units?: unknown };
+      if (!Array.isArray(payload.units) || !payload.units.every((unit) => typeof unit === "object" && unit !== null && typeof (unit as UnitOfMeasure).code === "string" && typeof (unit as UnitOfMeasure).name === "string" && typeof (unit as UnitOfMeasure).symbol === "string")) throw new Error("Invalid units response");
+      if (!cancelled) { setUnits(payload.units as UnitOfMeasure[]); setUnitsError(false); }
+    }).catch(() => { if (!cancelled) setUnitsError(true); }).finally(() => { if (!cancelled) setUnitsLoading(false); });
+    return () => { cancelled = true; };
+  }, [unitsReload]);
+
+  useEffect(() => {
     if (!productId || !canViewProducts) return;
     void fetch(`/api/private/businesses/${businessId}/products/${productId}`, { credentials: "same-origin" }).then(async (response) => {
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
@@ -498,8 +524,8 @@ function ProductCatalogContent({ businessId, productId, searchParams }: { busine
     {success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}
     {!product && !error ? <p className="mt-6">{t("feedback", "loading")}</p> : null}
     {product ? <><section className="content-panel mt-6 grid gap-3 p-5"><h2 className="text-xl font-semibold">{product.name}</h2><p className="text-[var(--muted)]">{product.category_name}</p><p>{priceRange(product)}{product.is_negotiable ? ` · ${t("catalog", "negotiable")}` : ""}</p><p className="text-sm">{t("catalog", product.status.toLowerCase())}{product.internal_reference ? ` · ${product.internal_reference}` : ""}</p>{product.description ? <p className="whitespace-pre-wrap">{product.description}</p> : null}</section><ProductMediaManager businessId={businessId} productId={product.public_id} /></> : null}
-    {editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title={t("catalog", "editProduct")}><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={(saved) => { setProduct(saved); setEditOpen(false); setSuccess(t("catalog", "productUpdated")); }} product={product} registryCategories={registryCategories} /></Modal> : null}
+    {editOpen && product ? <Modal onClose={() => setEditOpen(false)} size="large" title={t("catalog", "editProduct")}><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onRetryUnits={() => { setUnitsLoading(true); setUnitsError(false); setUnitsReload((value) => value + 1); }} onSaved={(saved) => { setProduct(saved); setEditOpen(false); setSuccess(t("catalog", "productUpdated")); }} product={product} registryCategories={registryCategories} units={units} unitsError={unitsError} unitsLoading={unitsLoading} /></Modal> : null}
   </main>;
 
-  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">{t("catalog", "eyebrow")}</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">{t("catalog", "products")}</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input aria-label={t("catalog", "searchProduct")} className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder={t("catalog", "searchByName")} value={search} /><select aria-label={t("catalog", "filterStatus")} className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">{t("catalog", "allStatuses")}</option><option value="ACTIVE">{t("catalog", "active")}</option><option value="INACTIVE">{t("catalog", "inactive")}</option><option value="ARCHIVED">{t("catalog", "archived")}</option></select><select aria-label={t("catalog", "filterCategory")} className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">{t("catalog", "allCategories")}</option>{filterCategories.map((item) => <option key={`${item.source}:${item.code}`} value={item.code}>{item.label}</option>)}</select><button className="button button-outline" type="submit">{t("catalog", "filter")}</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">{t("catalog", "addProduct")}</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">{t("catalog", "companyProducts")}</h2>{products === null ? <p className="mt-3">{t("feedback", "loading")}</p> : products.length ? <><ul className="mt-3 divide-y">{products.map((item) => <li className="flex items-center gap-3 py-3" key={item.public_id}><ProductThumbnail product={item} /><div className="min-w-0"><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{priceRange(item)}{item.is_negotiable ? ` · ${t("catalog", "negotiable")}` : ""} · {t("catalog", item.status.toLowerCase())}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></div></li>)}</ul><nav aria-label={t("catalog", "products")} className="mt-5 flex flex-wrap items-center gap-1.5 md:gap-2"><p className="basis-full text-sm text-[var(--muted)] md:mr-auto md:basis-auto">{formatMessage(t("catalog", "pagination"), { first: (page - 1) * 10 + 1, last: (page - 1) * 10 + products.length, total: totalProducts })}</p><button aria-label={t("catalog", "pagePrevious")} className="button button-outline min-w-10 px-2" disabled={page === 1} onClick={() => router.push(catalogUrl(page - 1))} type="button">←</button>{visiblePages.map((number) => <button aria-current={number === page ? "page" : undefined} className="button button-outline hidden min-w-10 px-2 md:inline-flex" disabled={number === page} key={number} onClick={() => router.push(catalogUrl(number))} type="button">{number}</button>)}<span aria-live="polite" className="min-w-14 text-center text-xs text-[var(--muted)] md:text-sm">{page} / {totalPages}</span><button aria-label={t("catalog", "pageNext")} className="button button-outline min-w-10 px-2" disabled={page >= totalPages} onClick={() => router.push(catalogUrl(page + 1))} type="button">→</button></nav></> : <p className="mt-3 text-sm">{t("catalog", "noProducts")}</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">{t("catalog", "notAllowed")}</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title={t("catalog", "addProduct")}><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onSaved={() => { setCreateOpen(false); setSuccess("Produit ajouté."); if (canViewProducts) router.push(catalogUrl(1)); }} registryCategories={registryCategories} /></Modal> : null}</main>;
+  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">{t("catalog", "eyebrow")}</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">{t("catalog", "products")}</h1></div><div className="flex flex-wrap items-center gap-3">{canViewProducts ? <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void load(); }}><input aria-label={t("catalog", "searchProduct")} className="rounded border p-2" onChange={(event) => setSearch(event.target.value)} placeholder={t("catalog", "searchByName")} value={search} /><select aria-label={t("catalog", "filterStatus")} className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">{t("catalog", "allStatuses")}</option><option value="ACTIVE">{t("catalog", "active")}</option><option value="INACTIVE">{t("catalog", "inactive")}</option><option value="ARCHIVED">{t("catalog", "archived")}</option></select><select aria-label={t("catalog", "filterCategory")} className="rounded border p-2" onChange={(event) => setCategory(event.target.value)} value={category}><option value="">{t("catalog", "allCategories")}</option>{filterCategories.map((item) => <option key={`${item.source}:${item.code}`} value={item.code}>{item.label}</option>)}</select><button className="button button-outline" type="submit">{t("catalog", "filter")}</button></form> : null}{canCreateProduct ? <button className="button button-primary" onClick={() => setCreateOpen(true)} type="button">{t("catalog", "addProduct")}</button> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{success ? <p className="mt-4 text-sm text-green-800" role="status">{success}</p> : null}{canViewProducts ? <section className="content-panel mt-6 p-5"><h2 className="font-semibold">{t("catalog", "companyProducts")}</h2>{products === null ? <p className="mt-3">{t("feedback", "loading")}</p> : products.length ? <><ul className="mt-3 divide-y">{products.map((item) => <li className="flex items-center gap-3 py-3" key={item.public_id}><ProductThumbnail product={item} /><div className="min-w-0"><Link className="font-medium underline" href={`/espace/entreprises/${businessId}/produits/${item.public_id}`}>{item.name}</Link><p className="text-sm text-[var(--muted)]">{priceRange(item)}{item.is_negotiable ? ` · ${t("catalog", "negotiable")}` : ""} · {t("catalog", item.status.toLowerCase())}{item.internal_reference ? ` · ${item.internal_reference}` : ""}</p></div></li>)}</ul><nav aria-label={t("catalog", "products")} className="mt-5 flex flex-wrap items-center gap-1.5 md:gap-2"><p className="basis-full text-sm text-[var(--muted)] md:mr-auto md:basis-auto">{formatMessage(t("catalog", "pagination"), { first: (page - 1) * 10 + 1, last: (page - 1) * 10 + products.length, total: totalProducts })}</p><button aria-label={t("catalog", "pagePrevious")} className="button button-outline min-w-10 px-2" disabled={page === 1} onClick={() => router.push(catalogUrl(page - 1))} type="button">←</button>{visiblePages.map((number) => <button aria-current={number === page ? "page" : undefined} className="button button-outline hidden min-w-10 px-2 md:inline-flex" disabled={number === page} key={number} onClick={() => router.push(catalogUrl(number))} type="button">{number}</button>)}<span aria-live="polite" className="min-w-14 text-center text-xs text-[var(--muted)] md:text-sm">{page} / {totalPages}</span><button aria-label={t("catalog", "pageNext")} className="button button-outline min-w-10 px-2" disabled={page >= totalPages} onClick={() => router.push(catalogUrl(page + 1))} type="button">→</button></nav></> : <p className="mt-3 text-sm">{t("catalog", "noProducts")}</p>}</section> : <p className="content-panel mt-6 p-5 text-sm">{t("catalog", "notAllowed")}</p>}{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title={t("catalog", "addProduct")}><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onRetryUnits={() => { setUnitsLoading(true); setUnitsError(false); setUnitsReload((value) => value + 1); }} onSaved={() => { setCreateOpen(false); setSuccess("Produit ajouté."); if (canViewProducts) router.push(catalogUrl(1)); }} registryCategories={registryCategories} units={units} unitsError={unitsError} unitsLoading={unitsLoading} /></Modal> : null}</main>;
 }
