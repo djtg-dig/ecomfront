@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { clearBusinessPermissionsCache } from "@/components/private/business-permissions-provider";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 export function LogoutButton() {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   const router = useRouter();
+  const { t } = useLocale();
 
   async function logout() {
     if (pending) return;
@@ -40,7 +42,7 @@ export function LogoutButton() {
         onClick={logout}
         type="button"
       >
-        {pending ? "Déconnexion…" : "Se déconnecter"}
+        {pending ? t("navigation", "logoutPending") : t("navigation", "logout")}
       </button>
       {failed ? <span className="text-xs text-[var(--error)]" role="alert">La déconnexion a échoué.</span> : null}
     </span>

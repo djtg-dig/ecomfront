@@ -18,6 +18,7 @@ import {
 } from "@/lib/auth/security";
 import { getServerConfig } from "@/lib/config/server";
 import { invitationReturnCookieName } from "@/lib/auth/invitation-context";
+import { isLocale, localeCookieName, localeCookieOptions, localeFromAcceptLanguage, type Locale } from "@/lib/i18n/locale";
 
 const DELIVERY_ERROR_CODES = new Set([
   "oauth_login_csrf_detected",
@@ -45,6 +46,19 @@ const CALLBACK_ERROR_CODES: Record<string, string> = {
   oauth_state_invalid_or_expired: "oauth_state_invalid_or_expired",
   oauth_callback_invalid: "oauth_callback_invalid",
 };
+
+type Preferences = { preferred_language: "" | Locale };
+
+async function synchronizeLocale(request: Request, accessToken: string): Promise<Locale> {
+  const response = await backendClient.request<Preferences>("/api/v1/auth/me/preferences/", { accessToken });
+  if (response?.preferred_language && isLocale(response.preferred_language)) return response.preferred_language;
+  const cookieLocale = requestCookie(request, localeCookieName);
+  const locale = isLocale(cookieLocale) ? cookieLocale : localeFromAcceptLanguage(request.headers.get("accept-language"));
+  // Only initialise a previously unset server preference. A later login by a
+  // different user therefore always lets that user's profile take precedence.
+  await backendClient.request<Preferences>("/api/v1/auth/me/preferences/", { method: "PATCH", accessToken, json: { preferred_language: locale } });
+  return locale;
+}
 
 function returnToLogin(config: ReturnType<typeof getServerConfig>, code: string) {
   const response = NextResponse.redirect(
@@ -155,6 +169,12 @@ export async function POST(request: Request) {
     response.cookies.set(sessionCookieName, encrypted, sessionCookieOptions(
       Math.floor((session.refreshExpiresAt - Date.now()) / 1000),
     ));
+    try {
+      response.cookies.set(localeCookieName, await synchronizeLocale(request, session.accessToken), localeCookieOptions());
+    } catch {
+      // Authentication must not fail because an optional preference service is
+      // temporarily unavailable; the existing locale cookie remains intact.
+    }
     clearTransactionCookie(response, config);
     // Remove the legacy marker if a browser still has one from an older flow.
     response.cookies.set(invitationReturnCookieName, "", sessionCookieOptions(0));
