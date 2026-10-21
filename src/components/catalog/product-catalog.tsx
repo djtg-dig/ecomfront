@@ -84,8 +84,9 @@ function priceRange(product: Product) {
 }
 
 function ProductThumbnail({ product }: { product: Product }) {
+  const { t } = useLocale();
   const [failed, setFailed] = useState(false);
-  if (!product.primary_image_url || failed) return <div aria-label="Aucune photo disponible" className="grid size-14 shrink-0 place-items-center rounded bg-[var(--surface-muted)] text-xs text-[var(--muted)]">Photo</div>;
+  if (!product.primary_image_url || failed) return <div aria-label={t("catalog", "unavailablePhoto")} className="grid size-14 shrink-0 place-items-center rounded bg-[var(--surface-muted)] text-xs text-[var(--muted)]">{t("catalog", "photo")}</div>;
   return <img alt="" className="size-14 shrink-0 rounded object-cover" onError={() => setFailed(true)} src={product.primary_image_url} />;
 }
 
@@ -110,6 +111,7 @@ function DynamicAttributeField({
   onChange: (value: AttributeValue) => void;
   value?: AttributeValue;
 }) {
+  const { t } = useLocale();
   const fieldId = `product-attribute-${attribute.code}`;
   const errorId = `${fieldId}-error`;
   const helpId = `${fieldId}-help`;
@@ -123,11 +125,11 @@ function DynamicAttributeField({
   if (attribute.kind === "boolean") {
     control = <label className="mt-2 flex min-h-11 items-center gap-3 rounded border px-3 py-2" htmlFor={fieldId}>
       <input aria-describedby={describedBy} aria-labelledby={`${fieldId}-label`} checked={value === "true"} id={fieldId} onChange={(event) => onChange(String(event.target.checked))} type="checkbox" />
-      <span>Activé</span>
+      <span>{t("catalog", "enabled")}</span>
     </label>;
   } else if (attribute.kind === "select") {
     control = <select aria-describedby={describedBy} className={className} id={fieldId} onChange={(event) => onChange(event.target.value)} required={attribute.required} value={Array.isArray(value) ? "" : value ?? ""}>
-      <option value="">Choisir</option>
+      <option value="">{t("catalog", "select")}</option>
       {attribute.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
     </select>;
   } else if (attribute.kind === "multi_select" && attribute.options.length) {
@@ -143,7 +145,7 @@ function DynamicAttributeField({
       max={attribute.maximum ?? undefined}
       min={attribute.minimum ?? undefined}
       onChange={(event) => onChange(freeList ? event.target.value.split(",").map((item) => item.trim()).filter(Boolean) : event.target.value)}
-      placeholder={freeList ? "Séparez les valeurs par des virgules" : undefined}
+      placeholder={freeList ? t("catalog", "separateValues") : undefined}
       required={attribute.required}
       step={attribute.kind === "integer" ? "1" : attribute.kind === "decimal" ? "any" : undefined}
       type={attribute.kind === "integer" || attribute.kind === "decimal" ? "number" : attribute.kind === "date" ? "date" : "text"}
@@ -155,7 +157,7 @@ function DynamicAttributeField({
     {attribute.kind === "boolean" ? <span className="text-sm font-medium" id={`${fieldId}-label`}>{label}</span> : <label className="text-sm font-medium" htmlFor={fieldId}>{label}</label>}
     {control}
     {attribute.unit || attribute.minimum !== null || attribute.maximum !== null ? <p className="mt-1 text-xs text-[var(--muted)]" id={helpId}>
-      {attribute.unit ? `Unité : ${attribute.unit}. ` : ""}{attribute.minimum !== null ? `Minimum : ${attribute.minimum}. ` : ""}{attribute.maximum !== null ? `Maximum : ${attribute.maximum}.` : ""}
+      {attribute.unit ? `${t("catalog", "unit")} : ${attribute.unit}. ` : ""}{attribute.minimum !== null ? `${t("catalog", "minimum")} : ${attribute.minimum}. ` : ""}{attribute.maximum !== null ? `${t("catalog", "maximum")} : ${attribute.maximum}.` : ""}
     </p> : null}
     {error ? <p className="mt-1 text-sm text-[var(--error)]" id={errorId} role="alert">{error}</p> : null}
   </div>;
@@ -168,6 +170,7 @@ function AttributeSection({ attributes, errors, legend, onChange, values }: {
   onChange: (code: string, value: AttributeValue) => void;
   values: Record<string, AttributeValue>;
 }) {
+  const { t } = useLocale();
   if (!attributes.length) return null;
   return <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
     <legend className="px-2 font-semibold text-[var(--brand-secondary)]">{legend}</legend>
@@ -182,6 +185,7 @@ function CategorySelector({ choices, disabled, loading, onChange, value }: {
   onChange: (source: CategorySource, code: string) => void;
   value: string;
 }) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
     const registry = filterRegistryCategories(choices.filter((choice) => choice.source === "registry").map((choice) => ({ code: choice.code, description: "", label: choice.label, parent: choice.group })), query);
@@ -195,9 +199,9 @@ function CategorySelector({ choices, disabled, loading, onChange, value }: {
   }, new Map());
 
   return <div className="grid gap-2">
-    <label className="text-sm font-medium" htmlFor="product-category-search">Rechercher une catégorie</label>
-    <input autoComplete="off" className="w-full rounded border p-2" disabled={disabled || loading} id="product-category-search" onChange={(event) => setQuery(event.target.value)} placeholder="Téléviseurs, smartphones, chaussures…" type="search" value={query} />
-    <label className="text-sm font-medium" htmlFor="product-category">Catégorie *</label>
+    <label className="text-sm font-medium" htmlFor="product-category-search">{t("catalog", "searchCategory")}</label>
+    <input autoComplete="off" className="w-full rounded border p-2" disabled={disabled || loading} id="product-category-search" onChange={(event) => setQuery(event.target.value)} placeholder={t("catalog", "searchByName")} type="search" value={query} />
+    <label className="text-sm font-medium" htmlFor="product-category">{t("catalog", "category")} *</label>
     <select
       className="w-full rounded border p-2"
       disabled={disabled || loading}
@@ -210,11 +214,11 @@ function CategorySelector({ choices, disabled, loading, onChange, value }: {
       required
       value={value}
     >
-      <option value="">{loading ? "Chargement des catégories…" : "Choisir"}</option>
+      <option value="">{loading ? t("catalog", "categoriesLoading") : t("catalog", "select")}</option>
       {[...groups.entries()].map(([group, options]) => <optgroup key={group} label={group}>{options.map((choice) => <option key={`${choice.source}:${choice.code}`} value={`${choice.source}:${choice.code}`}>{choice.label}</option>)}</optgroup>)}
     </select>
-    {!loading && choices.length === 0 ? <p className="text-sm text-[var(--muted)]">Aucune catégorie disponible.</p> : null}
-    {!loading && choices.length > 0 && filtered.length === 0 ? <p className="text-sm text-[var(--muted)]">Aucune catégorie ne correspond à la recherche.</p> : null}
+    {!loading && choices.length === 0 ? <p className="text-sm text-[var(--muted)]">{t("catalog", "noCategories")}</p> : null}
+    {!loading && choices.length > 0 && filtered.length === 0 ? <p className="text-sm text-[var(--muted)]">{t("catalog", "noCategoryMatches")}</p> : null}
   </div>;
 }
 
