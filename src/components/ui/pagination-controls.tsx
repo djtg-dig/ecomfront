@@ -8,6 +8,8 @@ type PaginationControlsProps = {
   loading?: boolean;
   onPageChange: (page: number) => void;
 };
+import { useLocale } from "@/components/i18n/locale-provider";
+import { formatMessage } from "@/lib/i18n/messages";
 
 export function paginationItems(currentPage: number, totalPages: number): number[] {
   if (totalPages <= 3) return Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -35,17 +37,18 @@ export function PaginationControls({
   loading = false,
   onPageChange,
 }: PaginationControlsProps) {
+  const { t } = useLocale();
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const firstItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const lastItem = totalItems === 0 ? 0 : Math.min(firstItem + currentItemCount - 1, totalItems);
 
   return <nav aria-label={ariaLabel} className="mt-5 flex flex-wrap items-center gap-1.5 border-t pt-4 md:gap-2">
     <p aria-live="polite" className="basis-full text-sm text-[var(--muted)] md:mr-auto md:basis-auto">
-      Affichage de {firstItem} à {lastItem} sur {totalItems} {itemLabel}
+      {formatMessage(t("pagination", "display"), { first: firstItem, last: lastItem, total: totalItems, items: itemLabel })}
     </p>
     {totalPages > 1 ? <>
       <button
-        aria-label="Page précédente"
+        aria-label={t("pagination", "previous")}
         className="button button-outline min-w-9 px-2 text-lg font-bold"
         disabled={loading || currentPage <= 1}
         onClick={() => onPageChange(currentPage - 1)}
@@ -55,7 +58,7 @@ export function PaginationControls({
       </button>
       {paginationItems(currentPage, totalPages).map((item) => <button
           aria-current={item === currentPage ? "page" : undefined}
-          aria-label={`Page ${item}`}
+          aria-label={formatMessage(t("pagination", "page"), { page: item })}
           className={`button min-w-10 px-2 ${item === currentPage ? "button-primary" : "button-outline"} hidden md:inline-flex`}
           disabled={loading || item === currentPage}
           key={item}
@@ -66,7 +69,7 @@ export function PaginationControls({
         {currentPage} / {totalPages}
       </span>
       <button
-        aria-label="Page suivante"
+        aria-label={t("pagination", "next")}
         className="button button-outline min-w-9 px-2 text-lg font-bold"
         disabled={loading || currentPage >= totalPages}
         onClick={() => onPageChange(currentPage + 1)}

@@ -1,34 +1,7 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { HomeAuthenticationAction } from "@/components/auth/home-authentication-action";
+import { HomeContent } from "@/components/public/public-page-content";
 import { createPublicMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPublicMetadata("/");
 
-export default function Home() {
-  return (
-    <section className="site-container grid min-h-[calc(100vh-9rem)] content-center gap-10 py-16 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="max-w-2xl">
-          <p className="eyebrow mb-4">GESTION COMMERCIALE</p>
-          <h1 className="text-4xl font-semibold leading-tight text-[var(--brand-secondary)] sm:text-5xl">
-            Gestion commerciale E-commerce
-          </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--muted)]">
-            Le portail prépare l&apos;accès aux capacités documentées de gestion des entreprises, des équipes et des opérations commerciales.
-          </p>
-          <Link className="button button-outline mt-8" href="/fonctionnalites">
-            Découvrir les fonctionnalités
-          </Link>
-          <HomeAuthenticationAction />
-        </div>
-
-        <aside className="content-panel accent-rule border-l-4 p-6 sm:p-8">
-          <h2 className="text-sm font-semibold text-[var(--brand-secondary)]">Un accès pensé pour les équipes</h2>
-          <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-            Les espaces Entreprises, invitations et administration seront connectés
-            progressivement via le serveur applicatif.
-          </p>
-        </aside>
-    </section>
-  );
-}
+export default function Home() { return <HomeContent />; }

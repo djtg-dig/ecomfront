@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 type SessionState = "checking" | "authenticated" | "anonymous" | "unavailable";
 
 /** Verifies the encrypted BFF session once; a cookie alone is never treated as proof. */
 export function HomeAuthenticationAction() {
   const [state, setState] = useState<SessionState>("checking");
+  const { t } = useLocale();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -33,13 +35,13 @@ export function HomeAuthenticationAction() {
   }, []);
 
   if (state === "checking") {
-    return <span aria-busy="true" className="button button-primary ml-0 mt-3 cursor-wait opacity-70 sm:ml-3">Vérification de la session…</span>;
+    return <span aria-busy="true" className="button button-primary ml-0 mt-3 cursor-wait opacity-70 sm:ml-3">{t("home", "checking")}</span>;
   }
   if (state === "authenticated") {
-    return <Link className="button button-primary ml-0 mt-3 sm:ml-3" href="/espace">Accéder à mon espace</Link>;
+    return <Link className="button button-primary ml-0 mt-3 sm:ml-3" href="/espace">{t("home", "openWorkspace")}</Link>;
   }
   if (state === "anonymous") {
-    return <a className="button button-primary ml-0 mt-3 sm:ml-3" href="/api/auth/carri/login">Se connecter avec Carri Account</a>;
+    return <a className="button button-primary ml-0 mt-3 sm:ml-3" href="/api/auth/carri/login">{t("home", "signInCarri")}</a>;
   }
-  return <span className="ml-0 mt-3 inline-block text-sm text-[var(--muted)]" role="status">Vérification de session indisponible. Réessayez dans un instant.</span>;
+  return <span className="ml-0 mt-3 inline-block text-sm text-[var(--muted)]" role="status">{t("home", "unavailable")}</span>;
 }

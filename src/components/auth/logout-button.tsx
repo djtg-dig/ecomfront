@@ -44,7 +44,7 @@ export function LogoutButton() {
       >
         {pending ? t("navigation", "logoutPending") : t("navigation", "logout")}
       </button>
-      {failed ? <span className="text-xs text-[var(--error)]" role="alert">La déconnexion a échoué.</span> : null}
+      {failed ? <span className="text-xs text-[var(--error)]" role="alert">{t("auth", "logoutFailed")}</span> : null}
     </span>
   );
 }

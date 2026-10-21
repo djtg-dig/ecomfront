@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { clearBusinessPermissionsCache } from "@/components/private/business-permissions-provider";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode }>) {
   const [status, setStatus] = useState<"checking" | "ready" | "unavailable">("checking");
   const router = useRouter();
+  const { t } = useLocale();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -35,12 +37,12 @@ export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode
     return (
       <div className="grid min-h-64 place-items-center p-6">
         <section className="content-panel w-full max-w-md p-8" role="alert">
-          <h1 className="text-lg font-semibold text-[var(--brand-secondary)]">Espace temporairement indisponible</h1>
+          <h1 className="text-lg font-semibold text-[var(--brand-secondary)]">{t("feedback", "privateUnavailableTitle")}</h1>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-            La session n’a pas pu être vérifiée. Réessayez dans un instant.
+            {t("feedback", "privateUnavailableDescription")}
           </p>
           <button className="button button-primary mt-6" onClick={() => router.refresh()} type="button">
-            Réessayer
+            {t("feedback", "retry")}
           </button>
         </section>
       </div>
@@ -54,7 +56,7 @@ export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode
             It remains visually and semantically hidden until the session refresh succeeds. */}
         <div aria-hidden="true" className="hidden">{children}</div>
         <div aria-busy="true" className="grid min-h-64 place-items-center p-6">
-          <p className="text-sm text-[var(--muted)]">Vérification de la session…</p>
+          <p className="text-sm text-[var(--muted)]">{t("feedback", "sessionChecking")}</p>
         </div>
       </>
     );

@@ -1,1 +1,3 @@
-export default function CookiesPage(){return <main className="site-container py-12"><h1 className="text-3xl font-semibold">Politique des cookies</h1><p className="mt-4 text-[var(--muted)]">Cette page décrira les cookies réellement utilisés par E-commerce après validation.</p></main>}
+import { InformationalPage } from "@/components/public/public-page-content";
+
+export default function CookiesPage(){ return <InformationalPage page="cookies" />; }
