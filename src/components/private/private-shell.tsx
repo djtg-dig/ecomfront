@@ -35,7 +35,7 @@ function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
 function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ children: ReactNode; navigation: NavigationItem[]; title: string; mobileSection: string }>) {
   const pathname = usePathname();
   return (
-    <div className="page-shell flex min-h-screen flex-col md:h-dvh md:overflow-hidden">
+    <div className="page-shell flex min-h-dvh flex-col">
       <header className="site-header shrink-0">
         <div className="site-container flex flex-wrap items-center justify-between gap-4 py-3">
           <Link aria-label="Retour à l’accueil" className="brand-lockup hidden items-center gap-3 font-semibold md:flex" href="/">
@@ -52,8 +52,8 @@ function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ c
           <MobileNavigation key={pathname} mobileSection={mobileSection} navigation={navigation} pathname={pathname} title={title} />
         </div>
       </header>
-      <div className="site-container flex flex-1 flex-col gap-6 py-6 md:min-h-0 md:flex-row md:overflow-hidden">
-        <nav aria-label="Navigation privée" className="content-panel order-3 flex w-full hidden shrink-0 flex-wrap gap-2 p-3 md:order-none md:flex md:h-full md:w-56 md:flex-col md:flex-nowrap md:overflow-x-hidden md:overflow-y-auto md:overscroll-contain">
+      <div className="site-container flex flex-1 flex-col gap-6 py-6 md:flex-row">
+        <nav aria-label="Navigation privée" className="content-panel order-3 flex w-full hidden shrink-0 flex-wrap gap-2 p-3 md:order-none md:flex md:w-56 md:flex-col md:flex-nowrap">
           {navigation.map((item) => (
             <Link
               aria-current={isActive(pathname, item.href) ? "page" : undefined}
@@ -65,7 +65,7 @@ function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ c
             </Link>
           ))}
         </nav>
-        <main className="min-w-0 flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain"><div>{children}</div></main>
+        <main className="min-w-0 flex-1"><div>{children}</div></main>
       </div>
       <SiteFooter />
     </div>

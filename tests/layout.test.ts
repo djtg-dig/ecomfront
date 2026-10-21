@@ -25,6 +25,7 @@ describe("layouts et pied de page", () => {
     expect(footer).toContain('href: "/fonctionnalites"');
     expect(footer).toContain('href: "/contact"');
     expect(publicLayout).toContain("<SiteFooter />");
+    expect(publicLayout).toContain('className="page-shell flex min-h-dvh flex-col"');
     expect(privateShell).toContain("<SiteFooter />");
     expect(source("src/app/(public)/page.tsx")).not.toContain("<PublicHeader");
     expect(source("src/app/(public)/contact/page.tsx")).not.toContain("<PublicHeader");
@@ -65,8 +66,8 @@ describe("layouts et pied de page", () => {
     expect(publicHeader).toContain('aria-label="Retour à l’accueil"');
     expect(publicHeader).toContain('href="/"');
     expect(privateShell).toContain('aria-label="Retour à l’accueil"');
-    expect(privateShell).toContain('md:h-full md:w-56');
-    expect(privateShell).toContain('md:overflow-y-auto md:overscroll-contain');
+    expect(privateShell).toContain('md:w-56 md:flex-col md:flex-nowrap');
+    expect(privateShell).not.toContain('md:overflow-y-auto');
     expect(privateShell).toContain('className="brand-lockup hidden items-center gap-3 font-semibold md:flex" href="/"');
   });
 
