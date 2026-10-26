@@ -14,6 +14,7 @@ import {
   type RegistryCategorySummary,
 } from "@/lib/catalog/product-registry";
 import { formatPriceRange } from "@/lib/money/format";
+import { messages } from "@/lib/i18n/messages";
 
 const source = readFileSync(resolve(process.cwd(), "src/components/catalog/product-catalog.tsx"), "utf8");
 
@@ -129,8 +130,10 @@ describe("interface catalogue dynamique", () => {
     expect(source).toContain("useSearchParams");
     expect(source).toContain("query.set(\"page\", String(nextPage))");
     expect(source).toContain("router.push(catalogUrl(1))");
-    expect(source).toContain("Pagination des produits");
-    expect(source).toContain("Affichage de {(page - 1) * 10 + 1}");
+    expect(source).toContain('aria-label={t("catalog", "products")}');
+    expect(source).toContain('formatMessage(t("catalog", "pagination")');
+    expect(messages.fr.catalog.pagination).toContain("Affichage de");
+    expect(messages.en.catalog.pagination).toContain("Showing");
     expect(source).toContain("disabled={page === 1}");
     expect(source).toContain("disabled={page >= totalPages}");
     expect(source).toContain("productsResponse?.status === 404 && page > 1");
@@ -139,7 +142,9 @@ describe("interface catalogue dynamique", () => {
   it("affiche la miniature principale ou un remplacement accessible dans la liste", () => {
     expect(source).toContain("primary_image_url: string | null");
     expect(source).toContain("function ProductThumbnail");
-    expect(source).toContain('aria-label="Aucune photo disponible"');
+    expect(source).toContain('aria-label={t("catalog", "unavailablePhoto")}');
+    expect(messages.fr.catalog.unavailablePhoto).toBe("Aucune photo disponible");
+    expect(messages.en.catalog.unavailablePhoto).toBe("No photo available");
     expect(source).toContain("src={product.primary_image_url}");
     expect(source).toContain("<ProductThumbnail product={item} />");
   });

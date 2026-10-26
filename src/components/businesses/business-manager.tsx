@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { useBusinessNameState } from "@/components/private/business-name-provider";
+import { BusinessCommercialFields, type CommercialSettingsValue } from "@/components/businesses/business-commercial-fields";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { BusinessListRequestError, fetchBusinesses, type ListedBusiness } from "@/lib/businesses/list-client";
 
 type Business = ListedBusiness;
@@ -52,19 +54,29 @@ export function BusinessList({ invitationOutcome }: { invitationOutcome?: string
 
 export function BusinessCreate() {
   const router = useRouter();
+  const { t } = useLocale();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [commercial, setCommercial] = useState<CommercialSettingsValue>({ sales_location_type: "", sales_channel: "", delivery_methods: [] });
+  const [commercialErrors, setCommercialErrors] = useState<Partial<Record<keyof CommercialSettingsValue, string>>>({});
   const create = async (formData: FormData) => {
     if (saving) return;
+    const validationErrors: Partial<Record<keyof CommercialSettingsValue, string>> = {};
+    if (!commercial.sales_location_type) validationErrors.sales_location_type = t("businessCreate", "commercialRequired");
+    if (!commercial.sales_channel) validationErrors.sales_channel = t("businessCreate", "commercialRequired");
+    if (!commercial.delivery_methods.length) validationErrors.delivery_methods = t("businessCreate", "commercialRequired");
+    setCommercialErrors(validationErrors);
+    if (Object.keys(validationErrors).length) return;
     setSaving(true);
-    const response = await fetch("/api/private/businesses", { method: "POST", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ name: formData.get("name"), primary_currency: formData.get("currency") }) });
+    setError(null);
+    const response = await fetch("/api/private/businesses", { method: "POST", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ name: formData.get("name"), primary_currency: formData.get("currency"), ...commercial }) });
     setSaving(false);
     if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
     if (!response.ok) return setError(await detail(response));
     router.push(`/espace/entreprises/${(await response.json() as { business: Business }).business.public_id}`);
   };
 
-  return <main><Link className="nav-link text-sm" href="/espace/entreprises">← Mes entreprises</Link><h1 className="mt-3 text-3xl font-semibold text-[var(--brand-secondary)]">Créer une entreprise</h1><form action={create} className="content-panel mt-6 grid max-w-xl gap-4 p-6"><label>Nom<input className="mt-1 w-full rounded-md border px-3 py-2" name="name" required /></label><label>Devise principale<select className="mt-1 w-full rounded-md border px-3 py-2" defaultValue="CDF" name="currency"><option value="CDF">CDF</option><option value="USD">USD</option></select></label>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "Création…" : "Créer l’entreprise"}</button></form></main>;
+  return <main><Link className="nav-link text-sm" href="/espace/entreprises">← Mes entreprises</Link><h1 className="mt-3 text-3xl font-semibold text-[var(--brand-secondary)]">Créer une entreprise</h1><form action={create} className="content-panel mt-6 grid max-w-xl gap-6 p-6"><label>Nom<input className="mt-1 w-full rounded-md border px-3 py-2" name="name" required /></label><label>Devise principale<select className="mt-1 w-full rounded-md border px-3 py-2" defaultValue="CDF" name="currency"><option value="CDF">CDF</option><option value="USD">USD</option></select></label><BusinessCommercialFields errors={commercialErrors} onChange={setCommercial} value={commercial} />{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "Création…" : "Créer l’entreprise"}</button></form></main>;
 }
 
 const moduleLinks = [

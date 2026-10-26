@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { messages } from "@/lib/i18n/messages";
 
 const source = readFileSync(resolve(process.cwd(), "src/components/catalog/product-media-manager.tsx"), "utf8");
 const sessionSource = readFileSync(resolve(process.cwd(), "src/lib/auth/private-session.ts"), "utf8");
@@ -19,7 +20,7 @@ describe("gestionnaire de médias produit", () => {
   });
 
   it("annonce les états d’une vidéo et n’envoie jamais de Content-Type multipart manuel", () => {
-    expect(source).toContain("sélectionné"); expect(source).toContain("Validation de la ${mediaLabel}"); expect(source).toContain("Téléversement en cours…"); expect(source).toContain("Vidéo ajoutée avec succès."); expect(source).toContain("validateSelectedVideo"); expect(source).not.toContain('"content-type": "multipart/form-data"');
+    expect(source).toContain('t("catalog", "selectedFile")'); expect(source).toContain('t("catalog", "validatingFile")'); expect(source).toContain('t("catalog", "uploading")'); expect(source).toContain('t("catalog", "videoAdded")'); expect(messages.fr.catalog.selectedFile).toBe("Fichier sélectionné."); expect(messages.en.catalog.videoAdded).toBe("Video added successfully."); expect(source).toContain("validateSelectedVideo"); expect(source).not.toContain('"content-type": "multipart/form-data"');
   });
 
   it("garde les vidéos hors du contrôle d’image principale et les affiche avec le lecteur HTML5", () => {
@@ -28,9 +29,11 @@ describe("gestionnaire de médias produit", () => {
 
   it("affiche l’ordre global et des contrôles accessibles dans les deux directions", () => {
     expect(source).toContain("media.map((item, index)");
-    expect(source).toContain("Position {index + 1}");
-    expect(source).toContain('aria-label="Déplacer vers le haut"');
-    expect(source).toContain('aria-label="Déplacer vers le bas"');
+    expect(source).toContain('t("catalog", "position")} {index + 1}');
+    expect(source).toContain('aria-label={t("catalog", "moveUp")}');
+    expect(source).toContain('aria-label={t("catalog", "moveDown")}');
+    expect(messages.fr.catalog.moveUp).toBe("Déplacer vers le haut");
+    expect(messages.en.catalog.moveDown).toBe("Move down");
     expect(source).toContain("disabled={busy || index === 0}");
     expect(source).toContain("disabled={busy || index === media.length - 1}");
     expect(source).not.toContain(">Monter<");

@@ -249,11 +249,15 @@ describe("routes d’authentification BFF", () => {
   });
 
   it("autorise Origin opaque seulement en loopback same-site avec le binding", async () => {
+    mocks.request.mockClear();
     mocks.request.mockResolvedValue(tokenPair());
     const response = await receiveHandoff(handoffRequest({ origin: "null" }));
 
     expect(response.status).toBe(303);
-    expect(mocks.request).toHaveBeenCalledTimes(1);
+    expect(mocks.request).toHaveBeenCalledTimes(3);
+    expect(mocks.request).toHaveBeenNthCalledWith(1, "/api/v1/auth/carri/handoff/consume/", { method: "POST", json: { handoff: "H".repeat(43) } });
+    expect(mocks.request).toHaveBeenNthCalledWith(2, "/api/v1/auth/me/preferences/", expect.objectContaining({ accessToken: expect.any(String) }));
+    expect(mocks.request).toHaveBeenNthCalledWith(3, "/api/v1/auth/me/preferences/", expect.objectContaining({ method: "PATCH", accessToken: expect.any(String) }));
   });
 
   it("consomme par HMAC et ne remet que le cookie chiffré au navigateur", async () => {
