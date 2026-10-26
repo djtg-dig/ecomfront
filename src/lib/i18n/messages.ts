@@ -46,10 +46,16 @@ const commercialSettingsExtras = {
   fr: { back: "Paramètres entreprise", eyebrow: "FONCTIONNEMENT COMMERCIAL", viewIntro: "Consultez les paramètres enregistrés pour cette entreprise.", edit: "Modifier", loading: "Chargement du fonctionnement commercial…", notConfigured: "Aucun fonctionnement commercial n’est encore enregistré.", salesLocationDescription: "L’emplacement principal depuis lequel l’entreprise vend.", salesChannelDescription: "La manière dont les clients effectuent leurs achats.", deliveryMethodsDescription: "Les options proposées pour remettre les produits aux clients.", noDeliveryMethods: "Aucune modalité de remise n’est enregistrée.", cancel: "Annuler", saveChanges: "Enregistrer les modifications", checkingPermission: "Vérification de vos droits…", editForbidden: "Vous n’êtes pas autorisé à modifier le fonctionnement commercial de cette entreprise.", discardConfirm: "Les modifications non enregistrées seront perdues. Continuer ?" },
   en: { back: "Business settings", eyebrow: "COMMERCIAL OPERATIONS", viewIntro: "Review the settings saved for this business.", edit: "Edit", loading: "Loading commercial operations…", notConfigured: "No commercial operations have been saved yet.", salesLocationDescription: "The primary location from which the business sells.", salesChannelDescription: "How customers make their purchases.", deliveryMethodsDescription: "The options offered to hand products over to customers.", noDeliveryMethods: "No delivery method is saved.", cancel: "Cancel", saveChanges: "Save changes", checkingPermission: "Checking your permissions…", editForbidden: "You are not allowed to edit this business’s commercial operations.", discardConfirm: "Unsaved changes will be lost. Continue?" },
 } as const;
+const commercialSettingsValidationMessages = {
+  fr: { salesLocationRequired: "Choisissez un type de point de vente.", salesChannelRequired: "Choisissez un mode de vente.", deliveryMethodsRequired: "Choisissez au moins une modalité de remise." },
+  en: { salesLocationRequired: "Choose a sales location type.", salesChannelRequired: "Choose a sales channel.", deliveryMethodsRequired: "Choose at least one delivery method." },
+} as const;
 export function message(locale: Locale, section: MessageKey, key: string): string {
   if (section === "commercialSettings") {
     const extra = (commercialSettingsExtras[locale] as Record<string, string>)[key];
     if (extra) return extra;
+    const validation = (commercialSettingsValidationMessages[locale] as Record<string, string>)[key];
+    if (validation) return validation;
   }
   const group = messages[locale][section] as Record<string, string>;
   return group[key] ?? (messages.fr[section] as Record<string, string>)[key] ?? key;

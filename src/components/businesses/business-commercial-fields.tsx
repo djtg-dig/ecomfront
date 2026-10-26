@@ -8,7 +8,7 @@ export type CommercialSettingsValue = {
   delivery_methods: ("HOME_DELIVERY" | "PICKUP")[];
 };
 
-type FieldErrors = Partial<Record<keyof CommercialSettingsValue, string>>;
+export type CommercialFieldErrors = Partial<Record<keyof CommercialSettingsValue, string>>;
 type Option = readonly [string, string, string];
 
 export const commercialSalesLocationOptions: readonly Option[] = [["HOME_BASED", "homeBased", "homeBasedDescription"], ["MARKET_STALL", "marketStall", "marketStallDescription"], ["PHYSICAL_STORE", "physicalStore", "physicalStoreDescription"]];
@@ -16,7 +16,7 @@ export const commercialSalesChannelOptions: readonly Option[] = [["IN_PERSON", "
 export const commercialDeliveryOptions: readonly Option[] = [["HOME_DELIVERY", "homeDelivery", "homeDeliveryDescription"], ["PICKUP", "pickup", "pickupDescription"]];
 
 /** Champs contrôlés réutilisables ; chaque écran conserve sa soumission propre. */
-export function BusinessCommercialFields({ value, onChange, errors = {} }: { value: CommercialSettingsValue; onChange: (value: CommercialSettingsValue) => void; errors?: FieldErrors }) {
+export function BusinessCommercialFields({ value, onChange, errors = {} }: { value: CommercialSettingsValue; onChange: (value: CommercialSettingsValue) => void; errors?: CommercialFieldErrors }) {
   const { t } = useLocale();
   const set = <K extends keyof CommercialSettingsValue>(key: K, next: CommercialSettingsValue[K]) => onChange({ ...value, [key]: next });
   const radios = (options: readonly Option[], field: "sales_location_type" | "sales_channel") => <div className="mt-3 grid gap-3">{options.map(([option, label, description]) => <label className="rounded-md border p-3" key={option}><input checked={value[field] === option} className="mr-2" name={field} onChange={() => set(field, option as CommercialSettingsValue[typeof field])} type="radio" value={option} /><strong>{t("commercialSettings", label)}</strong><span className="mt-1 block pl-6 text-sm text-[var(--muted)]">{t("commercialSettings", description)}</span></label>)}</div>;
