@@ -2,33 +2,47 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const component = readFileSync(resolve(process.cwd(), "src/components/businesses/commercial-settings.tsx"), "utf8");
-const fields = readFileSync(resolve(process.cwd(), "src/components/businesses/business-commercial-fields.tsx"), "utf8");
-const manager = readFileSync(resolve(process.cwd(), "src/components/businesses/business-manager.tsx"), "utf8");
-const messages = readFileSync(resolve(process.cwd(), "src/lib/i18n/messages.ts"), "utf8");
+const source = (file: string) => readFileSync(resolve(process.cwd(), file), "utf8");
+const view = source("src/components/businesses/commercial-settings.tsx");
+const editor = source("src/components/businesses/commercial-settings-editor.tsx");
+const fields = source("src/components/businesses/business-commercial-fields.tsx");
+const messages = source("src/lib/i18n/messages.ts");
 
-describe("paramètres de fonctionnement commercial", () => {
-  it("présente les choix exclusifs et les modalités multiples", () => {
+describe("consultation et modification du fonctionnement commercial", () => {
+  it("affiche les valeurs enregistrées sans champs modifiables dans la consultation", () => {
+    expect(view).toContain('fetch(`/api/private/businesses/${businessId}`');
+    expect(view).toContain("commercialSalesLocationOptions");
+    expect(view).toContain("commercialSalesChannelOptions");
+    expect(view).toContain("commercialDeliveryOptions");
+    expect(view).not.toContain("<BusinessCommercialFields");
+  });
+
+  it("n’affiche le lien Modifier que pour BUSINESS_UPDATE", () => {
+    expect(view).toContain('permissions?.includes("BUSINESS_UPDATE")');
+    expect(view).toContain("fonctionnement-commercial/modifier");
+  });
+
+  it("refuse la route d’édition sans permission et préremplit le formulaire", () => {
+    expect(editor).toContain('permissions?.includes("BUSINESS_UPDATE")');
+    expect(editor).toContain('t("commercialSettings", "editForbidden")');
+    expect(editor).toContain("setInitial(business); setValue(business);");
+    expect(editor).toContain("<BusinessCommercialFields");
+  });
+
+  it("annule sans PATCH, protège les brouillons et redirige après sauvegarde", () => {
+    expect(editor).toContain('window.addEventListener("beforeunload", warn)');
+    expect(editor).toContain('window.confirm(t("commercialSettings", "discardConfirm"))');
+    expect(editor).toContain('method: "PATCH"');
+    expect(editor).toContain("?saved=1");
+    expect(editor).toContain("saving || !dirty");
+  });
+
+  it("conserve les choix exclusifs, multiples et les traductions FR/EN", () => {
     expect(fields).toContain('type="radio"');
     expect(fields).toContain('type="checkbox"');
-    expect(fields).toContain('delivery_methods.includes');
-  });
-
-  it("précharge et enregistre les valeurs via le BFF", () => {
-    expect(component).toContain('fetch(`/api/private/businesses/${businessId}`');
-    expect(component).toContain('method: "PATCH"');
-    expect(component).toContain('setBusiness((await response.json()');
-  });
-
-  it("déclare les libellés français et anglais", () => {
-    expect(messages).toContain('commercialSettings: { title: "Fonctionnement commercial"');
-    expect(messages).toContain('commercialSettings: { title: "Commercial operations"');
-  });
-
-  it("réutilise les champs dans la création avec validation client", () => {
-    expect(manager).toContain("<BusinessCommercialFields");
-    expect(manager).toContain("commercialRequired");
-    expect(manager).toContain("...commercial");
-    expect(component).toContain("<BusinessCommercialFields");
+    expect(fields).toContain("commercialDeliveryOptions");
+    expect(messages).toContain("commercialSettingsExtras");
+    expect(messages).toContain('edit: "Modifier"');
+    expect(messages).toContain('edit: "Edit"');
   });
 });
