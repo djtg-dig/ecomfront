@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     ".next-*/**",
+    // Répertoire temporaire produit par la validation isolée du build Next.js.
+    ".build-validation.*/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
