@@ -6,14 +6,14 @@ const source = readFileSync(resolve(process.cwd(), "src/components/sales/sale-ma
 
 describe("stabilité de la fiche vente", () => {
   it("ne lie pas le rechargement du détail à l’identité instable du tableau de permissions", () => {
-    expect(source).toContain("const canViewCommercial = Boolean");
+    expect(source).toContain("const canViewScope = scope === \"invoices\"");
     expect(source).toContain("const loadDetail = useCallback");
     expect(source).toContain("const loadList = useCallback");
     expect(source).toContain("[businessId, locale, router, saleId]");
-    expect(source).toContain("[canViewCommercial, loadDetail, loadList, saleId]");
+    expect(source).toContain("[canViewScope, loadDetail, loadList, saleId]");
     expect(source).toContain("const isCurrent = () => requestVersion.current === version;");
     expect(source).toContain("return saleId ? loadDetail(isCurrent) : loadList(isCurrent);");
-    expect(source).not.toContain("[canViewCommercial, loadDetail, permissions, saleId]");
+    expect(source).not.toContain("[canViewScope, loadDetail, permissions, saleId]");
   });
 
   it("conserve la fiche et les lignes pendant une actualisation locale", () => {
