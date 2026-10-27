@@ -16,20 +16,24 @@ export function SiteFooter({ variant }: Readonly<{ variant: "public" | "private"
     { title: "Legal information", links: [{ href: "/conditions-generales", label: "Terms and conditions" }, { href: "/confidentialite", label: "Privacy" }, { href: "/cookies", label: "Cookies" }] },
     { title: "Support", links: [{ href: "/fonctionnalites", label: "Help center" }, { href: "/contact", label: "Contact us" }] },
   ] : sections;
-  if (variant === "private") {
-    return <footer className="site-footer site-footer-private mt-auto shrink-0"><div className="site-container flex flex-col gap-2 py-4 text-xs text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between"><p>© {new Date().getFullYear()} Carri Business</p><div className="flex flex-wrap gap-x-4 gap-y-2"><Link className="footer-link" href="/conditions-generales">{locale === "en" ? "Terms" : "Conditions générales"}</Link><Link className="footer-link" href="/confidentialite">{locale === "en" ? "Privacy" : "Confidentialité"}</Link></div></div></footer>;
-  }
+  const variantClass = variant === "private" ? "site-footer-private" : "site-footer-public";
+
   return (
-    <footer className="site-footer site-footer-public mt-auto shrink-0">
-      <div className="site-container grid gap-6 py-6 text-sm md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
+    <footer className={`site-footer ${variantClass} mt-auto shrink-0`}>
+      <div className="site-container py-8 sm:py-10">
+        <div className="grid gap-8 text-sm sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
         <div>
-          <Link className="text-base font-semibold text-[var(--ink)]" href="/">Carri Business</Link>
+          <Link aria-label="Accueil Carri Business" className="inline-flex items-center gap-3 text-base font-semibold text-[var(--ink)]" href="/">
+            <span aria-hidden="true" className="brand-mark grid size-9 place-items-center rounded-xl text-sm font-bold">E</span>
+            Carri Business
+          </Link>
           <p className="mt-2 max-w-md leading-6 text-[var(--muted)]">
             {locale === "en" ? "A platform to manage your company’s commercial activities." : "Une plateforme pour gérer les activités commerciales de votre entreprise."}
           </p>
         </div>
         {localizedSections.map((section) => <nav aria-label={section.title} key={section.title}><h2 className="font-semibold text-[var(--ink)]">{section.title}</h2><ul className="mt-3 grid gap-2">{section.links.map((link) => <li key={link.href}>{link.external ? <a className="footer-link" href={link.href} rel="noopener noreferrer" target="_blank">{link.label}</a> : <Link className="footer-link" href={link.href}>{link.label}</Link>}</li>)}</ul></nav>)}
-        <p className="md:col-span-4 text-[var(--muted)]">© {new Date().getFullYear()} Carri Business</p>
+        </div>
+        <div className="mt-8 border-t border-[var(--line)] pt-5 text-xs text-[var(--muted)]">© {new Date().getFullYear()} Carri Business · {locale === "en" ? "All rights reserved." : "Tous droits réservés."}</div>
       </div>
     </footer>
   );
