@@ -23,6 +23,8 @@ describe("gestionnaire de stocks", () => {
     expect(source).toContain("OUT_OF_STOCK");
     expect(source).toContain("Historique des mouvements");
     expect(source).toContain("Produit ou référence");
+    expect(source).toContain("Suivez les disponibilités");
+    expect(source).toContain("Réinitialiser");
   });
   it("n’affiche les formulaires que dans des modales autorisées", () => {
     expect(source).toContain('permissions?.includes("INVENTORY_INITIALIZE")');
@@ -44,5 +46,11 @@ describe("gestionnaire de stocks", () => {
     expect(source).toContain('updateUrl({ status: event.target.value || null, inventory_page: null }, true)');
     expect(source).toContain('updateUrl({ type: event.target.value || null, movements_page: null }, true)');
     expect(source).toContain('updateUrl({ origin: event.target.value || null, movements_page: null }, true)');
+    expect(source).toContain('date_from: null, date_to: null, movements_page: null');
+  });
+  it("conserve un tableau desktop et des cartes de mouvements sur mobile", () => {
+    expect(source).toContain('hidden min-w-[860px] md:block');
+    expect(source).toContain('grid gap-3 md:hidden');
+    expect(source).toContain("overflow-x-auto");
   });
 });
