@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export type PrivateBusiness = {
@@ -69,7 +69,7 @@ export function PrivateBusinessProvider({ children }: Readonly<{ children: React
     }
   }, [router]);
 
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => { startTransition(() => { void reload(); }); }, [reload]);
 
   const selectBusiness = useCallback(async (businessId: string) => {
     if (state.kind !== "ready" || !businessId) return false;

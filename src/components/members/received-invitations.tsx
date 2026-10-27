@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { permissionDescription, permissionLabel } from "@/lib/permissions/catalog";
 import { navigateAfterInvitationCompletion, type InvitationCompletionAction } from "@/lib/invitations/completion-navigation";
@@ -37,7 +37,7 @@ export function ReceivedInvitations() {
     setInvitations((await response.json() as { invitations: Invitation[] }).invitations);
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { startTransition(() => { void load(); }); }, []);
 
   async function act(invitationId: string, action: InvitationCompletionAction) {
     if (pending) return;

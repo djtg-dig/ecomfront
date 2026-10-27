@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
@@ -38,7 +38,7 @@ export function BusinessList({ invitationOutcome }: { invitationOutcome?: string
     }
   }, [router]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { startTransition(() => { void load(); }); }, [load]);
 
   if (error) return <section className="content-panel p-6" role="alert"><p>{error}</p><button className="button button-primary mt-4" disabled={loading} onClick={() => void load()} type="button">{loading ? "Nouvelle tentative…" : "Réessayer"}</button></section>;
   if (!items) return <p className="p-6 text-sm text-[var(--muted)]">Chargement des entreprises…</p>;

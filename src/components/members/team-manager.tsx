@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useBusinessPermissionsState } from "@/components/private/business-permissions-provider";
@@ -64,7 +64,7 @@ export function TeamManager({ businessId }: { businessId: string }) {
     setData(await response.json() as TeamData);
   }
 
-  useEffect(() => { void load(); }, [businessId]);
+  useEffect(() => { startTransition(() => { void load(); }); }, [businessId]);
 
   async function loadCatalog() {
     if (catalog.length) return true;

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 export const BUSINESS_PERMISSIONS_FRESHNESS_MS = 30_000;
@@ -115,14 +115,11 @@ export function BusinessPermissionsProvider({ businessId, children }: Readonly<{
   }, [businessId, router]);
 
   useEffect(() => {
-    // A provider can be retained while only the route parameter changes.
-    // Restore a known value synchronously before considering a refresh.
-    const cached = cachedPermissions(businessId);
-    if (cached) setState({ businessId, permissions: cached, status: "ready" });
-    void refresh();
+    // Le cache est lu par refresh : la valeur n'est pas dupliquée dans l'état local.
+    startTransition(() => { void refresh(); });
     const interval = window.setInterval(() => { void refresh(true); }, BUSINESS_PERMISSIONS_FRESHNESS_MS);
     return () => window.clearInterval(interval);
-  }, [refresh]);
+  }, [businessId, refresh]);
 
   const visibleState = state.businessId === businessId
     ? state

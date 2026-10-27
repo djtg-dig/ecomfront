@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { matchesCurrency, type Currency } from "@/lib/money/currencies";
@@ -36,7 +36,7 @@ export function CurrencySettings({ businessId }: { businessId: string }) {
       setError("La configuration monétaire est temporairement indisponible.");
     }
   };
-  useEffect(() => { if (allowed) void load(); }, [allowed, businessId]);
+  useEffect(() => { if (allowed) startTransition(() => { void load(); }); }, [allowed, businessId, load]);
   async function addCurrency(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;

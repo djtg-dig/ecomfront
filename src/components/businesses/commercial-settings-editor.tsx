@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useMemo, useState, type FormEvent } from "react";
 import { BusinessCommercialFields, commercialDeliveryOptions, commercialSalesChannelOptions, commercialSalesLocationOptions, type CommercialFieldErrors, type CommercialSettingsValue } from "@/components/businesses/business-commercial-fields";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
@@ -55,7 +55,7 @@ export function CommercialSettingsEditor({ businessId }: { businessId: string })
   const [error, setError] = useState<string | null>(null); const [fieldErrors, setFieldErrors] = useState<CommercialFieldErrors>({}); const [saving, setSaving] = useState(false);
   const dirty = useMemo(() => Boolean(initial && value && !equal(initial, value)), [initial, value]);
   useEffect(() => { if (!dirty) return; const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; }; window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn); }, [dirty]);
-  useEffect(() => { if (!allowed) return; let active = true; setError(null); setFieldErrors({}); void fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin", cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error((await responseProblem(response, t("commercialSettings", "loadError"))).detail); const value = commercialSettingsFromBusiness(((await response.json()) as { business: BusinessResponse }).business); if (active) { setInitial(value); setValue(value); } }).catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : t("commercialSettings", "loadError")); }); return () => { active = false; }; }, [allowed, businessId, t]);
+  useEffect(() => { if (!allowed) return; let active = true; startTransition(() => { setError(null); setFieldErrors({}); void fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin", cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error((await responseProblem(response, t("commercialSettings", "loadError"))).detail); const value = commercialSettingsFromBusiness(((await response.json()) as { business: BusinessResponse }).business); if (active) { setInitial(value); setValue(value); } }).catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : t("commercialSettings", "loadError")); }); }); return () => { active = false; }; }, [allowed, businessId, t]);
   const leave = () => { if (!dirty || window.confirm(t("commercialSettings", "discardConfirm"))) router.push(`/espace/entreprises/${businessId}/parametres/fonctionnement-commercial`); };
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!value || saving) return;

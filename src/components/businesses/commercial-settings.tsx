@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { commercialDeliveryOptions, commercialSalesChannelOptions, commercialSalesLocationOptions, type CommercialSettingsValue } from "@/components/businesses/business-commercial-fields";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
@@ -24,7 +24,7 @@ export function CommercialSettings({ businessId }: { businessId: string }) {
   const searchParams = useSearchParams();
   const [business, setBusiness] = useState<Business | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { let active = true; setBusiness(null); setError(null); void fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin", cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error(await problem(response, t("commercialSettings", "loadError"))); if (active) setBusiness(((await response.json()) as { business: Business }).business); }).catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : t("commercialSettings", "loadError")); }); return () => { active = false; }; }, [businessId, t]);
+  useEffect(() => { let active = true; startTransition(() => { setBusiness(null); setError(null); void fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin", cache: "no-store" }).then(async (response) => { if (!response.ok) throw new Error(await problem(response, t("commercialSettings", "loadError"))); if (active) setBusiness(((await response.json()) as { business: Business }).business); }).catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : t("commercialSettings", "loadError")); }); }); return () => { active = false; }; }, [businessId, t]);
   if (!business) return <main><p className="text-sm text-[var(--muted)]" role={error ? "alert" : undefined}>{error ?? t("commercialSettings", "loading")}</p></main>;
   const location = commercialSalesLocationOptions.find(([code]) => code === business.sales_location_type);
   const channel = commercialSalesChannelOptions.find(([code]) => code === business.sales_channel);

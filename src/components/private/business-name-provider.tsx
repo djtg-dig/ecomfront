@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, startTransition, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 type Business = { public_id: string; name: string; primary_currency: string; status: string };
@@ -23,7 +23,7 @@ export function BusinessNameProvider({ businessId, children }: Readonly<{ busine
 
   useEffect(() => {
     let active = true;
-    setState({ business: null, error: null });
+    startTransition(() => { setState({ business: null, error: null }); });
     void fetch(`/api/private/businesses/${businessId}`, { credentials: "same-origin", cache: "no-store" }).then(async (response) => {
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
       if (!response.ok) throw new Error(await detail(response));
