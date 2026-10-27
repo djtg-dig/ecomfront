@@ -8,6 +8,7 @@ import { useBusinessPermissions } from "@/components/private/use-business-permis
 import { Modal } from "@/components/ui/modal";
 import { formatPriceRange } from "@/lib/money/format";
 import { ProductMediaManager } from "@/components/catalog/product-media-manager";
+import { ProductCatalogList } from "@/components/catalog/product-catalog-list";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { formatMessage, unitLabel } from "@/lib/i18n/messages";
 import {
@@ -427,6 +428,7 @@ function ProductCatalogContent({ businessId, productId, searchParams }: { busine
   const canViewProducts = permissions?.includes("PRODUCT_VIEW") ?? false;
   const canCreateProduct = permissions?.includes("PRODUCT_CREATE") ?? false;
   const canUpdateProduct = permissions?.includes("PRODUCT_UPDATE") ?? false;
+  const canDeleteProduct = permissions?.includes("PRODUCT_DELETE") ?? false;
   const [products, setProducts] = useState<Product[] | null>(null);
   const [totalProducts, setTotalProducts] = useState(0);
   const [legacyCategories, setLegacyCategories] = useState<LegacyCategory[]>([]);
@@ -462,6 +464,11 @@ function ProductCatalogContent({ businessId, productId, searchParams }: { busine
 
   async function load() {
     router.push(catalogUrl(1));
+  }
+
+  function resetFilters() {
+    setSearch(""); setStatus(""); setCategory("");
+    router.push(catalogUrl(1, { search: "", status: "", category: "" }));
   }
 
   useEffect(() => {
@@ -516,6 +523,8 @@ function ProductCatalogContent({ businessId, productId, searchParams }: { busine
       setProduct((await response.json() as { product: Product }).product);
     }).catch(() => setError(t("catalog", "catalogUnavailable")));
   }, [businessId, productId, router, canViewProducts, t]);
+
+  if (!productId) return <><ProductCatalogList businessId={businessId} canCreate={canCreateProduct} canDelete={canDeleteProduct} canUpdate={canUpdateProduct} categories={filterCategories} category={category} loading={categoriesLoading || products === null} onCategoryChange={setCategory} onOpenCreate={() => setCreateOpen(true)} onReset={resetFilters} onSearchChange={setSearch} onStatusChange={setStatus} onSubmit={() => void load()} page={page} products={products?.map((item) => ({ public_id: item.public_id, name: item.name, internal_reference: item.internal_reference, barcode: item.barcode, price: priceRange(item), is_negotiable: item.is_negotiable, status: item.status, primary_image_url: item.primary_image_url })) ?? null} search={search} status={status} totalPages={totalPages} totalProducts={totalProducts} visiblePages={visiblePages} />{createOpen ? <Modal onClose={() => setCreateOpen(false)} size="large" title={t("catalog", "addProduct")}><ProductForm businessCurrency={businessCurrency} businessId={businessId} categoriesLoading={categoriesLoading} legacyCategories={legacyCategories} onRetryUnits={() => { setUnitsLoading(true); setUnitsError(false); setUnitsReload((value) => value + 1); }} onSaved={() => { setCreateOpen(false); setSuccess(t("catalog", "productAdded")); if (canViewProducts) router.push(catalogUrl(1)); }} registryCategories={registryCategories} units={units} unitsError={unitsError} unitsLoading={unitsLoading} /></Modal> : null}</>;
 
   if (productId) return <main>
     <Link className="text-sm underline" href={`/espace/entreprises/${businessId}/produits`}>← {t("catalog", "backProducts")}</Link>

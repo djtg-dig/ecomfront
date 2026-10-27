@@ -17,6 +17,7 @@ import { formatPriceRange } from "@/lib/money/format";
 import { messages } from "@/lib/i18n/messages";
 
 const source = readFileSync(resolve(process.cwd(), "src/components/catalog/product-catalog.tsx"), "utf8");
+const listSource = readFileSync(resolve(process.cwd(), "src/components/catalog/product-catalog-list.tsx"), "utf8");
 
 function category(code: string, attributes: RegistryCategoryDetail["attributes"] = []): RegistryCategoryDetail {
   return { code, label: code, parent: "test", description: "", attributes };
@@ -147,5 +148,13 @@ describe("interface catalogue dynamique", () => {
     expect(messages.en.catalog.unavailablePhoto).toBe("No photo available");
     expect(source).toContain("src={product.primary_image_url}");
     expect(source).toContain("<ProductThumbnail product={item} />");
+  });
+
+  it("présente une liste SaaS responsive avec filtres et actions permissionnées", () => {
+    for (const fragment of ["sm:grid-cols-2", "md:hidden", "hidden overflow-x-auto md:block", "RotateCcw", "Search", "Package", "onReset", "canUpdate", "canDelete", "primary_image_url"]) expect(listSource).toContain(fragment);
+    expect(source).toContain("function resetFilters()");
+    expect(source).toContain("query.set(\"search\", values.search)");
+    expect(source).toContain("query.set(\"status\", values.status)");
+    expect(source).toContain("query.set(\"category\", values.category)");
   });
 });
