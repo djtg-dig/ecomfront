@@ -345,6 +345,28 @@ describe("routes d’authentification BFF", () => {
     expect(sessionValues[0]).toEqual(sessionValues[1]);
   });
 
+  it("vérifie une session encore valide sans réécrire son cookie", async () => {
+    const activeSession: EcommerceSession = {
+      accessToken: makeJwt(Math.floor(Date.now() / 1000) + 900),
+      refreshToken: makeJwt(Math.floor(Date.now() / 1000) + 86_400),
+      accessExpiresAt: Date.now() + 900_000,
+      refreshExpiresAt: Date.now() + 86_400_000,
+    };
+    const response = await refreshSession(new Request(`${frontendUrl}/api/auth/refresh`, {
+      method: "POST",
+      headers: {
+        origin: frontendUrl,
+        "sec-fetch-site": "same-origin",
+        "x-csrf-protection": "1",
+        cookie: `ecommerce_session=${encryptSession(activeSession)}`,
+      },
+    }));
+
+    expect(response.status).toBe(204);
+    expect(cookies(response).some((entry) => entry.startsWith("ecommerce_session="))).toBe(false);
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
   it("refuse le logout sans preuve CSRF same-origin et efface la session localement", async () => {
     const rejected = await logout(new Request(`${frontendUrl}/api/auth/logout`, {
       method: "POST",

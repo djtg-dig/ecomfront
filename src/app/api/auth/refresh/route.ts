@@ -42,11 +42,21 @@ export async function POST(request: Request) {
   try {
     const refreshed = await refreshEcommerceSession(session);
     const response = new NextResponse(null, { status: 204 });
-    response.cookies.set(
-      sessionCookieName,
-      encryptSession(refreshed),
-      sessionCookieOptions(Math.floor((refreshed.refreshExpiresAt - Date.now()) / 1000)),
-    );
+    // Réécrire un cookie chiffré inchangé crée un nouveau chiffré aléatoire.
+    // Next invalide son cache client après cette mutation, ce qui remonterait
+    // le garde privé à l’origine de la vérification et relancerait le cycle.
+    if (
+      refreshed.accessToken !== session.accessToken ||
+      refreshed.refreshToken !== session.refreshToken ||
+      refreshed.accessExpiresAt !== session.accessExpiresAt ||
+      refreshed.refreshExpiresAt !== session.refreshExpiresAt
+    ) {
+      response.cookies.set(
+        sessionCookieName,
+        encryptSession(refreshed),
+        sessionCookieOptions(Math.floor((refreshed.refreshExpiresAt - Date.now()) / 1000)),
+      );
+    }
     response.headers.set("Cache-Control", "no-store, max-age=0");
     return response;
   } catch (error) {
