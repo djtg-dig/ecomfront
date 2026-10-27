@@ -21,12 +21,12 @@ describe("layouts et pied de page", () => {
     expect(footer).toContain("Cookies");
     expect(footer).toContain("Assistance");
     expect(footer).toContain('className="footer-link"');
-    expect(footer).toContain('className="site-footer mt-auto shrink-0"');
+    expect(footer).toContain('className="site-footer site-footer-public mt-auto shrink-0"');
     expect(footer).toContain('href: "/fonctionnalites"');
     expect(footer).toContain('href: "/contact"');
-    expect(publicLayout).toContain("<SiteFooter />");
+    expect(publicLayout).toContain('<SiteFooter variant="public" />');
     expect(publicLayout).toContain('className="page-shell flex min-h-dvh flex-col"');
-    expect(privateShell).toContain("<SiteFooter />");
+    expect(privateShell).toContain('<SiteFooter variant="private" />');
     expect(source("src/app/(public)/page.tsx")).not.toContain("<PublicHeader");
     expect(source("src/app/(public)/contact/page.tsx")).not.toContain("<PublicHeader");
   });
@@ -36,12 +36,11 @@ describe("layouts et pied de page", () => {
     const login = source("src/app/(auth)/connexion/page.tsx");
 
     expect(styles).toContain(".site-container");
-    expect(styles).toContain("max-width: 1800px");
+    expect(styles).toContain("max-width: 1440px");
     expect(styles).toContain("box-sizing: border-box");
     expect(styles).toContain("padding-inline: 1rem");
     expect(styles).toContain("padding-inline: 1.5rem");
-    expect(styles).toContain("padding-inline: 2.5rem");
-    expect(styles).toContain("padding-inline: 3rem");
+    expect(styles).toContain("padding-inline: 2rem");
     expect(styles).toContain("background: var(--brand)");
     expect(login).toContain("max-w-md");
   });
@@ -54,7 +53,7 @@ describe("layouts et pied de page", () => {
     expect(publicHeader).not.toContain("max-w-6xl");
     expect(privateShell).toContain('className="site-container flex flex-wrap items-center justify-between');
     expect(privateShell).toContain("Mon compte");
-    expect(privateShell).toContain("MobileNavigation");
+    expect(privateShell).toContain("PrivateMobileNavigation");
   });
 
   it("garde les navigations visibles et fournit un retour accessible à l’accueil", () => {
@@ -66,8 +65,8 @@ describe("layouts et pied de page", () => {
     expect(publicHeader).toContain('aria-label="Retour à l’accueil"');
     expect(publicHeader).toContain('href="/"');
     expect(privateShell).toContain('aria-label="Retour à l’accueil"');
-    expect(privateShell).toContain('md:w-64 md:flex-col md:flex-nowrap');
-    expect(privateShell).not.toContain('md:overflow-y-auto');
+    expect(privateShell).toContain("PrivateSidebarNavigation");
+    expect(source("src/components/private/private-navigation.tsx")).toContain("private-sidebar");
     expect(privateShell).toContain('className="brand-lockup hidden items-center gap-3 font-semibold md:flex" href="/"');
   });
 

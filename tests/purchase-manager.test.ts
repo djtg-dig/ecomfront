@@ -20,4 +20,14 @@ describe("gestionnaire d’achats", () => {
     expect(source).toContain('min="0"');
     expect(source).toContain('disabled={saving}');
   });
+  it("stabilise les chargeurs et ignore les réponses obsolètes", () => {
+    expect(source).toContain("const loadList = useCallback");
+    expect(source).toContain("const loadDetail = useCallback");
+    expect(source).toContain("const requestVersion = useRef(0)");
+    expect(source).toContain("const isCurrent = () => requestVersion.current === version;");
+    expect(source).toContain("[businessId, canViewPurchases, canViewSuppliers, router]");
+    expect(source).toContain("[businessId, purchaseId, router]");
+    expect(source).toContain("[canViewPurchases, loadDetail, loadList, purchaseId]");
+    expect(source).not.toContain("canCreatePurchase, canViewPurchases, canViewSuppliers, loadDetail, loadList");
+  });
 });

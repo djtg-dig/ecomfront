@@ -1,24 +1,19 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { type ReactNode } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Building2, FileText, Handshake, LayoutDashboard, Menu, Package, Receipt, Settings, ShoppingCart, Truck, WalletCards, Warehouse, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Building2, FileText, Handshake, LayoutDashboard, Package, Receipt, Settings, ShoppingCart, Truck, WalletCards, Warehouse } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { PrivateMobileNavigation, PrivateSidebarNavigation, type PrivateNavigationItem } from "@/components/private/private-navigation";
 import { BusinessNameProvider, useBusinessNameState } from "@/components/private/business-name-provider";
 import { BusinessPermissionsProvider, useBusinessPermissionsState } from "@/components/private/business-permissions-provider";
 import { hasAnyPermission } from "@/lib/permissions/catalog";
 import { LanguageSelector } from "@/components/i18n/language-selector";
 import { useLocale } from "@/components/i18n/locale-provider";
-
-type NavigationItem = { href: string; label: string; icon: LucideIcon; secondary?: boolean };
-
-function isActive(pathname: string, href: string) {
-  return pathname === href || (href !== "/espace" && pathname.startsWith(`${href}/`));
-}
 
 export function PrivateShell({ children }: Readonly<{ children: ReactNode }>) {
   return <Suspense fallback={<PrivateShellFallback />}><PrivateShellContent>{children}</PrivateShellContent></Suspense>;
@@ -33,7 +28,7 @@ function PrivateShellContent({ children }: Readonly<{ children: ReactNode }>) {
   return pathname.startsWith("/espace/entreprises/") ? <BusinessShell>{children}</BusinessShell> : <PersonalShell>{children}</PersonalShell>;
 }
 
-function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ children: ReactNode; navigation: NavigationItem[]; title: string; mobileSection: string }>) {
+function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ children: ReactNode; navigation: PrivateNavigationItem[]; title: string; mobileSection: string }>) {
   const pathname = usePathname();
   return (
     <div className="page-shell flex min-h-dvh flex-col">
@@ -50,84 +45,21 @@ function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ c
             <LanguageSelector persistPreference />
             <LogoutButton />
           </div>
-          <MobileNavigation key={pathname} mobileSection={mobileSection} navigation={navigation} pathname={pathname} title={title} />
+          <PrivateMobileNavigation key={pathname} mobileSection={mobileSection} navigation={navigation} pathname={pathname} title={title} />
         </div>
       </header>
       <div className="site-container flex flex-1 flex-col gap-6 py-6 md:flex-row">
-        <nav aria-label="Navigation privée" className="content-panel order-3 hidden w-full shrink-0 flex-wrap gap-1 p-2 md:order-none md:flex md:w-64 md:flex-col md:flex-nowrap md:self-start md:sticky md:top-22">
-          {navigation.map((item) => (
-            (() => { const Icon = item.icon; return (
-            <Link
-              aria-current={isActive(pathname, item.href) ? "page" : undefined}
-              className={isActive(pathname, item.href) ? "button button-primary justify-start" : "button button-outline justify-start border-transparent"}
-              href={item.href}
-              key={item.href}
-            >
-              <Icon aria-hidden="true" size={18} strokeWidth={2} />
-              {item.label}
-            </Link>
-            ); })()
-          ))}
-        </nav>
+        <PrivateSidebarNavigation navigation={navigation} pathname={pathname} />
         <main className="min-w-0 flex-1"><div>{children}</div></main>
       </div>
-      <SiteFooter />
+      <SiteFooter variant="private" />
     </div>
   );
 }
 
-function MobileNavigation({ mobileSection, navigation, pathname, title }: { mobileSection: string; navigation: NavigationItem[]; pathname: string; title: string }) {
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLElement>(null);
-  const close = () => setOpen(false);
-  useEffect(() => {
-    if (!open) return;
-    const button = buttonRef.current;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") return close();
-      if (event.key !== "Tab") return;
-      const focusable = panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? [];
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    const previousPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = "hidden";
-    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
-    const focusTimer = window.requestAnimationFrame(() => closeButtonRef.current?.focus({ preventScroll: true }));
-    return () => { window.cancelAnimationFrame(focusTimer); document.removeEventListener("keydown", onKeyDown); document.body.style.overflow = previousOverflow; document.body.style.paddingRight = previousPaddingRight; if (button?.isConnected) button.focus({ preventScroll: true }); };
-  }, [open]);
-  const primaryNavigation = navigation.filter((item) => !item.secondary);
-  const secondaryNavigation = navigation.filter((item) => item.secondary);
-  return <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
-    <Link aria-label="Retour à l’accueil" className="brand-mark grid size-9 shrink-0 place-items-center rounded-xl text-sm font-bold" href="/" onClick={close}>E</Link>
-    <p className="min-w-0 flex-1 truncate text-sm font-semibold" title={title}>{title}</p>
-    <button aria-controls="private-mobile-navigation" aria-expanded={open} aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} className="button button-outline grid min-h-11 min-w-11 shrink-0 place-items-center px-3" onClick={() => setOpen((current) => !current)} ref={buttonRef} type="button">
-      {open ? <X aria-hidden="true" size={20} /> : <Menu aria-hidden="true" size={20} />}
-    </button>
-    {open ? <div className="fixed inset-0 z-50" role="presentation">
-      <button aria-label="Fermer le menu" className="absolute inset-0 bg-black/30" onClick={close} type="button" />
-      <aside aria-label="Navigation privée mobile" aria-modal="true" className="absolute right-0 top-0 flex h-full w-[min(20rem,calc(100vw-1rem))] flex-col overflow-y-auto bg-[var(--background)] p-5 shadow-2xl" id="private-mobile-navigation" ref={panelRef} role="dialog">
-        <div className="flex items-center justify-between gap-3"><p className="min-w-0 truncate text-sm font-semibold">{title}</p><button aria-label="Fermer le menu" className="button button-outline min-h-11 min-w-11 shrink-0 px-3" onClick={close} ref={closeButtonRef} type="button"><X aria-hidden="true" size={20} /></button></div>
-        <p className="mt-5 text-xs font-medium text-[var(--muted)]">{mobileSection}</p>
-        <nav className="mt-2 grid gap-2" aria-label="Navigation mobile">{primaryNavigation.map((item) => { const Icon = item.icon; return <Link aria-current={isActive(pathname, item.href) ? "page" : undefined} className={isActive(pathname, item.href) ? "button button-primary justify-start" : "button button-outline justify-start"} href={item.href} key={item.href} onClick={close}><Icon aria-hidden="true" size={18} />{item.label}</Link>; })}</nav>
-        {secondaryNavigation.length ? <div className="mt-5 border-t border-[var(--line)] pt-4">{secondaryNavigation.map((item) => <Link aria-current={isActive(pathname, item.href) ? "page" : undefined} className="button button-outline w-full justify-start" href={item.href} key={item.href} onClick={close}><ArrowLeft aria-hidden="true" size={18} />{item.label}</Link>)}</div> : null}
-        <div className="mt-4 border-t border-[var(--line)] pt-4"><LogoutButton /></div>
-      </aside>
-    </div> : null}
-  </div>;
-}
-
 function PersonalShell({ children }: Readonly<{ children: ReactNode }>) {
   const { locale, t } = useLocale();
-  const navigation: NavigationItem[] = [{ href: "/espace", label: t("navigation", "home"), icon: LayoutDashboard }, { href: "/espace/entreprises", label: t("navigation", "businesses"), icon: Building2 }, { href: "/espace/invitations", label: t("navigation", "invitations"), icon: Handshake }, { href: "/espace/parametres", label: t("navigation", "settings"), icon: Settings }];
+  const navigation: PrivateNavigationItem[] = [{ href: "/espace", label: t("navigation", "home"), icon: LayoutDashboard }, { href: "/espace/entreprises", label: t("navigation", "businesses"), icon: Building2 }, { href: "/espace/invitations", label: t("navigation", "invitations"), icon: Handshake }, { href: "/espace/parametres", label: t("navigation", "settings"), icon: Settings }];
   return <ShellFrame mobileSection={locale === "en" ? "MY ACCOUNT" : "MON COMPTE"} navigation={navigation} title={locale === "en" ? "My account" : "Mon compte"}>{children}</ShellFrame>;
 }
 
@@ -138,24 +70,25 @@ function BusinessShell({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 function BusinessShellNavigation({ businessId, children }: Readonly<{ businessId: string; children: ReactNode }>) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const permissionState = useBusinessPermissionsState();
   const businessState = useBusinessNameState();
   const permissions = permissionState?.permissions ?? null;
   const status = permissionState?.status ?? "loading";
-  const navigation: NavigationItem[] = [
-    { href: `/espace/entreprises/${businessId}`, label: t("navigation", "dashboard"), icon: LayoutDashboard },
+  const navigation: PrivateNavigationItem[] = ([
+    { href: `/espace/entreprises/${businessId}`, label: t("navigation", "dashboard"), icon: LayoutDashboard, section: locale === "en" ? "GENERAL" : "GÉNÉRAL" },
+  ] as PrivateNavigationItem[]).concat(status === "ready" && permissions ? [
+    ...(hasAnyPermission(permissions, ["PRODUCT_VIEW", "PRODUCT_CREATE", "PRODUCT_UPDATE", "PRODUCT_DELETE", "PRODUCT_DEACTIVATE", "PRODUCT_VARIANT_VIEW", "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE"]) ? [{ href: `/espace/entreprises/${businessId}/produits`, label: t("navigation", "products"), icon: Package, section: locale === "en" ? "CATALOG AND INVENTORY" : "CATALOGUE ET STOCKS" }] : []),
+    ...(hasAnyPermission(permissions, ["INVENTORY_VIEW", "INVENTORY_INITIALIZE", "INVENTORY_IN", "INVENTORY_OUT", "INVENTORY_ADJUST", "INVENTORY_MOVEMENT_VIEW"]) ? [{ href: `/espace/entreprises/${businessId}/stocks`, label: t("navigation", "inventory"), icon: Warehouse, section: locale === "en" ? "CATALOG AND INVENTORY" : "CATALOGUE ET STOCKS" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("PURCHASE_") || permission.startsWith("SUPPLIER_")) ? [{ href: `/espace/entreprises/${businessId}/achats`, label: t("navigation", "purchases"), icon: Truck, section: locale === "en" ? "COMMERCIAL OPERATIONS" : "OPÉRATIONS COMMERCIALES" }] : []),
+    ...(["SALE_VIEW", "SALE_CREATE", "SALE_LINE_CREATE", "SALE_COMPLETE"].every((permission) => permissions.includes(permission)) ? [{ href: `/espace/entreprises/${businessId}/caisse`, label: t("navigation", "pos"), icon: ShoppingCart, section: locale === "en" ? "COMMERCIAL OPERATIONS" : "OPÉRATIONS COMMERCIALES" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("SALE_")) ? [{ href: `/espace/entreprises/${businessId}/ventes`, label: t("navigation", "sales"), icon: Receipt, section: locale === "en" ? "COMMERCIAL OPERATIONS" : "OPÉRATIONS COMMERCIALES" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("INVOICE_")) ? [{ href: `/espace/entreprises/${businessId}/factures`, label: t("navigation", "invoices"), icon: FileText, section: locale === "en" ? "COMMERCIAL OPERATIONS" : "OPÉRATIONS COMMERCIALES" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("CUSTOMER_") || permission.startsWith("SUPPLIER_")) ? [{ href: `/espace/entreprises/${businessId}/partenaires`, label: t("navigation", "partners"), icon: Handshake, section: locale === "en" ? "MANAGEMENT" : "GESTION" }] : []),
+    ...(permissions.some((permission) => ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_UPDATE", "RECEIVABLE_PAYMENT_VIEW", "RECEIVABLE_PAYMENT_CREATE", "INVOICE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_VIEW", "SUPPLIER_PAYMENT_CREATE", "SUPPLIER_PAYMENT_REVERSE"].includes(permission)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: t("navigation", "finance"), icon: WalletCards, section: locale === "en" ? "MANAGEMENT" : "GESTION" }] : []),
+    ...(permissions.some((permission) => permission.startsWith("MEMBER_") || permission.startsWith("INVITATION_") || permission === "BUSINESS_UPDATE") ? [{ href: `/espace/entreprises/${businessId}/parametres`, label: t("navigation", "businessSettings"), icon: Settings, section: "ADMINISTRATION" }] : []),
+  ] : [], [
     { href: "/espace", label: t("navigation", "backToWorkspace"), icon: ArrowLeft, secondary: true },
-  ].concat(status === "ready" && permissions ? [
-    ...(hasAnyPermission(permissions, ["PRODUCT_VIEW", "PRODUCT_CREATE", "PRODUCT_UPDATE", "PRODUCT_DELETE", "PRODUCT_DEACTIVATE", "PRODUCT_VARIANT_VIEW", "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE"]) ? [{ href: `/espace/entreprises/${businessId}/produits`, label: t("navigation", "products"), icon: Package }] : []),
-    ...(hasAnyPermission(permissions, ["INVENTORY_VIEW", "INVENTORY_INITIALIZE", "INVENTORY_IN", "INVENTORY_OUT", "INVENTORY_ADJUST", "INVENTORY_MOVEMENT_VIEW"]) ? [{ href: `/espace/entreprises/${businessId}/stocks`, label: t("navigation", "inventory"), icon: Warehouse }] : []),
-    ...(permissions.some((permission) => permission.startsWith("PURCHASE_") || permission.startsWith("SUPPLIER_")) ? [{ href: `/espace/entreprises/${businessId}/achats`, label: t("navigation", "purchases"), icon: Truck }] : []),
-    ...(permissions.some((permission) => permission.startsWith("SALE_")) ? [{ href: `/espace/entreprises/${businessId}/ventes`, label: t("navigation", "sales"), icon: Receipt }] : []),
-    ...(permissions.some((permission) => permission.startsWith("INVOICE_")) ? [{ href: `/espace/entreprises/${businessId}/factures`, label: t("navigation", "invoices"), icon: FileText }] : []),
-    ...(["SALE_VIEW", "SALE_CREATE", "SALE_LINE_CREATE", "SALE_COMPLETE"].every((permission) => permissions.includes(permission)) ? [{ href: `/espace/entreprises/${businessId}/caisse`, label: t("navigation", "pos"), icon: ShoppingCart }] : []),
-    ...(permissions.some((permission) => permission.startsWith("CUSTOMER_") || permission.startsWith("SUPPLIER_")) ? [{ href: `/espace/entreprises/${businessId}/partenaires`, label: t("navigation", "partners"), icon: Handshake }] : []),
-    ...(permissions.some((permission) => ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_UPDATE", "RECEIVABLE_PAYMENT_VIEW", "RECEIVABLE_PAYMENT_CREATE", "INVOICE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_VIEW", "SUPPLIER_PAYMENT_CREATE", "SUPPLIER_PAYMENT_REVERSE"].includes(permission)) ? [{ href: `/espace/entreprises/${businessId}/finance`, label: t("navigation", "finance"), icon: WalletCards }] : []),
-    ...(permissions.some((permission) => permission.startsWith("MEMBER_") || permission.startsWith("INVITATION_") || permission === "BUSINESS_UPDATE") ? [{ href: `/espace/entreprises/${businessId}/parametres`, label: t("navigation", "businessSettings"), icon: Settings }] : []),
-  ] : []);
+  ]);
   return <ShellFrame mobileSection="ESPACE ENTREPRISE" navigation={navigation} title={businessState?.business?.name ?? "Espace entreprise"}>{children}</ShellFrame>;
 }

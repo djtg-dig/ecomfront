@@ -1,60 +1,29 @@
 @import "tailwindcss" source("../");
 
 :root {
-  /* Historical Djana Academy brand colors, observed in logo-djana.svg and UI. */
-  --carri-blue: #1d71b8;
-  --carri-navy: #023967;
-  --carri-orange: #f39200;
-  --carri-sky: #62b3e5;
-  --carri-ink: #04111f;
-  --carri-surface: #f4f8fc;
+  color-scheme: light;
 
-  /* Product-system colors proposed for Carri Business applications. */
-  --brand: var(--carri-blue);
-  --brand-hover: #155b96;
-  --brand-secondary: var(--carri-navy);
-  --accent: var(--carri-orange);
-  --surface: var(--carri-surface);
+  /* Design system blanc et bleu : le thème reste explicitement clair. */
+  --brand: #2563eb;
+  --brand-hover: #1d4ed8;
+  --brand-secondary: #0f172a;
+  --accent: #2563eb;
+  --surface: #f8fafc;
   --surface-raised: #ffffff;
-  --surface-muted: #edf3f8;
-  --ink: var(--carri-ink);
-  --muted: #4b5d70;
-  --line: #c8d7e6;
-  --focus-ring: var(--carri-blue);
-  --control-disabled: #dbe5ee;
+  --surface-muted: #eff6ff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --focus-ring: #2563eb;
+  --control-disabled: #e2e8f0;
   --success: #087f5b;
   --error: #b42318;
   --warning: #9a6700;
-  --info: var(--carri-blue);
-  --shadow-sm: 0 1px 2px rgb(2 57 103 / 0.06), 0 1px 3px rgb(2 57 103 / 0.05);
-  --shadow-md: 0 12px 28px rgb(2 57 103 / 0.10);
+  --info: #2563eb;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.03);
+  --shadow-md: 0 8px 20px rgb(15 23 42 / 0.06);
   --background: var(--surface);
   --foreground: var(--ink);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --brand: #75bdf0;
-    --brand-hover: #a6d6f7;
-    --brand-secondary: #d7edff;
-    --accent: #ffb54d;
-    --surface: #0b1622;
-    --surface-raised: #122131;
-    --surface-muted: #182c40;
-    --ink: #edf6ff;
-    --muted: #a8bdcf;
-    --line: #294259;
-    --focus-ring: #8dd0ff;
-    --control-disabled: #263b4e;
-    --success: #42d39b;
-    --error: #ff8f87;
-    --warning: #ffd06a;
-    --info: #75bdf0;
-    --background: var(--surface);
-    --foreground: var(--ink);
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / .24);
-    --shadow-md: 0 16px 36px rgb(0 0 0 / .30);
-  }
 }
 
 @theme inline {
@@ -108,20 +77,20 @@ body {
   top: 0;
   z-index: 40;
   border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
-  backdrop-filter: blur(14px);
+  min-height: 4rem;
+  background: var(--surface-raised);
 }
 
 .site-footer {
-  border-top: 1px solid var(--carri-navy);
-  background: var(--brand);
-  color: var(--surface-raised);
+  border-top: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--muted);
 }
 
 .site-container {
   box-sizing: border-box;
   width: 100%;
-  max-width: 1800px;
+  max-width: 1440px;
   margin-inline: auto;
   padding-inline: 1rem;
 }
@@ -131,11 +100,7 @@ body {
 }
 
 @media (min-width: 1024px) {
-  .site-container { padding-inline: 2.5rem; }
-}
-
-@media (min-width: 1536px) {
-  .site-container { padding-inline: 3rem; }
+  .site-container { padding-inline: 2rem; }
 }
 
 .brand-lockup {
@@ -143,8 +108,50 @@ body {
 }
 
 .brand-mark {
-  background: var(--brand-secondary);
-  color: var(--surface-raised);
+  background: var(--surface-muted);
+  color: var(--brand);
+}
+
+.private-sidebar {
+  width: 17rem;
+  padding: .75rem;
+}
+
+.private-navigation-link {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: .75rem;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline: .75rem;
+  border-radius: .625rem;
+  color: var(--muted);
+  font-size: .875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.private-navigation-link:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.private-navigation-link--active {
+  background: var(--surface-muted);
+  color: var(--brand);
+}
+
+.private-navigation-link--secondary {
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.private-navigation-link--secondary:hover {
+  border-color: #bfdbfe;
+  background: var(--surface-muted);
+  color: var(--brand);
 }
 
 .nav-link {
@@ -158,13 +165,13 @@ body {
 }
 
 .footer-link {
-  color: var(--surface-raised);
+  color: var(--muted);
   text-underline-offset: 4px;
 }
 
 .footer-link:hover {
-  color: var(--surface-raised);
-  opacity: 0.8;
+  color: var(--brand);
+  opacity: 1;
   text-decoration: underline;
 }
 
@@ -226,21 +233,27 @@ body {
 }
 
 .button-secondary {
-  background: var(--brand-secondary);
-  color: var(--surface-raised);
+  border-color: var(--line);
+  background: var(--surface-raised);
+  color: var(--ink);
 }
 
 .button-secondary:hover:not(:disabled) {
-  background: var(--brand);
-}
-
-.button-outline {
-  border-color: var(--brand);
+  border-color: #bfdbfe;
+  background: var(--surface-muted);
   color: var(--brand);
 }
 
+.button-outline {
+  border-color: var(--line);
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
 .button-outline:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  border-color: #bfdbfe;
+  background: var(--surface-muted);
+  color: var(--brand);
 }
 
 .button:disabled {
