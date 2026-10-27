@@ -30,4 +30,17 @@ describe("gestionnaire d’achats", () => {
     expect(source).toContain("[canViewPurchases, loadDetail, loadList, purchaseId]");
     expect(source).not.toContain("canCreatePurchase, canViewPurchases, canViewSuppliers, loadDetail, loadList");
   });
+  it("présente les achats en tableau desktop et en cartes mobiles sans modifier les contrats", () => {
+    expect(source).toContain("function PurchaseListView");
+    expect(source).toContain('hidden overflow-x-auto md:block');
+    expect(source).toContain('grid gap-3 md:hidden');
+    expect(source).toContain("Référence ou fournisseur");
+    expect(source).toContain("Tous les statuts");
+  });
+  it("organise le détail autour des lignes, du récapitulatif et des transitions autorisées", () => {
+    expect(source).toContain("function PurchaseDetailView");
+    expect(source).toContain("Produits achetés");
+    expect(source).toContain("Récapitulatif financier");
+    expect(source).toContain('onAction("receive")');
+  });
 });
