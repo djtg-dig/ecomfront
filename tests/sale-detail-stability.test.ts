@@ -11,7 +11,8 @@ describe("stabilité de la fiche vente", () => {
     expect(source).toContain("const loadList = useCallback");
     expect(source).toContain("[businessId, locale, router, saleId]");
     expect(source).toContain("[canViewCommercial, loadDetail, loadList, saleId]");
-    expect(source).toContain("Promise.resolve().then(() => { if (saleId) return loadDetail(); void loadList(); })");
+    expect(source).toContain("const isCurrent = () => requestVersion.current === version;");
+    expect(source).toContain("return saleId ? loadDetail(isCurrent) : loadList(isCurrent);");
     expect(source).not.toContain("[canViewCommercial, loadDetail, permissions, saleId]");
   });
 
