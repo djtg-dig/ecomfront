@@ -62,4 +62,21 @@ describe("caisse POS", () => {
     expect(source).toContain('entry.name');
     expect(source).toContain('value={entry.category}');
   });
+
+  it("présente les contrôles POS accessibles sans changer le contrat métier", () => {
+    for (const icon of ["Search", "ShoppingCart", "Plus", "Minus", "Trash2", "Package", "CreditCard", "CheckCircle2"]) expect(source).toContain(icon);
+    for (const fragment of [
+      'lg:grid-cols-[minmax(0,1.85fr)_minmax(20rem,1fr)]',
+      "lg:sticky lg:top-20",
+      "available_quantity",
+      "cartCount",
+      "setQuantity(keyOf(line)",
+      'aria-label={`${t("pos", "remove")} ${line.name}`}',
+      'aria-label={`${t("pos", "add")} ${product.name}`}',
+      "activeMethods.map",
+      'bg-[var(--surface-muted)]',
+    ]) expect(source).toContain(fragment);
+    expect(source).toContain('const existing = current.find((line) => keyOf(line) === itemKey)');
+    expect(source).toContain('setCart([]); setSynced([]); setMethod("")');
+  });
 });
