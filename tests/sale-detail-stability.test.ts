@@ -31,4 +31,12 @@ describe("stabilité de la fiche vente", () => {
     expect(modal).not.toContain("scrollIntoView");
     expect(modal).not.toContain("scrollTo(");
   });
+
+  it("conserve l’édition de brouillon dans une interface de formulaire structurée", () => {
+    const editor = readFileSync(resolve(process.cwd(), "src/components/sales/invoice-draft-editor.tsx"), "utf8");
+    expect(editor).toContain('nextInvoice.operation_type !== "INVOICE" || nextInvoice.status !== "DRAFT"');
+    expect(editor).toContain("Informations de facture");
+    expect(editor).toContain("defaultValue={invoice.customer_name_snapshot}");
+    expect(editor).toContain('method: "PATCH"');
+  });
 });
