@@ -79,12 +79,14 @@ export function BusinessCreate() {
   return <main><Link className="nav-link text-sm" href="/espace/entreprises">← Mes entreprises</Link><h1 className="mt-3 text-3xl font-semibold text-[var(--brand-secondary)]">Créer une entreprise</h1><form action={create} className="content-panel mt-6 grid max-w-xl gap-6 p-6"><label>Nom<input className="mt-1 w-full rounded-md border px-3 py-2" name="name" required /></label><label>Devise principale<select className="mt-1 w-full rounded-md border px-3 py-2" defaultValue="CDF" name="currency"><option value="CDF">CDF</option><option value="USD">USD</option></select></label><BusinessCommercialFields errors={commercialErrors} onChange={setCommercial} value={commercial} />{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "Création…" : "Créer l’entreprise"}</button></form></main>;
 }
 
-const moduleLinks = [
+const moduleLinks: { label: string; path: string; permissions: string[]; requiresAll?: boolean }[] = [
   { label: "Produits", path: "produits", permissions: ["PRODUCT_VIEW", "PRODUCT_CREATE", "PRODUCT_UPDATE", "PRODUCT_DELETE", "PRODUCT_DEACTIVATE", "PRODUCT_VARIANT_VIEW", "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE"] },
   { label: "Stocks", path: "stocks", permissions: ["INVENTORY_VIEW", "INVENTORY_INITIALIZE", "INVENTORY_IN", "INVENTORY_OUT", "INVENTORY_ADJUST", "INVENTORY_MOVEMENT_VIEW"] },
   { label: "Achats", path: "achats", permissions: ["PURCHASE_VIEW", "PURCHASE_CREATE", "PURCHASE_UPDATE", "PURCHASE_CONFIRM", "PURCHASE_RECEIVE", "PURCHASE_CANCEL", "PURCHASE_LINE_VIEW", "PURCHASE_LINE_CREATE"] },
   { label: "Ventes", path: "ventes", permissions: ["SALE_VIEW", "SALE_CREATE", "SALE_UPDATE", "SALE_COMPLETE", "SALE_CANCEL", "SALE_LINE_VIEW", "SALE_LINE_CREATE", "SALE_RETURN", "SALE_RETURN_VIEW"] },
-  { label: "Finance", path: "finance", permissions: ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_CREATE"] },
+  { label: "Caisse", path: "caisse", permissions: ["SALE_VIEW", "SALE_CREATE", "SALE_LINE_CREATE", "SALE_COMPLETE"], requiresAll: true },
+  { label: "Factures", path: "factures", permissions: ["INVOICE_VIEW", "INVOICE_CREATE", "INVOICE_UPDATE", "INVOICE_ISSUE", "INVOICE_CANCEL", "INVOICE_LINE_VIEW", "INVOICE_LINE_CREATE"] },
+  { label: "Finance", path: "finance", permissions: ["FINANCIAL_SUMMARY_VIEW", "FINANCIAL_MOVEMENT_VIEW", "RECEIVABLE_VIEW", "RECEIVABLE_UPDATE", "RECEIVABLE_PAYMENT_CREATE", "INVOICE_PAYMENT_CREATE", "SUPPLIER_PAYMENT_CREATE"] },
   { label: "Paramètres entreprise", path: "parametres", permissions: ["BUSINESS_UPDATE", "MEMBER_VIEW", "MEMBER_PERMISSION_VIEW", "INVITATION_VIEW", "INVITATION_CREATE", "MEMBER_UPDATE"] },
 ];
 
@@ -94,6 +96,6 @@ export function BusinessEditor({ businessId }: { businessId: string }) {
   const business = businessState?.business ?? null;
   const error = businessState?.error ?? null;
 
-  const links = permissions ? moduleLinks.filter((link) => link.permissions.some((permission) => permissions.includes(permission))) : [];
+  const links = permissions ? moduleLinks.filter((link) => link.requiresAll ? link.permissions.every((permission) => permissions.includes(permission)) : link.permissions.some((permission) => permissions.includes(permission))) : [];
   return <main><Link className="nav-link text-sm" href="/espace">← Retour à mon espace</Link><p className="eyebrow mt-4">ESPACE ENTREPRISE</p><h1 className="mt-2 text-2xl font-semibold text-[var(--brand-secondary)] sm:text-3xl">{business ? business.name : "Tableau de bord entreprise"}</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-4 sm:p-6"><h2 className="font-semibold">Modules</h2>{permissions === null ? <p className="mt-4 text-sm text-[var(--muted)]">Chargement de vos accès…</p> : links.length ? <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{links.map((link) => <Link className="button button-outline w-full" href={`/espace/entreprises/${businessId}/${link.path}`} key={link.path}>{link.label}</Link>)}</div> : <p className="mt-4 text-sm text-[var(--muted)]">Aucun module n’est accessible avec vos permissions actuelles.</p>}</section></main>;
 }
