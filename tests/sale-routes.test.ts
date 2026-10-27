@@ -6,7 +6,7 @@ vi.mock("@/lib/api/backend-client", async (importOriginal) => { const actual = a
 import { POST as action } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/[action]/route";
 import { GET as lines, POST as createLine } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/lines/route";
 import { PATCH as updateLine, DELETE as deleteLine } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/lines/[lineId]/route";
-import { GET as detail } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/route";
+import { GET as detail, PATCH as updateSale } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/route";
 import { GET as sales, POST as createSale } from "@/app/api/private/businesses/[businessId]/sales/route";
 import { GET as customers, POST as createCustomer } from "@/app/api/private/businesses/[businessId]/customers/route";
 import { BackendApiError, BackendNetworkError } from "@/lib/api/backend-client";
@@ -41,6 +41,11 @@ describe("routes BFF ventes", () => {
     expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/sales/${saleId}/lines/SL1/`, expect.objectContaining({ method: "PATCH", json: { quantity: "3", unit_price: "10" } }));
     mocks.request.mockResolvedValueOnce(undefined);
     expect((await deleteLine(mutation(`/api/private/businesses/${businessId}/sales/${saleId}/lines/SL1`, { method: "DELETE" }), lineContext)).status).toBe(204);
+  });
+  it("relaie la modification d’un brouillon avec la protection CSRF", async () => {
+    mocks.request.mockResolvedValueOnce({ public_id: saleId, status: "DRAFT", notes: "mise à jour" });
+    expect((await updateSale(mutation(`/api/private/businesses/${businessId}/sales/${saleId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ reference: "FAC-1", notes: "mise à jour" }) }), saleContext)).status).toBe(200);
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/sales/${saleId}/`, expect.objectContaining({ method: "PATCH", json: { reference: "FAC-1", notes: "mise à jour" } }));
   });
   it("protège la session absente et les ventes hors périmètre", async () => {
     const absent = await detail(new Request(`${frontend}/api/private/businesses/${businessId}/sales/${saleId}`), saleContext); expect(absent.status).toBe(401); expect(absent.headers.getSetCookie().join("\n")).toContain("Max-Age=0");

@@ -1,4 +1,8 @@
 import { authenticatedBackendRequest, readPrivateSession } from "@/lib/auth/private-session";
 import { invalidIdentifier, privateFailure, privateJson, validPrivateIdentifier } from "@/lib/api/private-route";
+import { NextResponse } from "next/server";
+import { isSameOriginMutation } from "@/lib/auth/security";
+import { getServerConfig } from "@/lib/config/server";
 type Context = { params: Promise<{ businessId: string; saleId: string }> };
 export async function GET(request: Request, context: Context) { try { const { businessId, saleId } = await context.params; if (!validPrivateIdentifier(businessId) || !validPrivateIdentifier(saleId)) return invalidIdentifier("Identifiant d’entreprise ou vente invalide."); const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/sales/${saleId}/`, readPrivateSession(request)); return privateJson(result, { sale: result.data }); } catch (error) { return privateFailure(error); } }
+export async function PATCH(request: Request, context: Context) { try { if (!isSameOriginMutation(request, getServerConfig())) return NextResponse.json({ code: "csrf_rejected", detail: "Action non autorisée." }, { status: 403 }); const { businessId, saleId } = await context.params; if (!validPrivateIdentifier(businessId) || !validPrivateIdentifier(saleId)) return invalidIdentifier("Identifiant d’entreprise ou vente invalide."); const result = await authenticatedBackendRequest<unknown>(`/api/v1/businesses/${businessId}/sales/${saleId}/`, readPrivateSession(request), { method: "PATCH", json: await request.json() }); return privateJson(result, { sale: result.data }); } catch (error) { return privateFailure(error); } }
