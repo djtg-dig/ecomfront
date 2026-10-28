@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useEffect, useMemo, useState, type FormEvent } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { matchesCurrency, type Currency } from "@/lib/money/currencies";
@@ -21,7 +21,7 @@ export function CurrencySettings({ businessId }: { businessId: string }) {
   const choices = useMemo(() => (registry ?? []).filter((currency) => matchesCurrency(currency, query)), [registry, query]);
   const accepted = useMemo(() => entries.filter((entry) => entry.is_enabled).map((entry) => entry.currency), [entries]);
   const primary = entries.find((entry) => entry.is_primary)?.currency;
-  const load = async () => {
+  const load = useCallback(async () => {
     setError(null);
     try {
       const [registryResponse, entriesResponse, ratesResponse] = await Promise.all([fetch("/api/private/currencies", { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/currencies`, { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/exchange-rates`, { credentials: "same-origin" })]);
@@ -35,8 +35,8 @@ export function CurrencySettings({ businessId }: { businessId: string }) {
     } catch {
       setError("La configuration monétaire est temporairement indisponible.");
     }
-  };
-  useEffect(() => { if (allowed) startTransition(() => { void load(); }); }, [allowed, businessId, load]);
+  }, [businessId, router]);
+  useEffect(() => { if (allowed) startTransition(() => { void load(); }); }, [allowed, load]);
   async function addCurrency(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
