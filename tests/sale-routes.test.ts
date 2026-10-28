@@ -53,4 +53,12 @@ describe("routes BFF ventes", () => {
   });
   it.each([[400, 400, "invalid_request"], [403, 403, "access_forbidden"], [404, 403, "resource_not_allowed"], [409, 409, "conflict"]])("normalise l’erreur Django %i", async (backendStatus, expectedStatus, code) => { mocks.request.mockRejectedValueOnce(new BackendApiError(backendStatus, "backend", "Refus backend")); const response = await detail(request(`/api/private/businesses/${businessId}/sales/${saleId}`), saleContext); expect(response.status).toBe(expectedStatus); expect((await response.json()).code).toBe(code); });
   it("renouvelle une seule fois sur 401 et transforme le réseau en 503", async () => { mocks.request.mockRejectedValueOnce(new BackendApiError(401, "invalid_token", "Expired")).mockResolvedValueOnce({ access: jwt(Math.floor(Date.now() / 1000) + 900), refresh: jwt(Math.floor(Date.now() / 1000) + 86_400) }).mockResolvedValueOnce({ public_id: saleId }); expect((await detail(request(`/api/private/businesses/${businessId}/sales/${saleId}`), saleContext)).status).toBe(200); expect(mocks.request).toHaveBeenCalledTimes(3); mocks.request.mockRejectedValueOnce(new BackendNetworkError()); expect((await lines(request(`/api/private/businesses/${businessId}/sales/${saleId}/lines`), saleContext)).status).toBe(503); });
+  it("préserve les champs structurés de rupture de stock pour que la caisse cible la ligne concernée", async () => {
+    mocks.request.mockRejectedValueOnce(new BackendApiError(400, "insufficient_stock", "Stock insuffisant.", {
+      target_public_id: ["PR1"], available_quantity: ["3.000"], requested_quantity: ["4.000"],
+    }));
+    const response = await action(mutation(`/api/private/businesses/${businessId}/sales/${saleId}/complete`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ amount_paid: "10", payment_method: "CASH" }) }), { params: Promise.resolve({ businessId, saleId, action: "complete" }) });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "invalid_request", errors: { target_public_id: ["PR1"], available_quantity: ["3.000"] } });
+  });
 });

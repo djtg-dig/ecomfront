@@ -11,6 +11,7 @@ vi.mock("@/lib/api/backend-client", async (importOriginal) => {
 import { GET as search } from "@/app/api/private/businesses/[businessId]/products/pos/search/route";
 import { BackendApiError } from "@/lib/api/backend-client";
 import { encryptSession, type EcommerceSession } from "@/lib/auth/session";
+import { message } from "@/lib/i18n/messages";
 
 const frontend = "http://localhost:3001";
 const businessId = "BUS123";
@@ -55,7 +56,7 @@ describe("caisse POS", () => {
       'payment_method: method',
       'setPhase("uncertain")',
       'setSynced((current)',
-      'setCart([]); setSynced([]); setMethod("")',
+      'setCart([]); setSynced({}); setMethod("")',
       'window.setTimeout',
     ]) expect(source).toContain(fragment);
     expect(source).toContain('line.type === "PRODUCT" ? "product" : "variant"');
@@ -69,14 +70,30 @@ describe("caisse POS", () => {
       'lg:grid-cols-[minmax(0,1.85fr)_minmax(20rem,1fr)]',
       "lg:sticky lg:top-20",
       "available_quantity",
+      "allows_decimal_quantity",
+      "maximumUnits",
+      "wholeQuantityRequired",
+      "stockInsufficient",
       "cartCount",
-      "setQuantity(keyOf(line)",
+      "setQuantity(line",
       'aria-label={`${t("pos", "remove")} ${line.name}`}',
       'aria-label={`${t("pos", "add")} ${product.name}`}',
       "activeMethods.map",
       'bg-[var(--surface-muted)]',
     ]) expect(source).toContain(fragment);
     expect(source).toContain('const existing = current.find((line) => keyOf(line) === itemKey)');
-    expect(source).toContain('setCart([]); setSynced([]); setMethod("")');
+    expect(source).toContain('setCart([]); setSynced({}); setMethod("")');
+  });
+
+  it("applique les règles d’unité et des erreurs compréhensibles en français et en anglais", () => {
+    expect(source).toContain('units % quantityScale !== 0');
+    expect(source).toContain('step={line.allows_decimal_quantity ? "0.001" : "1"}');
+    expect(source).toContain('failure.lineKey = lineKey');
+    expect(source).toContain('failure.errors?.target_public_id');
+    expect(source).not.toContain('setError(reason instanceof Error ? reason.message');
+    expect(message("fr", "pos", "stockInsufficient")).toContain("Stock insuffisant");
+    expect(message("en", "pos", "stockInsufficient")).toContain("Insufficient stock");
+    expect(message("fr", "pos", "wholeQuantityRequired")).toContain("entière");
+    expect(message("en", "pos", "wholeQuantityRequired")).toContain("whole");
   });
 });
