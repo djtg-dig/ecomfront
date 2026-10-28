@@ -31,4 +31,11 @@ describe("répertoire des partenaires commerciaux", () => {
     expect(source).toContain("profile?.financial_summary ?");
     expect(source).toContain("overflow-x-auto");
   });
+
+  it("propose des onglets, une recherche réinitialisable et des cartes mobiles", () => {
+    expect(source).toContain('aria-label="Types de partenaires"');
+    expect(source).toContain("Réinitialiser les filtres");
+    expect(source).toContain("md:hidden");
+    expect(source).toContain("Pagination des partenaires");
+  });
 });
