@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { HomeAuthenticationAction } from "@/components/auth/home-authentication-action";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { MarketplaceHome } from "@/components/public/marketplace";
 
 export function HomeContent() {
-  const { t } = useLocale();
-  return <section className="site-container grid flex-1 content-center gap-10 py-16 lg:grid-cols-[1.25fr_0.75fr]"><div className="max-w-2xl"><p className="eyebrow mb-4">{t("home", "eyebrow")}</p><h1 className="text-4xl font-semibold leading-tight text-[var(--brand-secondary)] sm:text-5xl">{t("home", "title")}</h1><p className="mt-6 max-w-xl text-lg leading-8 text-[var(--muted)]">{t("home", "description")}</p><Link className="button button-outline mt-8" href="/fonctionnalites">{t("home", "explore")}</Link><HomeAuthenticationAction /></div><aside className="content-panel accent-rule border-l-4 p-6 sm:p-8"><h2 className="text-sm font-semibold text-[var(--brand-secondary)]">{t("home", "accessTitle")}</h2><p className="mt-3 text-sm leading-6 text-[var(--muted)]">{t("home", "accessDescription")}</p></aside></section>;
+  return <MarketplaceHome />;
 }
 
 export function InformationalPage({ page }: Readonly<{ page: "contact" | "pricing" | "terms" | "privacy" | "cookies" }>) {

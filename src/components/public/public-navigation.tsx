@@ -9,6 +9,7 @@ export function PublicNavigation({ isAuthenticated }: Readonly<{ isAuthenticated
   const { t } = useLocale();
   const navigation = [
     { href: "/", label: t("navigation", "home") },
+    { href: "/recherche", label: "Marketplace" },
     { href: "/fonctionnalites", label: t("navigation", "features") },
     { href: "/tarifs", label: t("navigation", "pricing") },
     { href: "/contact", label: t("navigation", "contact") },
