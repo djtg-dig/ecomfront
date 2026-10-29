@@ -96,4 +96,21 @@ describe("caisse POS", () => {
     expect(message("fr", "pos", "wholeQuantityRequired")).toContain("entière");
     expect(message("en", "pos", "wholeQuantityRequired")).toContain("whole");
   });
+
+  it("déduplique les moyens de paiement simultanés sans mettre le stock en cache", () => {
+    expect(source).toContain("paymentMethodsInFlight");
+    expect(source).toContain("const existing = paymentMethodsInFlight.get(businessId)");
+    expect(source).toContain("paymentMethodsInFlight.delete(businessId)");
+    expect(source).toContain("Strict Mode may replay this effect");
+    expect(source).toContain("window.setTimeout");
+    expect(source).toContain("controller.abort()");
+  });
+
+  it("distingue une indisponibilité des moyens de paiement d’une configuration vide", () => {
+    expect(source).toContain('setPaymentMethodsState("error")');
+    expect(source).toContain('paymentMethodsState === "ready" && !activeMethods.length');
+    expect(source).toContain('setPaymentMethodsReload((value) => value + 1)');
+    expect(message("fr", "pos", "paymentMethodsFailed")).toContain("indisponibles");
+    expect(message("en", "pos", "paymentMethodsFailed")).toContain("unavailable");
+  });
 });

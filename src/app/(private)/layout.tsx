@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 
 export default function PrivateLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <PrivateShell>
-      <PrivateSessionGuard>{children}</PrivateSessionGuard>
-    </PrivateShell>
+    <PrivateSessionGuard>
+      <PrivateShell>{children}</PrivateShell>
+    </PrivateSessionGuard>
   );
 }
