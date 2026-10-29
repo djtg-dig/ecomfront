@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-export function Modal({ title, children, onClose, confirmOnClose = true, size = "default" }: { title: string; children: ReactNode; onClose: () => void; confirmOnClose?: boolean; size?: "default" | "large" }) {
+export function Modal({ title, children, onClose, confirmOnClose = true, size = "default", footer }: { title: string; children: ReactNode; onClose: () => void; confirmOnClose?: boolean; size?: "small" | "default" | "large"; footer?: ReactNode }) {
   const { t } = useLocale();
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -44,5 +44,6 @@ export function Modal({ title, children, onClose, confirmOnClose = true, size = 
     return () => document.removeEventListener("keydown", keydown);
   }, [requestClose]);
 
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-[var(--carri-ink)]/60 p-2 sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}><section aria-labelledby="modal-title" aria-modal="true" className={`flex max-h-[calc(100vh-1rem)] max-h-[calc(100dvh-1rem)] w-full flex-col rounded-xl bg-[var(--surface-raised)] p-4 shadow-2xl sm:max-h-[calc(100vh-2rem)] sm:max-h-[calc(100dvh-2rem)] sm:p-5 ${size === "large" ? "max-w-4xl" : "max-w-2xl"}`} onChangeCapture={() => setDirty(true)} ref={dialogRef} role="dialog" tabIndex={-1}><header className="mb-4 flex shrink-0 items-center justify-between gap-4"><h2 className="text-xl font-semibold" id="modal-title">{title}</h2><button aria-label={t("feedback", "close")} className="button button-outline" onClick={requestClose} ref={closeRef} type="button">{t("feedback", "close")}</button></header><div className="min-h-0 flex-1 overflow-y-auto pr-1">{children}</div><footer className="mt-4 shrink-0 border-t border-[var(--line)] pt-3"><button className="button button-outline" onClick={requestClose} type="button">{t("feedback", "cancel")}</button></footer></section></div>;
+  const width = size === "large" ? "max-w-4xl" : size === "small" ? "max-w-md" : "max-w-2xl";
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-[var(--carri-ink)]/60 p-2 sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}><section aria-labelledby="modal-title" aria-modal="true" className={`flex max-h-[calc(100vh-1rem)] max-h-[calc(100dvh-1rem)] w-full flex-col rounded-xl bg-[var(--surface-raised)] p-4 shadow-2xl sm:max-h-[calc(100vh-2rem)] sm:max-h-[calc(100dvh-2rem)] sm:p-5 ${width}`} onChangeCapture={() => setDirty(true)} ref={dialogRef} role="dialog" tabIndex={-1}><header className="mb-4 flex shrink-0 items-center justify-between gap-4"><h2 className="text-xl font-semibold" id="modal-title">{title}</h2><button aria-label={t("feedback", "close")} className="button button-outline" onClick={requestClose} ref={closeRef} type="button">{t("feedback", "close")}</button></header><div className="min-h-0 flex-1 overflow-y-auto pr-1">{children}</div>{footer === undefined ? <footer className="mt-4 shrink-0 border-t border-[var(--line)] pt-3"><button className="button button-outline" onClick={requestClose} type="button">{t("feedback", "cancel")}</button></footer> : footer}</section></div>;
 }

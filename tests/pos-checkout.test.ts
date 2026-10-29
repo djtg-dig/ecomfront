@@ -113,4 +113,21 @@ describe("caisse POS", () => {
     expect(message("fr", "pos", "paymentMethodsFailed")).toContain("indisponibles");
     expect(message("en", "pos", "paymentMethodsFailed")).toContain("unavailable");
   });
+
+  it("affiche la confirmation uniquement après la finalisation confirmée et conserve la vente jusqu’à fermeture", () => {
+    expect(source).toContain('finish((await response.json() as { sale: Sale }).sale)');
+    expect(source).toContain('phase === "complete" && sale ? <Modal');
+    expect(source).toContain('confirmOnClose={false}');
+    expect(source).toContain('footer={null}');
+    expect(source).toContain('onClose={startNewSale}');
+    expect(source).toContain('href={`/espace/entreprises/${businessId}/ventes/${sale.public_id}`}');
+    expect(source).toContain('function startNewSale()');
+    expect(source).toContain('const completionInFlight = useRef(false)');
+    expect(source).toContain('completionInFlight.current = true');
+    expect(source).toContain('completionInFlight.current = false');
+    expect(source).toContain('disabled={!method || !activeMethods.length || paymentMethodsState !== "ready" || phase === "completing"}');
+    expect(source).not.toContain('if (phase === "complete" && sale) return <main>');
+    expect(message("fr", "pos", "successModalTitle")).toBe("Vente confirmée !");
+    expect(message("en", "pos", "successModalDescription")).toContain("successfully");
+  });
 });
