@@ -87,7 +87,8 @@ describe("caisse POS", () => {
 
   it("applique les règles d’unité et des erreurs compréhensibles en français et en anglais", () => {
     expect(source).toContain('units % quantityScale !== 0');
-    expect(source).toContain('step={line.allows_decimal_quantity ? "0.001" : "1"}');
+    expect(source).toContain('inputMode="decimal"');
+    expect(source).toContain('type="text" value={editableQuantity(line.quantity, line.allows_decimal_quantity, locale)}');
     expect(source).toContain('failure.lineKey = lineKey');
     expect(source).toContain('failure.errors?.target_public_id');
     expect(source).not.toContain('setError(reason instanceof Error ? reason.message');

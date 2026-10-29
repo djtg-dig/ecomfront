@@ -8,90 +8,487 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { Modal } from "@/components/ui/modal";
 import { operationPermission, type CommercialOperation } from "@/lib/sales/operation-permissions";
-import { formatQuantity } from "@/lib/quantities/format";
-
-type Customer = { public_id: string; name: string; phone: string; email: string; is_active: boolean };
+import { formatQuantity, formatQuantityWithUnit } from "@/lib/quantities/format";
+type Customer = {
+  public_id: string;
+  name: string;
+  phone: string;
+  email: string;
+  is_active: boolean;
+};
 type Operation = CommercialOperation;
-type Sale = { public_id: string; customer_name_snapshot: string; operation_type: Operation; invoice_number: string; status: "DRAFT" | "COMPLETED" | "CANCELLED"; currency: string; reference: string; due_date?: string | null; notes?: string; total: string; paid_amount: string; balance: string; payment_status: string; receivable: string | null };
-type Line = { public_id: string; item_name_snapshot: string; sku_snapshot: string; unit_symbol_snapshot: string; allows_decimal_quantity: boolean; quantity: string; unit_price: string; line_total: string };
-type InventoryItem = { public_id: string; product: string | null; variant: string | null; item_name: string; internal_reference: string; available_quantity: string };
-type PaymentMethod = { public_id: string; name: string; category: string; is_active: boolean };
-type ReceivablePayment = { public_id: string; amount: string; payment_method: string; paid_at: string };
-type SaleReturnLine = { public_id: string; sale_line: string; quantity: string; line_total: string };
-type SaleReturn = { public_id: string; status: "POSTED"; reason: string; returned_at: string; return_total: string; receivable_credit_amount: string; refund_amount: string; refund_payment_method: string | null; lines: SaleReturnLine[] };
-type SaleReturnsResponse = { count: number; next: string | null; previous: string | null; results: SaleReturn[] };
-const errorDetail = (response: Response, fallback: string) => response.json().then((value: { detail?: string }) => value.detail ?? fallback).catch(() => fallback);
-const money = (value: string, currency: string, locale: string) => new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: 2 }).format(Number(value));
-const operationLabel = (operation: Operation, locale: string) => operation === "INVOICE" ? (locale === "fr" ? "Facture" : "Invoice") : (locale === "fr" ? "Vente directe" : "Direct sale");
-const statusLabel = (status: Sale["status"], locale: string) => ({ DRAFT: locale === "fr" ? "Brouillon" : "Draft", COMPLETED: locale === "fr" ? "Finalisée" : "Completed", CANCELLED: locale === "fr" ? "Annulée" : "Cancelled" })[status];
-
-function StatusBadge({ status, locale }: { status: Sale["status"]; locale: string }) {
+type Sale = {
+  public_id: string;
+  customer_name_snapshot: string;
+  operation_type: Operation;
+  invoice_number: string;
+  status: "DRAFT" | "COMPLETED" | "CANCELLED";
+  currency: string;
+  reference: string;
+  due_date?: string | null;
+  notes?: string;
+  total: string;
+  paid_amount: string;
+  balance: string;
+  payment_status: string;
+  receivable: string | null;
+};
+type Line = {
+  public_id: string;
+  item_name_snapshot: string;
+  sku_snapshot: string;
+  unit_symbol_snapshot: string;
+  allows_decimal_quantity: boolean;
+  quantity: string;
+  unit_price: string;
+  line_total: string;
+};
+type InventoryItem = {
+  public_id: string;
+  product: string | null;
+  variant: string | null;
+  item_name: string;
+  internal_reference: string;
+  available_quantity: string;
+  unit_symbol: string;
+  allows_decimal_quantity: boolean;
+};
+type PaymentMethod = {
+  public_id: string;
+  name: string;
+  category: string;
+  is_active: boolean;
+};
+type ReceivablePayment = {
+  public_id: string;
+  amount: string;
+  payment_method: string;
+  paid_at: string;
+};
+type SaleReturnLine = {
+  public_id: string;
+  sale_line: string;
+  quantity: string;
+  line_total: string;
+};
+type SaleReturn = {
+  public_id: string;
+  status: "POSTED";
+  reason: string;
+  returned_at: string;
+  return_total: string;
+  receivable_credit_amount: string;
+  refund_amount: string;
+  refund_payment_method: string | null;
+  lines: SaleReturnLine[];
+};
+type SaleReturnsResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: SaleReturn[];
+};
+const errorDetail = (response: Response, fallback: string) => response.json().then((value: {
+  detail?: string;
+}) => value.detail ?? fallback).catch(() => fallback);
+const money = (value: string, currency: string, locale: string) => new Intl.NumberFormat(locale, {
+  style: "currency",
+  currency,
+  maximumFractionDigits: 2
+}).format(Number(value));
+const operationLabel = (operation: Operation, locale: string) => operation === "INVOICE" ? locale === "fr" ? "Facture" : "Invoice" : locale === "fr" ? "Vente directe" : "Direct sale";
+const statusLabel = (status: Sale["status"], locale: string) => ({
+  DRAFT: locale === "fr" ? "Brouillon" : "Draft",
+  COMPLETED: locale === "fr" ? "Finalisée" : "Completed",
+  CANCELLED: locale === "fr" ? "Annulée" : "Cancelled"
+})[status];
+function StatusBadge({
+  status,
+  locale
+}: {
+  status: Sale["status"];
+  locale: string;
+}) {
   return <span className="status-badge status-info">{statusLabel(status, locale)}</span>;
 }
-
-type OperationEditorProps = { businessId: string; customers: Customer[] };
-
-function CustomerFields({ customers, customerNameRequired }: { customers: Customer[]; customerNameRequired: boolean }) {
-  const { locale } = useLocale();
-  return <><label>{locale === "fr" ? "Nom du client" : "Customer name"}<input className="mt-1 w-full rounded border p-2" maxLength={200} name="customer_name" required={customerNameRequired} /></label><label>{locale === "fr" ? "Client enregistré (facultatif)" : "Registered customer (optional)"}<select className="mt-1 w-full rounded border p-2" name="customer"><option value="">{locale === "fr" ? "Aucun — saisie libre" : "None — free entry"}</option>{customers.filter((customer) => customer.is_active).map((customer) => <option key={customer.public_id} value={customer.public_id}>{customer.name}</option>)}</select></label></>;
+type OperationEditorProps = {
+  businessId: string;
+  customers: Customer[];
+};
+function CustomerFields({
+  customers,
+  customerNameRequired
+}: {
+  customers: Customer[];
+  customerNameRequired: boolean;
+}) {
+  const {
+    locale
+  } = useLocale();
+  return <><label>{locale === "fr" ? "Nom du client" : "Customer name"}<input className="mt-1 w-full rounded border p-2" maxLength={200} name="customer_name" required={customerNameRequired} /></label><label>{locale === "fr" ? "Client enregistré (facultatif)" : "Registered customer (optional)"}<select className="mt-1 w-full rounded border p-2" name="customer"><option value="">{locale === "fr" ? "Aucun — saisie libre" : "None — free entry"}</option>{customers.filter(customer => customer.is_active).map(customer => <option key={customer.public_id} value={customer.public_id}>{customer.name}</option>)}</select></label></>;
 }
-
 async function createOperation(businessId: string, operationType: Operation, form: HTMLFormElement) {
   const data = new FormData(form);
-  return fetch(`/api/private/businesses/${businessId}/sales`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ operation_type: operationType, customer: data.get("customer") || null, customer_name_snapshot: data.get("customer_name")?.toString().trim(), ...(operationType === "INVOICE" ? { due_date: data.get("due_date") || null } : {}), reference: data.get("reference"), notes: data.get("notes") }) });
+  return fetch(`/api/private/businesses/${businessId}/sales`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json",
+      "x-csrf-protection": "1"
+    },
+    body: JSON.stringify({
+      operation_type: operationType,
+      customer: data.get("customer") || null,
+      customer_name_snapshot: data.get("customer_name")?.toString().trim(),
+      ...(operationType === "INVOICE" ? {
+        due_date: data.get("due_date") || null
+      } : {}),
+      reference: data.get("reference"),
+      notes: data.get("notes")
+    })
+  });
 }
-
-function DirectSaleEditor({ businessId, customers }: OperationEditorProps) {
-  const { locale } = useLocale(); const router = useRouter(); const [open, setOpen] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
-  async function submit(form: HTMLFormElement) { setSaving(true); setError(null); try { const response = await createOperation(businessId, "DIRECT_SALE", form); if (response.status === 401) return router.replace("/connexion?erreur=session_expired"); if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Création de la vente impossible." : "Unable to create direct sale.")); const sale = (await response.json() as { sale: Sale }).sale; router.push(`/espace/entreprises/${businessId}/ventes/${sale.public_id}`); } catch { setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable."); } finally { setSaving(false); } }
-  return <><button className="button button-primary" onClick={() => setOpen(true)} type="button">{locale === "fr" ? "Nouvelle vente directe" : "New direct sale"}</button>{open ? <Modal onClose={() => setOpen(false)} title={locale === "fr" ? "Créer une vente directe" : "Create direct sale"}><form className="grid gap-3 p-1" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<CustomerFields customerNameRequired={false} customers={customers} /><label>{locale === "fr" ? "Référence" : "Reference"}<input className="mt-1 w-full rounded border p-2" maxLength={120} name="reference" /></label><label>{locale === "fr" ? "Notes" : "Notes"}<textarea className="mt-1 w-full rounded border p-2" name="notes" /></label><button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "…" : (locale === "fr" ? "Créer la vente" : "Create sale")}</button></form></Modal> : null}</>;
+function DirectSaleEditor({
+  businessId,
+  customers
+}: OperationEditorProps) {
+  const {
+    locale
+  } = useLocale();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function submit(form: HTMLFormElement) {
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await createOperation(businessId, "DIRECT_SALE", form);
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Création de la vente impossible." : "Unable to create direct sale."));
+      const sale = ((await response.json()) as {
+        sale: Sale;
+      }).sale;
+      router.push(`/espace/entreprises/${businessId}/ventes/${sale.public_id}`);
+    } catch {
+      setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return <><button className="button button-primary" onClick={() => setOpen(true)} type="button">{locale === "fr" ? "Nouvelle vente directe" : "New direct sale"}</button>{open ? <Modal onClose={() => setOpen(false)} title={locale === "fr" ? "Créer une vente directe" : "Create direct sale"}><form className="grid gap-3 p-1" onSubmit={event => {
+        event.preventDefault();
+        void submit(event.currentTarget);
+      }}>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<CustomerFields customerNameRequired={false} customers={customers} /><label>{locale === "fr" ? "Référence" : "Reference"}<input className="mt-1 w-full rounded border p-2" maxLength={120} name="reference" /></label><label>{locale === "fr" ? "Notes" : "Notes"}<textarea className="mt-1 w-full rounded border p-2" name="notes" /></label><button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "…" : locale === "fr" ? "Créer la vente" : "Create sale"}</button></form></Modal> : null}</>;
 }
-
-function InvoiceEditor({ businessId, customers }: OperationEditorProps) {
-  const { locale } = useLocale(); const router = useRouter(); const [open, setOpen] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
-  async function submit(form: HTMLFormElement) { setSaving(true); setError(null); try { const response = await createOperation(businessId, "INVOICE", form); if (response.status === 401) return router.replace("/connexion?erreur=session_expired"); if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Création de la facture impossible." : "Unable to create invoice.")); const sale = (await response.json() as { sale: Sale }).sale; router.push(`/espace/entreprises/${businessId}/factures/${sale.public_id}`); } catch { setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable."); } finally { setSaving(false); } }
-  return <><button className="button button-primary" onClick={() => setOpen(true)} type="button">{locale === "fr" ? "Nouvelle facture" : "New invoice"}</button>{open ? <Modal onClose={() => setOpen(false)} title={locale === "fr" ? "Créer une facture" : "Create invoice"}><form className="grid gap-3 p-1" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<CustomerFields customerNameRequired customers={customers} /><label>{locale === "fr" ? "Échéance (facultative)" : "Due date (optional)"}<input className="mt-1 w-full rounded border p-2" name="due_date" type="date" /></label><label>{locale === "fr" ? "Référence" : "Reference"}<input className="mt-1 w-full rounded border p-2" maxLength={120} name="reference" /></label><label>{locale === "fr" ? "Notes" : "Notes"}<textarea className="mt-1 w-full rounded border p-2" name="notes" /></label><button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "…" : (locale === "fr" ? "Créer la facture" : "Create invoice")}</button></form></Modal> : null}</>;
+function InvoiceEditor({
+  businessId,
+  customers
+}: OperationEditorProps) {
+  const {
+    locale
+  } = useLocale();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function submit(form: HTMLFormElement) {
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await createOperation(businessId, "INVOICE", form);
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Création de la facture impossible." : "Unable to create invoice."));
+      const sale = ((await response.json()) as {
+        sale: Sale;
+      }).sale;
+      router.push(`/espace/entreprises/${businessId}/factures/${sale.public_id}`);
+    } catch {
+      setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return <><button className="button button-primary" onClick={() => setOpen(true)} type="button">{locale === "fr" ? "Nouvelle facture" : "New invoice"}</button>{open ? <Modal onClose={() => setOpen(false)} title={locale === "fr" ? "Créer une facture" : "Create invoice"}><form className="grid gap-3 p-1" onSubmit={event => {
+        event.preventDefault();
+        void submit(event.currentTarget);
+      }}>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<CustomerFields customerNameRequired customers={customers} /><label>{locale === "fr" ? "Échéance (facultative)" : "Due date (optional)"}<input className="mt-1 w-full rounded border p-2" name="due_date" type="date" /></label><label>{locale === "fr" ? "Référence" : "Reference"}<input className="mt-1 w-full rounded border p-2" maxLength={120} name="reference" /></label><label>{locale === "fr" ? "Notes" : "Notes"}<textarea className="mt-1 w-full rounded border p-2" name="notes" /></label><button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "…" : locale === "fr" ? "Créer la facture" : "Create invoice"}</button></form></Modal> : null}</>;
 }
-
-function LineEditor({ businessId, saleId, onDone }: { businessId: string; saleId: string; onDone: () => void }) {
-  const { locale } = useLocale(); const router = useRouter(); const [open, setOpen] = useState(false); const [items, setItems] = useState<InventoryItem[]>([]); const [query, setQuery] = useState(""); const [selected, setSelected] = useState<InventoryItem | null>(null); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (!open) return; const controller = new AbortController(); const timer = window.setTimeout(() => { fetch(`/api/private/businesses/${businessId}/inventory?status=AVAILABLE&q=${encodeURIComponent(query)}`, { credentials: "same-origin", signal: controller.signal }).then(async (response) => { if (response.status === 401) return router.replace("/connexion?erreur=session_expired"); if (!response.ok) throw new Error(); setItems((await response.json() as { inventory: InventoryItem[] }).inventory); }).catch(() => setError(locale === "fr" ? "Inventaire indisponible." : "Inventory is unavailable.")); }, 180); return () => { controller.abort(); window.clearTimeout(timer); }; }, [businessId, locale, open, query, router]);
-  async function submit(form: HTMLFormElement) { if (!selected) return; const data = new FormData(form); setSaving(true); setError(null); try { const response = await fetch(`/api/private/businesses/${businessId}/sales/${saleId}/lines`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ ...(selected.product ? { product: selected.product } : { variant: selected.variant }), quantity: data.get("quantity"), ...(data.get("unit_price") ? { unit_price: data.get("unit_price") } : {}) }) }); if (response.status === 401) return router.replace("/connexion?erreur=session_expired"); if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Ajout impossible." : "Unable to add line.")); setOpen(false); setSelected(null); onDone(); } catch { setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable."); } finally { setSaving(false); } }
-  return <>{<button className="button button-outline" onClick={() => setOpen(true)} type="button">{locale === "fr" ? "Ajouter un article" : "Add item"}</button>}{open ? <Modal onClose={() => setOpen(false)} size="large" title={locale === "fr" ? "Ajouter une ligne" : "Add line"}><form className="grid gap-3 p-1" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<label>{locale === "fr" ? "Rechercher dans le stock" : "Search inventory"}<input autoFocus className="mt-1 w-full rounded border p-2" onChange={(event) => setQuery(event.target.value)} placeholder={locale === "fr" ? "Nom ou référence" : "Name or reference"} value={query} /></label><div className="max-h-48 overflow-y-auto rounded border">{items.length ? items.map((item) => <button className={`block w-full border-b p-3 text-left text-sm ${selected?.public_id === item.public_id ? "bg-[var(--surface-muted)]" : ""}`} key={item.public_id} onClick={() => setSelected(item)} type="button"><strong>{item.item_name}</strong> · {item.internal_reference}<span className="block text-[var(--muted)]">{locale === "fr" ? "Disponible" : "Available"}: {item.available_quantity}</span></button>) : <p className="p-3 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucun article disponible." : "No available item."}</p>}</div>{selected ? <p className="text-sm">{locale === "fr" ? "Sélection" : "Selected"}: <strong>{selected.item_name}</strong></p> : null}<div className="grid gap-3 sm:grid-cols-2"><label>{locale === "fr" ? "Quantité" : "Quantity"}<input className="mt-1 w-full rounded border p-2" min="0.001" name="quantity" required step="0.001" type="number" /></label><label>{locale === "fr" ? "Prix unitaire" : "Unit price"}<input className="mt-1 w-full rounded border p-2" min="0" name="unit_price" placeholder={locale === "fr" ? "Prix catalogue" : "Catalog price"} step="0.01" type="number" /></label></div><p className="text-xs text-[var(--muted)]">{locale === "fr" ? "Le backend applique et contrôle les règles de négociation." : "The backend applies and validates price-negotiation rules."}</p><button className="button button-primary w-fit" disabled={saving || !selected} type="submit">{saving ? "…" : (locale === "fr" ? "Ajouter" : "Add")}</button></form></Modal> : null}</>;
+function LineEditor({
+  businessId,
+  saleId,
+  onDone
+}: {
+  businessId: string;
+  saleId: string;
+  onDone: () => void;
+}) {
+  const {
+    locale
+  } = useLocale();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<InventoryItem | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch(`/api/private/businesses/${businessId}/inventory?status=AVAILABLE&q=${encodeURIComponent(query)}`, {
+        credentials: "same-origin",
+        signal: controller.signal
+      }).then(async response => {
+        if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+        if (!response.ok) throw new Error();
+        setItems(((await response.json()) as {
+          inventory: InventoryItem[];
+        }).inventory);
+      }).catch(() => setError(locale === "fr" ? "Inventaire indisponible." : "Inventory is unavailable."));
+    }, 180);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [businessId, locale, open, query, router]);
+  async function submit(form: HTMLFormElement) {
+    if (!selected) return;
+    const data = new FormData(form);
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/sales/${saleId}/lines`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "content-type": "application/json",
+          "x-csrf-protection": "1"
+        },
+        body: JSON.stringify({
+          ...(selected.product ? {
+            product: selected.product
+          } : {
+            variant: selected.variant
+          }),
+          quantity: data.get("quantity"),
+          ...(data.get("unit_price") ? {
+            unit_price: data.get("unit_price")
+          } : {})
+        })
+      });
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Ajout impossible." : "Unable to add line."));
+      setOpen(false);
+      setSelected(null);
+      onDone();
+    } catch {
+      setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return <>{<button className="button button-outline" onClick={() => setOpen(true)} type="button">{locale === "fr" ? "Ajouter un article" : "Add item"}</button>}{open ? <Modal onClose={() => setOpen(false)} size="large" title={locale === "fr" ? "Ajouter une ligne" : "Add line"}><form className="grid gap-3 p-1" onSubmit={event => {
+        event.preventDefault();
+        void submit(event.currentTarget);
+      }}>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<label>{locale === "fr" ? "Rechercher dans le stock" : "Search inventory"}<input autoFocus className="mt-1 w-full rounded border p-2" onChange={event => setQuery(event.target.value)} placeholder={locale === "fr" ? "Nom ou référence" : "Name or reference"} value={query} /></label><div className="max-h-48 overflow-y-auto rounded border">{items.length ? items.map(item => <button className={`block w-full border-b p-3 text-left text-sm ${selected?.public_id === item.public_id ? "bg-[var(--surface-muted)]" : ""}`} key={item.public_id} onClick={() => setSelected(item)} type="button"><strong>{item.item_name}</strong> · {item.internal_reference}<span className="block text-[var(--muted)]">{locale === "fr" ? "Disponible" : "Available"}: {formatQuantityWithUnit(item.available_quantity, locale, item.allows_decimal_quantity, item.unit_symbol)}</span></button>) : <p className="p-3 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucun article disponible." : "No available item."}</p>}</div>{selected ? <p className="text-sm">{locale === "fr" ? "Sélection" : "Selected"}: <strong>{selected.item_name}</strong></p> : null}<div className="grid gap-3 sm:grid-cols-2"><label>{locale === "fr" ? "Quantité" : "Quantity"}<input className="mt-1 w-full rounded border p-2" min="0.001" name="quantity" required step="0.001" type="number" /></label><label>{locale === "fr" ? "Prix unitaire" : "Unit price"}<input className="mt-1 w-full rounded border p-2" min="0" name="unit_price" placeholder={locale === "fr" ? "Prix catalogue" : "Catalog price"} step="0.01" type="number" /></label></div><p className="text-xs text-[var(--muted)]">{locale === "fr" ? "Le backend applique et contrôle les règles de négociation." : "The backend applies and validates price-negotiation rules."}</p><button className="button button-primary w-fit" disabled={saving || !selected} type="submit">{saving ? "…" : locale === "fr" ? "Ajouter" : "Add"}</button></form></Modal> : null}</>;
 }
-
-function LineActions({ businessId, saleId, line, onDone }: { businessId: string; saleId: string; line: Line; onDone: () => void }) {
-  const { locale } = useLocale(); const [open, setOpen] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
-  async function update(form: HTMLFormElement) { const data = new FormData(form); setSaving(true); setError(null); try { const response = await fetch(`/api/private/businesses/${businessId}/sales/${saleId}/lines/${line.public_id}`, { method: "PATCH", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ quantity: data.get("quantity"), unit_price: data.get("unit_price") }) }); if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Modification impossible." : "Unable to update line.")); setOpen(false); onDone(); } catch { setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable."); } finally { setSaving(false); } }
-  async function remove() { if (!window.confirm(locale === "fr" ? "Supprimer cette ligne ?" : "Delete this line?")) return; setSaving(true); try { const response = await fetch(`/api/private/businesses/${businessId}/sales/${saleId}/lines/${line.public_id}`, { method: "DELETE", credentials: "same-origin", headers: { "x-csrf-protection": "1" } }); if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Suppression impossible." : "Unable to delete line.")); onDone(); } catch { setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable."); } finally { setSaving(false); } }
-  return <div className="flex gap-2"><button className="button button-outline text-sm" onClick={() => setOpen(true)} type="button">{locale === "fr" ? "Modifier" : "Edit"}</button><button className="button button-outline text-sm" disabled={saving} onClick={() => void remove()} type="button">{locale === "fr" ? "Supprimer" : "Delete"}</button>{open ? <Modal onClose={() => setOpen(false)} title={locale === "fr" ? "Modifier la ligne" : "Edit line"}><form className="grid gap-3 p-1" onSubmit={(event) => { event.preventDefault(); void update(event.currentTarget); }}>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<label>{locale === "fr" ? "Quantité" : "Quantity"}<input className="mt-1 w-full rounded border p-2" defaultValue={line.quantity} min="0.001" name="quantity" required step="0.001" type="number" /></label><label>{locale === "fr" ? "Prix unitaire" : "Unit price"}<input className="mt-1 w-full rounded border p-2" defaultValue={line.unit_price} min="0" name="unit_price" required step="0.01" type="number" /></label><button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "…" : (locale === "fr" ? "Enregistrer" : "Save")}</button></form></Modal> : null}</div>;
+function LineActions({
+  businessId,
+  saleId,
+  line,
+  onDone
+}: {
+  businessId: string;
+  saleId: string;
+  line: Line;
+  onDone: () => void;
+}) {
+  const {
+    locale
+  } = useLocale();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function update(form: HTMLFormElement) {
+    const data = new FormData(form);
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/sales/${saleId}/lines/${line.public_id}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          "content-type": "application/json",
+          "x-csrf-protection": "1"
+        },
+        body: JSON.stringify({
+          quantity: data.get("quantity"),
+          unit_price: data.get("unit_price")
+        })
+      });
+      if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Modification impossible." : "Unable to update line."));
+      setOpen(false);
+      onDone();
+    } catch {
+      setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function remove() {
+    if (!window.confirm(locale === "fr" ? "Supprimer cette ligne ?" : "Delete this line?")) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/sales/${saleId}/lines/${line.public_id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: {
+          "x-csrf-protection": "1"
+        }
+      });
+      if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Suppression impossible." : "Unable to delete line."));
+      onDone();
+    } catch {
+      setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return <div className="flex gap-2"><button className="button button-outline text-sm" onClick={() => setOpen(true)} type="button">{locale === "fr" ? "Modifier" : "Edit"}</button><button className="button button-outline text-sm" disabled={saving} onClick={() => void remove()} type="button">{locale === "fr" ? "Supprimer" : "Delete"}</button>{open ? <Modal onClose={() => setOpen(false)} title={locale === "fr" ? "Modifier la ligne" : "Edit line"}><form className="grid gap-3 p-1" onSubmit={event => {
+        event.preventDefault();
+        void update(event.currentTarget);
+      }}>{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<label>{locale === "fr" ? "Quantité" : "Quantity"}<input className="mt-1 w-full rounded border p-2" defaultValue={line.quantity} min="0.001" name="quantity" required step="0.001" type="number" /></label><label>{locale === "fr" ? "Prix unitaire" : "Unit price"}<input className="mt-1 w-full rounded border p-2" defaultValue={line.unit_price} min="0" name="unit_price" required step="0.01" type="number" /></label><button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "…" : locale === "fr" ? "Enregistrer" : "Save"}</button></form></Modal> : null}</div>;
 }
-
-function PaymentEditor({ businessId, sale, methods, onDone }: { businessId: string; sale: Sale; methods: PaymentMethod[]; onDone: () => void }) {
-  const { locale } = useLocale(); const router = useRouter(); const [open, setOpen] = useState(false); const [amount, setAmount] = useState(sale.operation_type === "DIRECT_SALE" ? sale.total : ""); const [method, setMethod] = useState(""); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false); const categories = new Set<string>(); const names = methods.filter((entry) => entry.is_active && Boolean(entry.category) && !categories.has(entry.category) && Boolean(categories.add(entry.category))).map((entry) => [entry.category, entry.name] as const);
-  async function submit() { setSaving(true); setError(null); try { const response = await fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/complete`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ amount_paid: amount || "0", ...(Number(amount) > 0 ? { payment_method: method } : {}) }) }); if (response.status === 401) return router.replace("/connexion?erreur=session_expired"); if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Finalisation impossible." : "Unable to finalize.")); setOpen(false); onDone(); } catch { setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable."); } finally { setSaving(false); } }
-  return <>{<button className="button button-primary" onClick={() => setOpen(true)} type="button">{sale.operation_type === "INVOICE" ? (locale === "fr" ? "Émettre la facture" : "Issue invoice") : (locale === "fr" ? "Encaisser la vente" : "Collect sale")}</button>}{open ? <Modal onClose={() => setOpen(false)} title={operationLabel(sale.operation_type, locale)}><section className="grid gap-3 p-1">{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<p>{locale === "fr" ? "Total" : "Total"}: <strong>{money(sale.total, sale.currency, locale)}</strong></p><p className="text-sm text-[var(--muted)]">{sale.operation_type === "DIRECT_SALE" ? (locale === "fr" ? "Une vente directe doit être réglée intégralement." : "A direct sale must be paid in full.") : (locale === "fr" ? "Le premier paiement positif déduit le stock." : "The first positive payment deducts stock.")}</p><label>{locale === "fr" ? "Montant encaissé" : "Amount collected"}<input className="mt-1 w-full rounded border p-2" min="0" onChange={(event) => setAmount(event.target.value)} step="0.01" type="number" value={amount} /></label><label>{locale === "fr" ? "Moyen de paiement" : "Payment method"}<select className="mt-1 w-full rounded border p-2" disabled={Number(amount) <= 0} onChange={(event) => setMethod(event.target.value)} required={Number(amount) > 0} value={method}><option value="">{locale === "fr" ? "Choisir" : "Select"}</option>{names.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label><button className="button button-primary w-fit" disabled={saving || (Number(amount) > 0 && !method)} onClick={() => void submit()} type="button">{saving ? "…" : (locale === "fr" ? "Confirmer" : "Confirm")}</button></section></Modal> : null}</>;
+function PaymentEditor({
+  businessId,
+  sale,
+  methods,
+  onDone
+}: {
+  businessId: string;
+  sale: Sale;
+  methods: PaymentMethod[];
+  onDone: () => void;
+}) {
+  const {
+    locale
+  } = useLocale();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(sale.operation_type === "DIRECT_SALE" ? sale.total : "");
+  const [method, setMethod] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const categories = new Set<string>();
+  const names = methods.filter(entry => entry.is_active && Boolean(entry.category) && !categories.has(entry.category) && Boolean(categories.add(entry.category))).map(entry => [entry.category, entry.name] as const);
+  async function submit() {
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/complete`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "content-type": "application/json",
+          "x-csrf-protection": "1"
+        },
+        body: JSON.stringify({
+          amount_paid: amount || "0",
+          ...(Number(amount) > 0 ? {
+            payment_method: method
+          } : {})
+        })
+      });
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Finalisation impossible." : "Unable to finalize."));
+      setOpen(false);
+      onDone();
+    } catch {
+      setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return <>{<button className="button button-primary" onClick={() => setOpen(true)} type="button">{sale.operation_type === "INVOICE" ? locale === "fr" ? "Émettre la facture" : "Issue invoice" : locale === "fr" ? "Encaisser la vente" : "Collect sale"}</button>}{open ? <Modal onClose={() => setOpen(false)} title={operationLabel(sale.operation_type, locale)}><section className="grid gap-3 p-1">{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<p>{locale === "fr" ? "Total" : "Total"}: <strong>{money(sale.total, sale.currency, locale)}</strong></p><p className="text-sm text-[var(--muted)]">{sale.operation_type === "DIRECT_SALE" ? locale === "fr" ? "Une vente directe doit être réglée intégralement." : "A direct sale must be paid in full." : locale === "fr" ? "Le premier paiement positif déduit le stock." : "The first positive payment deducts stock."}</p><label>{locale === "fr" ? "Montant encaissé" : "Amount collected"}<input className="mt-1 w-full rounded border p-2" min="0" onChange={event => setAmount(event.target.value)} step="0.01" type="number" value={amount} /></label><label>{locale === "fr" ? "Moyen de paiement" : "Payment method"}<select className="mt-1 w-full rounded border p-2" disabled={Number(amount) <= 0} onChange={event => setMethod(event.target.value)} required={Number(amount) > 0} value={method}><option value="">{locale === "fr" ? "Choisir" : "Select"}</option>{names.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label><button className="button button-primary w-fit" disabled={saving || Number(amount) > 0 && !method} onClick={() => void submit()} type="button">{saving ? "…" : locale === "fr" ? "Confirmer" : "Confirm"}</button></section></Modal> : null}</>;
 }
-
-function InvoicePayments({ businessId, sale, methods, payments, canCreatePayment, onDone }: { businessId: string; sale: Sale; methods: PaymentMethod[]; payments: ReceivablePayment[]; canCreatePayment: boolean; onDone: () => void }) {
-  const { locale } = useLocale();
+function InvoicePayments({
+  businessId,
+  sale,
+  methods,
+  payments,
+  canCreatePayment,
+  onDone
+}: {
+  businessId: string;
+  sale: Sale;
+  methods: PaymentMethod[];
+  payments: ReceivablePayment[];
+  canCreatePayment: boolean;
+  onDone: () => void;
+}) {
+  const {
+    locale
+  } = useLocale();
   const permissions = useBusinessPermissions(businessId);
   const canUpdate = permissions?.includes("INVOICE_UPDATE") ?? false;
-  void methods; void onDone;
+  void methods;
+  void onDone;
   if (!sale.receivable) return null;
-  return <section className="content-panel mt-6 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{locale === "fr" ? "Historique des paiements" : "Payment history"}</h2><div className="flex flex-wrap gap-2">{sale.status === "DRAFT" && canUpdate ? <Link className="button button-outline" href={`/espace/entreprises/${businessId}/factures/${sale.public_id}/modifier`}>{locale === "fr" ? "Modifier la facture" : "Edit invoice"}</Link> : null}{canCreatePayment && sale.balance !== "0.00" ? <Link className="button button-outline" href={`/espace/entreprises/${businessId}/finance?receivable=${encodeURIComponent(sale.receivable)}#reglement-client`}>{locale === "fr" ? "Ajouter un paiement dans Finance" : "Add payment in Finance"}</Link> : null}</div></div>{payments.length ? <ul className="mt-3 divide-y">{payments.map((payment) => <li className="flex justify-between py-2 text-sm" key={payment.public_id}><span>{new Intl.DateTimeFormat(locale).format(new Date(payment.paid_at))} · {payment.payment_method}</span><strong>{money(payment.amount, sale.currency, locale)}</strong></li>)}</ul> : <p className="mt-3 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucun paiement enregistré." : "No payment recorded."}</p>}</section>;
+  return <section className="content-panel mt-6 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{locale === "fr" ? "Historique des paiements" : "Payment history"}</h2><div className="flex flex-wrap gap-2">{sale.status === "DRAFT" && canUpdate ? <Link className="button button-outline" href={`/espace/entreprises/${businessId}/factures/${sale.public_id}/modifier`}>{locale === "fr" ? "Modifier la facture" : "Edit invoice"}</Link> : null}{canCreatePayment && sale.balance !== "0.00" ? <Link className="button button-outline" href={`/espace/entreprises/${businessId}/finance?receivable=${encodeURIComponent(sale.receivable)}#reglement-client`}>{locale === "fr" ? "Ajouter un paiement dans Finance" : "Add payment in Finance"}</Link> : null}</div></div>{payments.length ? <ul className="mt-3 divide-y">{payments.map(payment => <li className="flex justify-between py-2 text-sm" key={payment.public_id}><span>{new Intl.DateTimeFormat(locale).format(new Date(payment.paid_at))} · {payment.payment_method}</span><strong>{money(payment.amount, sale.currency, locale)}</strong></li>)}</ul> : <p className="mt-3 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucun paiement enregistré." : "No payment recorded."}</p>}</section>;
 }
-
-function OperationListView({ businessId, invoices, locale, sales, visible, customers, error, query, setQuery, status, setStatus, canCreateInvoice, canUsePos }: { businessId: string; invoices: boolean; locale: string; sales: Sale[] | null; visible: Sale[]; customers: Customer[]; error: string | null; query: string; setQuery: (value: string) => void; status: string; setStatus: (value: string) => void; canCreateInvoice: boolean; canUsePos: boolean }) {
-  const title = invoices ? (locale === "fr" ? "Factures" : "Invoices") : (locale === "fr" ? "Ventes" : "Sales");
+function OperationListView({
+  businessId,
+  invoices,
+  locale,
+  sales,
+  visible,
+  customers,
+  error,
+  query,
+  setQuery,
+  status,
+  setStatus,
+  canCreateInvoice,
+  canUsePos
+}: {
+  businessId: string;
+  invoices: boolean;
+  locale: string;
+  sales: Sale[] | null;
+  visible: Sale[];
+  customers: Customer[];
+  error: string | null;
+  query: string;
+  setQuery: (value: string) => void;
+  status: string;
+  setStatus: (value: string) => void;
+  canCreateInvoice: boolean;
+  canUsePos: boolean;
+}) {
+  const title = invoices ? locale === "fr" ? "Factures" : "Invoices" : locale === "fr" ? "Ventes" : "Sales";
   const href = `/espace/entreprises/${businessId}/${invoices ? "factures" : "ventes"}`;
   const Icon = invoices ? FileText : ReceiptText;
-  const description = invoices ? (locale === "fr" ? "Suivez vos factures, leurs échéances et leurs règlements." : "Track your invoices, due dates, and payments.") : (locale === "fr" ? "Consultez les ventes directes finalisées ou en préparation." : "Review direct sales, completed or still in preparation.");
-  return <main className="min-w-0"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">{invoices ? "FACTURES" : "VENTES"}</p><div className="mt-1 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-[var(--surface-muted)] text-[var(--brand)]"><Icon aria-hidden="true" size={20} /></span><h1 className="text-3xl font-semibold text-[var(--ink)]">{title}</h1></div><p className="mt-3 max-w-2xl text-sm text-[var(--muted)]">{description}</p></div>{invoices && canCreateInvoice ? <InvoiceEditor businessId={businessId} customers={customers} /> : null}{!invoices && canUsePos ? <Link className="button button-primary inline-flex min-h-11 items-center gap-2" href={`/espace/entreprises/${businessId}/caisse`}><CircleDollarSign aria-hidden="true" size={18} />{locale === "fr" ? "Nouvelle vente" : "New sale"}</Link> : null}</div>{error ? <p className="app-alert mt-5" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5 sm:p-6"><div className="flex items-center gap-2"><ListFilter aria-hidden="true" className="text-[var(--brand)]" size={20} /><h2 className="text-lg font-semibold">{locale === "fr" ? "Rechercher et filtrer" : "Search and filter"}</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]"><label className="relative"><span className="sr-only">{locale === "fr" ? "Rechercher une opération" : "Search an operation"}</span><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={18} /><input className="min-h-11 w-full rounded-lg border border-[var(--line)] bg-white py-2 pl-10 pr-3" onChange={(event) => setQuery(event.target.value)} placeholder={locale === "fr" ? "Client, référence ou numéro" : "Customer, reference or number"} value={query} /></label><select aria-label={locale === "fr" ? "Filtrer par statut" : "Filter by status"} className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" onChange={(event) => setStatus(event.target.value)} value={status}><option value="ALL">{locale === "fr" ? "Tous les statuts" : "All statuses"}</option><option value="DRAFT">{statusLabel("DRAFT", locale)}</option><option value="COMPLETED">{statusLabel("COMPLETED", locale)}</option><option value="CANCELLED">{statusLabel("CANCELLED", locale)}</option></select></div>{sales === null ? <p className="mt-5 text-sm text-[var(--muted)]">{locale === "fr" ? "Chargement…" : "Loading…"}</p> : <><div className="mt-5 hidden overflow-x-auto md:block"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--muted)]"><tr><th className="p-3">{locale === "fr" ? "Document" : "Document"}</th><th className="p-3">{locale === "fr" ? "Client" : "Customer"}</th>{invoices ? <th className="p-3">{locale === "fr" ? "Échéance" : "Due date"}</th> : null}<th className="p-3 text-right">{locale === "fr" ? "Montant" : "Amount"}</th>{invoices ? <><th className="p-3 text-right">{locale === "fr" ? "Réglé" : "Paid"}</th><th className="p-3 text-right">{locale === "fr" ? "Solde" : "Balance"}</th></> : null}<th className="p-3">{locale === "fr" ? "Statut" : "Status"}</th><th className="p-3"><span className="sr-only">{locale === "fr" ? "Actions" : "Actions"}</span></th></tr></thead><tbody>{visible.map((entry) => <tr className="border-b border-[var(--line)] last:border-0" key={entry.public_id}><td className="p-3"><Link className="font-medium text-[var(--ink)] hover:text-[var(--brand)] hover:underline" href={`${href}/${entry.public_id}`}>{entry.invoice_number || entry.reference || entry.public_id}</Link>{entry.reference && entry.reference !== entry.invoice_number ? <p className="mt-1 text-xs text-[var(--muted)]">{entry.reference}</p> : null}</td><td className="p-3">{entry.customer_name_snapshot || "—"}</td>{invoices ? <td className="p-3 whitespace-nowrap text-[var(--muted)]">{entry.due_date || "—"}</td> : null}<td className="p-3 text-right font-medium tabular-nums">{money(entry.total, entry.currency, locale)}</td>{invoices ? <><td className="p-3 text-right tabular-nums">{money(entry.paid_amount, entry.currency, locale)}</td><td className="p-3 text-right tabular-nums">{money(entry.balance, entry.currency, locale)}</td></> : null}<td className="p-3"><StatusBadge locale={locale} status={entry.status} /></td><td className="p-3 text-right"><Link className="button button-outline min-h-10" href={`${href}/${entry.public_id}`}>{locale === "fr" ? "Consulter" : "View"}</Link></td></tr>)}</tbody></table></div><div className="mt-5 grid gap-3 md:hidden">{visible.map((entry) => <article className="rounded-xl border border-[var(--line)] bg-white p-4" key={entry.public_id}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><Link className="font-semibold text-[var(--ink)] hover:text-[var(--brand)]" href={`${href}/${entry.public_id}`}>{entry.invoice_number || entry.reference || entry.public_id}</Link><p className="mt-1 flex items-center gap-1 text-sm text-[var(--muted)]"><UserRound aria-hidden="true" size={14} />{entry.customer_name_snapshot || "—"}</p></div><StatusBadge locale={locale} status={entry.status} /></div><dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Montant" : "Amount"}</dt><dd className="mt-1 font-medium">{money(entry.total, entry.currency, locale)}</dd></div>{invoices ? <><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Solde" : "Balance"}</dt><dd className="mt-1 font-medium">{money(entry.balance, entry.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Échéance" : "Due date"}</dt><dd className="mt-1">{entry.due_date || "—"}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Réglé" : "Paid"}</dt><dd className="mt-1">{money(entry.paid_amount, entry.currency, locale)}</dd></div></> : null}</dl><Link className="button button-outline mt-4 min-h-11 w-full" href={`${href}/${entry.public_id}`}>{locale === "fr" ? "Consulter" : "View"}</Link></article>)}</div>{!visible.length ? <p className="empty-state mt-5 min-h-32">{locale === "fr" ? "Aucune opération ne correspond aux filtres." : "No operation matches the filters."}</p> : null}</>}</section></main>;
+  const description = invoices ? locale === "fr" ? "Suivez vos factures, leurs échéances et leurs règlements." : "Track your invoices, due dates, and payments." : locale === "fr" ? "Consultez les ventes directes finalisées ou en préparation." : "Review direct sales, completed or still in preparation.";
+  return <main className="min-w-0"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">{invoices ? "FACTURES" : "VENTES"}</p><div className="mt-1 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-[var(--surface-muted)] text-[var(--brand)]"><Icon aria-hidden="true" size={20} /></span><h1 className="text-3xl font-semibold text-[var(--ink)]">{title}</h1></div><p className="mt-3 max-w-2xl text-sm text-[var(--muted)]">{description}</p></div>{invoices && canCreateInvoice ? <InvoiceEditor businessId={businessId} customers={customers} /> : null}{!invoices && canUsePos ? <Link className="button button-primary inline-flex min-h-11 items-center gap-2" href={`/espace/entreprises/${businessId}/caisse`}><CircleDollarSign aria-hidden="true" size={18} />{locale === "fr" ? "Nouvelle vente" : "New sale"}</Link> : null}</div>{error ? <p className="app-alert mt-5" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5 sm:p-6"><div className="flex items-center gap-2"><ListFilter aria-hidden="true" className="text-[var(--brand)]" size={20} /><h2 className="text-lg font-semibold">{locale === "fr" ? "Rechercher et filtrer" : "Search and filter"}</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]"><label className="relative"><span className="sr-only">{locale === "fr" ? "Rechercher une opération" : "Search an operation"}</span><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={18} /><input className="min-h-11 w-full rounded-lg border border-[var(--line)] bg-white py-2 pl-10 pr-3" onChange={event => setQuery(event.target.value)} placeholder={locale === "fr" ? "Client, référence ou numéro" : "Customer, reference or number"} value={query} /></label><select aria-label={locale === "fr" ? "Filtrer par statut" : "Filter by status"} className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" onChange={event => setStatus(event.target.value)} value={status}><option value="ALL">{locale === "fr" ? "Tous les statuts" : "All statuses"}</option><option value="DRAFT">{statusLabel("DRAFT", locale)}</option><option value="COMPLETED">{statusLabel("COMPLETED", locale)}</option><option value="CANCELLED">{statusLabel("CANCELLED", locale)}</option></select></div>{sales === null ? <p className="mt-5 text-sm text-[var(--muted)]">{locale === "fr" ? "Chargement…" : "Loading…"}</p> : <><div className="mt-5 hidden overflow-x-auto md:block"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--muted)]"><tr><th className="p-3">{locale === "fr" ? "Document" : "Document"}</th><th className="p-3">{locale === "fr" ? "Client" : "Customer"}</th>{invoices ? <th className="p-3">{locale === "fr" ? "Échéance" : "Due date"}</th> : null}<th className="p-3 text-right">{locale === "fr" ? "Montant" : "Amount"}</th>{invoices ? <><th className="p-3 text-right">{locale === "fr" ? "Réglé" : "Paid"}</th><th className="p-3 text-right">{locale === "fr" ? "Solde" : "Balance"}</th></> : null}<th className="p-3">{locale === "fr" ? "Statut" : "Status"}</th><th className="p-3"><span className="sr-only">{locale === "fr" ? "Actions" : "Actions"}</span></th></tr></thead><tbody>{visible.map(entry => <tr className="border-b border-[var(--line)] last:border-0" key={entry.public_id}><td className="p-3"><Link className="font-medium text-[var(--ink)] hover:text-[var(--brand)] hover:underline" href={`${href}/${entry.public_id}`}>{entry.invoice_number || entry.reference || entry.public_id}</Link>{entry.reference && entry.reference !== entry.invoice_number ? <p className="mt-1 text-xs text-[var(--muted)]">{entry.reference}</p> : null}</td><td className="p-3">{entry.customer_name_snapshot || "—"}</td>{invoices ? <td className="p-3 whitespace-nowrap text-[var(--muted)]">{entry.due_date || "—"}</td> : null}<td className="p-3 text-right font-medium tabular-nums">{money(entry.total, entry.currency, locale)}</td>{invoices ? <><td className="p-3 text-right tabular-nums">{money(entry.paid_amount, entry.currency, locale)}</td><td className="p-3 text-right tabular-nums">{money(entry.balance, entry.currency, locale)}</td></> : null}<td className="p-3"><StatusBadge locale={locale} status={entry.status} /></td><td className="p-3 text-right"><Link className="button button-outline min-h-10" href={`${href}/${entry.public_id}`}>{locale === "fr" ? "Consulter" : "View"}</Link></td></tr>)}</tbody></table></div><div className="mt-5 grid gap-3 md:hidden">{visible.map(entry => <article className="rounded-xl border border-[var(--line)] bg-white p-4" key={entry.public_id}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><Link className="font-semibold text-[var(--ink)] hover:text-[var(--brand)]" href={`${href}/${entry.public_id}`}>{entry.invoice_number || entry.reference || entry.public_id}</Link><p className="mt-1 flex items-center gap-1 text-sm text-[var(--muted)]"><UserRound aria-hidden="true" size={14} />{entry.customer_name_snapshot || "—"}</p></div><StatusBadge locale={locale} status={entry.status} /></div><dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Montant" : "Amount"}</dt><dd className="mt-1 font-medium">{money(entry.total, entry.currency, locale)}</dd></div>{invoices ? <><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Solde" : "Balance"}</dt><dd className="mt-1 font-medium">{money(entry.balance, entry.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Échéance" : "Due date"}</dt><dd className="mt-1">{entry.due_date || "—"}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Réglé" : "Paid"}</dt><dd className="mt-1">{money(entry.paid_amount, entry.currency, locale)}</dd></div></> : null}</dl><Link className="button button-outline mt-4 min-h-11 w-full" href={`${href}/${entry.public_id}`}>{locale === "fr" ? "Consulter" : "View"}</Link></article>)}</div>{!visible.length ? <p className="empty-state mt-5 min-h-32">{locale === "fr" ? "Aucune opération ne correspond aux filtres." : "No operation matches the filters."}</p> : null}</>}</section></main>;
 }
-
-function ReturnEditor({ businessId, sale, lines, methods, onDone }: { businessId: string; sale: Sale; lines: Line[]; methods: PaymentMethod[]; onDone: () => void }) {
-  const { locale } = useLocale();
+function ReturnEditor({
+  businessId,
+  sale,
+  lines,
+  methods,
+  onDone
+}: {
+  businessId: string;
+  sale: Sale;
+  lines: Line[];
+  methods: PaymentMethod[];
+  onDone: () => void;
+}) {
+  const {
+    locale
+  } = useLocale();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [history, setHistory] = useState<SaleReturn[] | null>(null);
@@ -104,32 +501,37 @@ function ReturnEditor({ businessId, sale, lines, methods, onDone }: { businessId
   const [result, setResult] = useState<SaleReturn | null>(null);
   const idempotencyKey = useRef<string | null>(null);
   const returnedAt = useRef<string | null>(null);
-
-  const returnedQuantity = useCallback((lineId: string) => (history ?? []).flatMap((entry) => entry.lines).filter((entry) => entry.sale_line === lineId).reduce((total, entry) => total + Number(entry.quantity), 0), [history]);
-  const selected = useMemo(() => lines.flatMap((line) => {
+  const returnedQuantity = useCallback((lineId: string) => (history ?? []).flatMap(entry => entry.lines).filter(entry => entry.sale_line === lineId).reduce((total, entry) => total + Number(entry.quantity), 0), [history]);
+  const selected = useMemo(() => lines.flatMap(line => {
     const quantity = Number(quantities[line.public_id] || "0");
-    return Number.isFinite(quantity) && quantity > 0 ? [{ line, quantity }] : [];
+    return Number.isFinite(quantity) && quantity > 0 ? [{
+      line,
+      quantity
+    }] : [];
   }), [lines, quantities]);
   const returnTotal = useMemo(() => selected.reduce((total, entry) => total + entry.quantity * Number(entry.line.unit_price), 0), [selected]);
   const alreadyRefunded = useMemo(() => (history ?? []).reduce((total, entry) => total + Number(entry.refund_amount), 0), [history]);
   const receivableCredit = sale.receivable ? Math.min(returnTotal, Number(sale.balance)) : 0;
   const projectedRefund = Math.min(Math.max(returnTotal - receivableCredit, 0), Math.max(Number(sale.paid_amount) - alreadyRefunded, 0));
-  const activeMethods = methods.filter((method) => method.is_active);
-
+  const activeMethods = methods.filter(method => method.is_active);
   useEffect(() => {
     if (!open || result) return;
     const controller = new AbortController();
-    fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/returns`, { credentials: "same-origin", signal: controller.signal })
-      .then(async (response) => {
-        if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
-        if (!response.ok) throw new Error(await errorDetail(response, locale === "fr" ? "Historique des retours indisponible." : "Return history is unavailable."));
-        const payload = await response.json() as { returns: SaleReturnsResponse };
-        setHistory(payload.returns.results);
-      })
-      .catch((cause: unknown) => { if ((cause as Error).name !== "AbortError") setError(cause instanceof Error ? cause.message : (locale === "fr" ? "Historique des retours indisponible." : "Return history is unavailable.")); });
+    fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/returns`, {
+      credentials: "same-origin",
+      signal: controller.signal
+    }).then(async response => {
+      if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!response.ok) throw new Error(await errorDetail(response, locale === "fr" ? "Historique des retours indisponible." : "Return history is unavailable."));
+      const payload = (await response.json()) as {
+        returns: SaleReturnsResponse;
+      };
+      setHistory(payload.returns.results);
+    }).catch((cause: unknown) => {
+      if ((cause as Error).name !== "AbortError") setError(cause instanceof Error ? cause.message : locale === "fr" ? "Historique des retours indisponible." : "Return history is unavailable.");
+    });
     return () => controller.abort();
   }, [businessId, locale, open, result, router, sale.public_id]);
-
   function close() {
     if (saving) return;
     setOpen(false);
@@ -138,7 +540,6 @@ function ReturnEditor({ businessId, sale, lines, methods, onDone }: { businessId
     idempotencyKey.current = null;
     returnedAt.current = null;
   }
-
   function openReturn() {
     setHistory(null);
     setError(null);
@@ -146,7 +547,6 @@ function ReturnEditor({ businessId, sale, lines, methods, onDone }: { businessId
     setResult(null);
     setOpen(true);
   }
-
   function continueToConfirmation() {
     setError(null);
     if (!selected.length) return setError(locale === "fr" ? "Sélectionnez au moins un article à retourner." : "Select at least one item to return.");
@@ -158,7 +558,6 @@ function ReturnEditor({ businessId, sale, lines, methods, onDone }: { businessId
     if (projectedRefund > 0 && !refundMethod) return setError(locale === "fr" ? "Choisissez le moyen utilisé pour le remboursement." : "Choose the refund payment method.");
     setConfirming(true);
   }
-
   async function submit() {
     if (saving) return;
     setSaving(true);
@@ -171,12 +570,31 @@ function ReturnEditor({ businessId, sale, lines, methods, onDone }: { businessId
       const response = await fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/returns`, {
         method: "POST",
         credentials: "same-origin",
-        headers: { "content-type": "application/json", "x-csrf-protection": "1", "idempotency-key": key },
-        body: JSON.stringify({ reason, returned_at: timestamp, lines: selected.map(({ line, quantity }) => ({ sale_line: line.public_id, quantity: String(quantity) })), ...(refundMethod ? { refund_payment_method: refundMethod } : {}) }),
+        headers: {
+          "content-type": "application/json",
+          "x-csrf-protection": "1",
+          "idempotency-key": key
+        },
+        body: JSON.stringify({
+          reason,
+          returned_at: timestamp,
+          lines: selected.map(({
+            line,
+            quantity
+          }) => ({
+            sale_line: line.public_id,
+            quantity: String(quantity)
+          })),
+          ...(refundMethod ? {
+            refund_payment_method: refundMethod
+          } : {})
+        })
       });
       if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
       if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Le retour n’a pas pu être enregistré." : "The return could not be recorded."));
-      const payload = await response.json() as { saleReturn: SaleReturn };
+      const payload = (await response.json()) as {
+        saleReturn: SaleReturn;
+      };
       setResult(payload.saleReturn);
       void onDone();
     } catch {
@@ -185,47 +603,210 @@ function ReturnEditor({ businessId, sale, lines, methods, onDone }: { businessId
       setSaving(false);
     }
   }
-
-  return <><button className="button button-outline min-h-11 inline-flex items-center gap-2" onClick={openReturn} type="button"><RotateCcw aria-hidden="true" size={17} />{locale === "fr" ? "Effectuer un retour" : "Process a return"}</button>{open ? <Modal confirmOnClose={!result} onClose={close} size="large" title={result ? (locale === "fr" ? "Retour enregistré" : "Return recorded") : (locale === "fr" ? "Effectuer un retour" : "Process a return")} footer={null}>{result ? <section className="grid gap-4 p-1"><p className="rounded-lg bg-[var(--success-bg)] p-3 text-sm text-[var(--success)]" role="status">{locale === "fr" ? "Le retour a été enregistré et les informations de vente sont actualisées." : "The return was recorded and the sale information has been refreshed."}</p><dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Référence" : "Reference"}</dt><dd className="mt-1 font-medium">{result.public_id}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Montant retourné" : "Returned amount"}</dt><dd className="mt-1 font-medium">{money(result.return_total, sale.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Avoir sur créance" : "Receivable credit"}</dt><dd className="mt-1">{money(result.receivable_credit_amount, sale.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Remboursement" : "Refund"}</dt><dd className="mt-1">{money(result.refund_amount, sale.currency, locale)}</dd></div></dl><button className="button button-primary w-fit" onClick={close} type="button">{locale === "fr" ? "Terminer" : "Done"}</button></section> : <section className="grid gap-4 p-1">{error ? <p className="app-alert" role="alert">{error}</p> : null}{history === null ? <p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Chargement des retours…" : "Loading returns…"}</p> : <>{confirming ? <><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Vérifiez les informations avant l’enregistrement. Le backend reste l’autorité pour les montants et les écritures." : "Review the information before recording. The backend remains authoritative for amounts and postings."}</p><dl className="grid gap-3 rounded-xl border border-[var(--line)] p-4 text-sm sm:grid-cols-2"><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Montant retourné" : "Returned amount"}</dt><dd className="mt-1 font-semibold">{money(returnTotal.toFixed(2), sale.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Remboursement estimé" : "Estimated refund"}</dt><dd className="mt-1 font-semibold">{money(projectedRefund.toFixed(2), sale.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Motif" : "Reason"}</dt><dd className="mt-1">{reason || "—"}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Articles" : "Items"}</dt><dd className="mt-1">{selected.map(({ line, quantity }) => `${line.item_name_snapshot || line.sku_snapshot} × ${quantity}`).join(", ")}</dd></div></dl><div className="flex flex-wrap gap-3"><button className="button button-outline" disabled={saving} onClick={() => setConfirming(false)} type="button">{locale === "fr" ? "Modifier" : "Edit"}</button><button aria-busy={saving} className="button button-primary" disabled={saving} onClick={() => void submit()} type="button">{saving ? (locale === "fr" ? "Enregistrement…" : "Recording…") : (locale === "fr" ? "Confirmer le retour" : "Confirm return")}</button></div></> : <><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Indiquez les quantités à reprendre. Le solde tient compte des retours déjà enregistrés." : "Enter the quantities to take back. The balance includes returns already recorded."}</p><div className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">{lines.map((line) => { const returned = returnedQuantity(line.public_id); const remaining = Math.max(Number(line.quantity) - returned, 0); const pcs = line.unit_symbol_snapshot === "PCS"; return <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-end" key={line.public_id}><div><p className="font-medium">{line.item_name_snapshot || line.sku_snapshot}</p><p className="mt-1 text-sm text-[var(--muted)]">{locale === "fr" ? "Vendu" : "Sold"}: {line.quantity} {line.unit_symbol_snapshot} · {locale === "fr" ? "Déjà retourné" : "Already returned"}: {returned.toFixed(pcs ? 0 : 3)} · {locale === "fr" ? "Retournable" : "Returnable"}: {remaining.toFixed(pcs ? 0 : 3)}</p></div><label className="grid gap-1 text-sm"><span>{locale === "fr" ? "Quantité à retourner" : "Quantity to return"}</span><input aria-label={`${locale === "fr" ? "Quantité à retourner pour" : "Quantity to return for"} ${line.item_name_snapshot || line.sku_snapshot}`} className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" disabled={remaining === 0} max={remaining} min={pcs ? "1" : "0.001"} onChange={(event) => setQuantities((current) => ({ ...current, [line.public_id]: event.target.value }))} step={pcs ? "1" : "0.001"} type="number" value={quantities[line.public_id] ?? ""} /></label></div>; })}</div><label className="grid gap-1 text-sm"><span>{locale === "fr" ? "Motif du retour" : "Return reason"}</span><textarea className="min-h-20 rounded-lg border border-[var(--line)] bg-white p-3" maxLength={1000} onChange={(event) => setReason(event.target.value)} value={reason} /></label><p className="text-sm font-medium">{locale === "fr" ? "Montant retourné" : "Returned amount"}: {money(returnTotal.toFixed(2), sale.currency, locale)}</p>{projectedRefund > 0 ? <label className="grid gap-1 text-sm"><span>{locale === "fr" ? "Moyen de remboursement" : "Refund payment method"}</span><select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" onChange={(event) => setRefundMethod(event.target.value)} required value={refundMethod}><option value="">{locale === "fr" ? "Choisir un moyen actif" : "Choose an active method"}</option>{activeMethods.map((method) => <option key={method.public_id} value={method.public_id}>{method.name}</option>)}</select><span className="text-xs text-[var(--muted)]">{locale === "fr" ? `Remboursement estimé : ${money(projectedRefund.toFixed(2), sale.currency, locale)}. Le montant final est validé par le backend.` : `Estimated refund: ${money(projectedRefund.toFixed(2), sale.currency, locale)}. The backend validates the final amount.`}</span></label> : null}<button className="button button-primary w-fit" onClick={continueToConfirmation} type="button">{locale === "fr" ? "Continuer" : "Continue"}</button></>}</>}</section>}</Modal> : null}</>;
+  return <><button className="button button-outline min-h-11 inline-flex items-center gap-2" onClick={openReturn} type="button"><RotateCcw aria-hidden="true" size={17} />{locale === "fr" ? "Effectuer un retour" : "Process a return"}</button>{open ? <Modal confirmOnClose={!result} onClose={close} size="large" title={result ? locale === "fr" ? "Retour enregistré" : "Return recorded" : locale === "fr" ? "Effectuer un retour" : "Process a return"} footer={null}>{result ? <section className="grid gap-4 p-1"><p className="rounded-lg bg-[var(--success-bg)] p-3 text-sm text-[var(--success)]" role="status">{locale === "fr" ? "Le retour a été enregistré et les informations de vente sont actualisées." : "The return was recorded and the sale information has been refreshed."}</p><dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Référence" : "Reference"}</dt><dd className="mt-1 font-medium">{result.public_id}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Montant retourné" : "Returned amount"}</dt><dd className="mt-1 font-medium">{money(result.return_total, sale.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Avoir sur créance" : "Receivable credit"}</dt><dd className="mt-1">{money(result.receivable_credit_amount, sale.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Remboursement" : "Refund"}</dt><dd className="mt-1">{money(result.refund_amount, sale.currency, locale)}</dd></div></dl><button className="button button-primary w-fit" onClick={close} type="button">{locale === "fr" ? "Terminer" : "Done"}</button></section> : <section className="grid gap-4 p-1">{error ? <p className="app-alert" role="alert">{error}</p> : null}{history === null ? <p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Chargement des retours…" : "Loading returns…"}</p> : <>{confirming ? <><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Vérifiez les informations avant l’enregistrement. Le backend reste l’autorité pour les montants et les écritures." : "Review the information before recording. The backend remains authoritative for amounts and postings."}</p><dl className="grid gap-3 rounded-xl border border-[var(--line)] p-4 text-sm sm:grid-cols-2"><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Montant retourné" : "Returned amount"}</dt><dd className="mt-1 font-semibold">{money(returnTotal.toFixed(2), sale.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Remboursement estimé" : "Estimated refund"}</dt><dd className="mt-1 font-semibold">{money(projectedRefund.toFixed(2), sale.currency, locale)}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Motif" : "Reason"}</dt><dd className="mt-1">{reason || "—"}</dd></div><div><dt className="text-[var(--muted)]">{locale === "fr" ? "Articles" : "Items"}</dt><dd className="mt-1">{selected.map(({
+                    line,
+                    quantity
+                  }) => `${line.item_name_snapshot || line.sku_snapshot} × ${formatQuantity(quantity.toFixed(3), locale, line.allows_decimal_quantity)}`).join(", ")}</dd></div></dl><div className="flex flex-wrap gap-3"><button className="button button-outline" disabled={saving} onClick={() => setConfirming(false)} type="button">{locale === "fr" ? "Modifier" : "Edit"}</button><button aria-busy={saving} className="button button-primary" disabled={saving} onClick={() => void submit()} type="button">{saving ? locale === "fr" ? "Enregistrement…" : "Recording…" : locale === "fr" ? "Confirmer le retour" : "Confirm return"}</button></div></> : <><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Indiquez les quantités à reprendre. Le solde tient compte des retours déjà enregistrés." : "Enter the quantities to take back. The balance includes returns already recorded."}</p><div className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">{lines.map(line => {
+                const returned = returnedQuantity(line.public_id);
+                const remaining = Math.max(Number(line.quantity) - returned, 0);
+                const pcs = !line.allows_decimal_quantity;
+                return <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-end" key={line.public_id}><div><p className="font-medium">{line.item_name_snapshot || line.sku_snapshot}</p><p className="mt-1 text-sm text-[var(--muted)]">{locale === "fr" ? "Vendu" : "Sold"}: {formatQuantityWithUnit(line.quantity, locale, line.allows_decimal_quantity, line.unit_symbol_snapshot)} · {locale === "fr" ? "Déjà retourné" : "Already returned"}: {formatQuantity(returned.toFixed(3), locale, !pcs)} · {locale === "fr" ? "Retournable" : "Returnable"}: {formatQuantity(remaining.toFixed(3), locale, !pcs)}</p></div><label className="grid gap-1 text-sm"><span>{locale === "fr" ? "Quantité à retourner" : "Quantity to return"}</span><input aria-label={`${locale === "fr" ? "Quantité à retourner pour" : "Quantity to return for"} ${line.item_name_snapshot || line.sku_snapshot}`} className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" disabled={remaining === 0} max={remaining} min={pcs ? "1" : "0.001"} onChange={event => setQuantities(current => ({
+                      ...current,
+                      [line.public_id]: event.target.value
+                    }))} step={pcs ? "1" : "0.001"} type="number" value={quantities[line.public_id] ?? ""} /></label></div>;
+              })}</div><label className="grid gap-1 text-sm"><span>{locale === "fr" ? "Motif du retour" : "Return reason"}</span><textarea className="min-h-20 rounded-lg border border-[var(--line)] bg-white p-3" maxLength={1000} onChange={event => setReason(event.target.value)} value={reason} /></label><p className="text-sm font-medium">{locale === "fr" ? "Montant retourné" : "Returned amount"}: {money(returnTotal.toFixed(2), sale.currency, locale)}</p>{projectedRefund > 0 ? <label className="grid gap-1 text-sm"><span>{locale === "fr" ? "Moyen de remboursement" : "Refund payment method"}</span><select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" onChange={event => setRefundMethod(event.target.value)} required value={refundMethod}><option value="">{locale === "fr" ? "Choisir un moyen actif" : "Choose an active method"}</option>{activeMethods.map(method => <option key={method.public_id} value={method.public_id}>{method.name}</option>)}</select><span className="text-xs text-[var(--muted)]">{locale === "fr" ? `Remboursement estimé : ${money(projectedRefund.toFixed(2), sale.currency, locale)}. Le montant final est validé par le backend.` : `Estimated refund: ${money(projectedRefund.toFixed(2), sale.currency, locale)}. The backend validates the final amount.`}</span></label> : null}<button className="button button-primary w-fit" onClick={continueToConfirmation} type="button">{locale === "fr" ? "Continuer" : "Continue"}</button></>}</>}</section>}</Modal> : null}</>;
 }
-
-function SaleDetailView({ businessId, scope, locale, sale, lines, methods, payments, can, error, onRefresh, onCancel }: { businessId: string; scope: "sales" | "invoices" | "legacy"; locale: string; sale: Sale | null; lines: Line[] | null; methods: PaymentMethod[]; payments: ReceivablePayment[]; can: (permission: string) => boolean; error: string | null; onRefresh: () => void; onCancel: () => void }) {
+function SaleDetailView({
+  businessId,
+  scope,
+  locale,
+  sale,
+  lines,
+  methods,
+  payments,
+  can,
+  error,
+  onRefresh,
+  onCancel
+}: {
+  businessId: string;
+  scope: "sales" | "invoices" | "legacy";
+  locale: string;
+  sale: Sale | null;
+  lines: Line[] | null;
+  methods: PaymentMethod[];
+  payments: ReceivablePayment[];
+  can: (permission: string) => boolean;
+  error: string | null;
+  onRefresh: () => void;
+  onCancel: () => void;
+}) {
   const invoices = scope === "invoices";
   const back = `/espace/entreprises/${businessId}/${invoices ? "factures" : "ventes"}`;
-  if (!sale) return <main><Link className="nav-link text-sm" href={back}>← {invoices ? (locale === "fr" ? "Factures" : "Invoices") : (locale === "fr" ? "Ventes" : "Sales")}</Link>{error ? <p className="app-alert mt-5" role="alert">{error}</p> : <p className="mt-5 text-sm text-[var(--muted)]">{locale === "fr" ? "Chargement…" : "Loading…"}</p>}</main>;
-  return <main className="min-w-0"><Link className="nav-link text-sm" href={back}>← {invoices ? (locale === "fr" ? "Factures" : "Invoices") : (locale === "fr" ? "Ventes" : "Sales")}</Link><div className="mt-4 flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">{operationLabel(sale.operation_type, locale)}</p><h1 className="mt-1 text-3xl font-semibold">{sale.invoice_number || sale.reference || sale.public_id}</h1><p className="mt-2 text-sm text-[var(--muted)]">{sale.reference || sale.public_id}</p></div><StatusBadge locale={locale} status={sale.status} /></div>{error ? <p className="app-alert mt-5" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5 sm:p-6"><h2 className="text-lg font-semibold">{locale === "fr" ? "Informations générales" : "General information"}</h2><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Type" : "Type"}</p><p className="mt-1 font-medium">{operationLabel(sale.operation_type, locale)}</p></div><div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Statut" : "Status"}</p><div className="mt-1"><StatusBadge locale={locale} status={sale.status} /></div></div>{sale.operation_type === "INVOICE" ? <div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Échéance" : "Due date"}</p><p className="mt-1 font-medium">{sale.due_date || "—"}</p></div> : null}</div></section><div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.8fr)]"><section className="content-panel p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">{sale.operation_type === "INVOICE" ? (locale === "fr" ? "Lignes de facture" : "Invoice lines") : (locale === "fr" ? "Lignes de vente" : "Sale lines")}</h2>{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineCreate")) ? <LineEditor businessId={businessId} onDone={onRefresh} saleId={sale.public_id} /> : null}</div>{lines?.length ? <ul className="mt-4 divide-y divide-[var(--line)]">{lines.map((line) => <li className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0" key={line.public_id}><div><p className="font-medium">{line.item_name_snapshot || line.sku_snapshot}</p><p className="mt-1 text-sm text-[var(--muted)]">{line.sku_snapshot} · {line.quantity} {line.unit_symbol_snapshot}</p></div><div className="flex flex-wrap items-center justify-end gap-3"><p className="text-right text-sm tabular-nums">{line.quantity} × {money(line.unit_price, sale.currency, locale)}<br /><strong>{money(line.line_total, sale.currency, locale)}</strong></p>{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineUpdate")) ? <LineActions businessId={businessId} line={line} onDone={onRefresh} saleId={sale.public_id} /> : null}</div></li>)}</ul> : <p className="mt-4 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune ligne." : "No lines."}</p>}</section><aside className="content-panel p-5 sm:p-6"><h2 className="text-lg font-semibold">{locale === "fr" ? "Récapitulatif financier" : "Financial summary"}</h2><dl className="mt-4 grid gap-4"><div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">{locale === "fr" ? "Total" : "Total"}</dt><dd className="font-semibold">{money(sale.total, sale.currency, locale)}</dd></div>{sale.operation_type === "INVOICE" ? <><div className="flex justify-between gap-3"><dt className="text-sm text-[var(--muted)]">{locale === "fr" ? "Réglé" : "Paid"}</dt><dd>{money(sale.paid_amount, sale.currency, locale)}</dd></div><div className="flex justify-between gap-3 border-t border-[var(--line)] pt-4"><dt className="font-medium">{locale === "fr" ? "Solde" : "Balance"}</dt><dd className="font-semibold">{money(sale.balance, sale.currency, locale)}</dd></div></> : null}</dl></aside></div><div className="mt-6 flex flex-wrap gap-3">{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "issue")) ? <PaymentEditor businessId={businessId} methods={methods} onDone={onRefresh} sale={sale} /> : null}{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "cancel")) ? <button className="button button-outline min-h-11" onClick={onCancel} type="button">{locale === "fr" ? "Annuler le brouillon" : "Cancel draft"}</button> : null}{sale.status === "COMPLETED" && lines?.length && can("SALE_RETURN") && can("SALE_RETURN_VIEW") ? <ReturnEditor businessId={businessId} lines={lines} methods={methods} onDone={onRefresh} sale={sale} /> : null}</div>{sale.operation_type === "INVOICE" && can(operationPermission("INVOICE", "view")) ? <InvoicePayments businessId={businessId} canCreatePayment={can(operationPermission("INVOICE", "paymentCreate"))} methods={methods} onDone={onRefresh} payments={payments} sale={sale} /> : null}</main>;
+  if (!sale) return <main><Link className="nav-link text-sm" href={back}>← {invoices ? locale === "fr" ? "Factures" : "Invoices" : locale === "fr" ? "Ventes" : "Sales"}</Link>{error ? <p className="app-alert mt-5" role="alert">{error}</p> : <p className="mt-5 text-sm text-[var(--muted)]">{locale === "fr" ? "Chargement…" : "Loading…"}</p>}</main>;
+  return <main className="min-w-0"><Link className="nav-link text-sm" href={back}>← {invoices ? locale === "fr" ? "Factures" : "Invoices" : locale === "fr" ? "Ventes" : "Sales"}</Link><div className="mt-4 flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">{operationLabel(sale.operation_type, locale)}</p><h1 className="mt-1 text-3xl font-semibold">{sale.invoice_number || sale.reference || sale.public_id}</h1><p className="mt-2 text-sm text-[var(--muted)]">{sale.reference || sale.public_id}</p></div><StatusBadge locale={locale} status={sale.status} /></div>{error ? <p className="app-alert mt-5" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5 sm:p-6"><h2 className="text-lg font-semibold">{locale === "fr" ? "Informations générales" : "General information"}</h2><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Type" : "Type"}</p><p className="mt-1 font-medium">{operationLabel(sale.operation_type, locale)}</p></div><div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Statut" : "Status"}</p><div className="mt-1"><StatusBadge locale={locale} status={sale.status} /></div></div>{sale.operation_type === "INVOICE" ? <div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Échéance" : "Due date"}</p><p className="mt-1 font-medium">{sale.due_date || "—"}</p></div> : null}</div></section><div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.8fr)]"><section className="content-panel p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">{sale.operation_type === "INVOICE" ? locale === "fr" ? "Lignes de facture" : "Invoice lines" : locale === "fr" ? "Lignes de vente" : "Sale lines"}</h2>{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineCreate")) ? <LineEditor businessId={businessId} onDone={onRefresh} saleId={sale.public_id} /> : null}</div>{lines?.length ? <ul className="mt-4 divide-y divide-[var(--line)]">{lines.map(line => <li className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0" key={line.public_id}><div><p className="font-medium">{line.item_name_snapshot || line.sku_snapshot}</p><p className="mt-1 text-sm text-[var(--muted)]">{line.sku_snapshot} · {formatQuantityWithUnit(line.quantity, locale, line.allows_decimal_quantity, line.unit_symbol_snapshot)}</p></div><div className="flex flex-wrap items-center justify-end gap-3"><p className="text-right text-sm tabular-nums">{formatQuantity(line.quantity, locale, line.allows_decimal_quantity)} × {money(line.unit_price, sale.currency, locale)}<br /><strong>{money(line.line_total, sale.currency, locale)}</strong></p>{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineUpdate")) ? <LineActions businessId={businessId} line={line} onDone={onRefresh} saleId={sale.public_id} /> : null}</div></li>)}</ul> : <p className="mt-4 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune ligne." : "No lines."}</p>}</section><aside className="content-panel p-5 sm:p-6"><h2 className="text-lg font-semibold">{locale === "fr" ? "Récapitulatif financier" : "Financial summary"}</h2><dl className="mt-4 grid gap-4"><div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">{locale === "fr" ? "Total" : "Total"}</dt><dd className="font-semibold">{money(sale.total, sale.currency, locale)}</dd></div>{sale.operation_type === "INVOICE" ? <><div className="flex justify-between gap-3"><dt className="text-sm text-[var(--muted)]">{locale === "fr" ? "Réglé" : "Paid"}</dt><dd>{money(sale.paid_amount, sale.currency, locale)}</dd></div><div className="flex justify-between gap-3 border-t border-[var(--line)] pt-4"><dt className="font-medium">{locale === "fr" ? "Solde" : "Balance"}</dt><dd className="font-semibold">{money(sale.balance, sale.currency, locale)}</dd></div></> : null}</dl></aside></div><div className="mt-6 flex flex-wrap gap-3">{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "issue")) ? <PaymentEditor businessId={businessId} methods={methods} onDone={onRefresh} sale={sale} /> : null}{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "cancel")) ? <button className="button button-outline min-h-11" onClick={onCancel} type="button">{locale === "fr" ? "Annuler le brouillon" : "Cancel draft"}</button> : null}{sale.status === "COMPLETED" && lines?.length && can("SALE_RETURN") && can("SALE_RETURN_VIEW") ? <ReturnEditor businessId={businessId} lines={lines} methods={methods} onDone={onRefresh} sale={sale} /> : null}</div>{sale.operation_type === "INVOICE" && can(operationPermission("INVOICE", "view")) ? <InvoicePayments businessId={businessId} canCreatePayment={can(operationPermission("INVOICE", "paymentCreate"))} methods={methods} onDone={onRefresh} payments={payments} sale={sale} /> : null}</main>;
 }
-
-export function SaleManager({ businessId, saleId, scope = "sales" }: { businessId: string; saleId?: string; scope?: "sales" | "invoices" | "legacy" }) {
-  const { locale } = useLocale(); const router = useRouter(); const permissions = useBusinessPermissions(businessId); const can = (permission: string) => permissions?.includes(permission) ?? false; const canViewScope = scope === "invoices" ? can(operationPermission("INVOICE", "view")) : scope === "legacy" ? Boolean(permissions?.some((permission) => permission === "SALE_VIEW" || permission === "INVOICE_VIEW")) : can(operationPermission("DIRECT_SALE", "view")); const [sales, setSales] = useState<Sale[] | null>(null); const [customers, setCustomers] = useState<Customer[]>([]); const [methods, setMethods] = useState<PaymentMethod[]>([]); const [sale, setSale] = useState<Sale | null>(null); const [lines, setLines] = useState<Line[] | null>(null); const [payments, setPayments] = useState<ReceivablePayment[]>([]); const [error, setError] = useState<string | null>(null); const [query, setQuery] = useState(""); const [operation, setOperation] = useState<"ALL" | Operation>("ALL"); const [status, setStatus] = useState("ALL");
+export function SaleManager({
+  businessId,
+  saleId,
+  scope = "sales"
+}: {
+  businessId: string;
+  saleId?: string;
+  scope?: "sales" | "invoices" | "legacy";
+}) {
+  const {
+    locale
+  } = useLocale();
+  const router = useRouter();
+  const permissions = useBusinessPermissions(businessId);
+  const can = (permission: string) => permissions?.includes(permission) ?? false;
+  const canViewScope = scope === "invoices" ? can(operationPermission("INVOICE", "view")) : scope === "legacy" ? Boolean(permissions?.some(permission => permission === "SALE_VIEW" || permission === "INVOICE_VIEW")) : can(operationPermission("DIRECT_SALE", "view"));
+  const [sales, setSales] = useState<Sale[] | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [sale, setSale] = useState<Sale | null>(null);
+  const [lines, setLines] = useState<Line[] | null>(null);
+  const [payments, setPayments] = useState<ReceivablePayment[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [operation, setOperation] = useState<"ALL" | Operation>("ALL");
+  const [status, setStatus] = useState("ALL");
   const requestVersion = useRef(0);
-  const loadDetail = useCallback(async (isCurrent: () => boolean = () => true) => { if (!saleId) return; try { const [saleResponse, linesResponse, methodsResponse] = await Promise.all([fetch(`/api/private/businesses/${businessId}/sales/${saleId}`, { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/sales/${saleId}/lines`, { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/payment-methods`, { credentials: "same-origin" })]); if (!isCurrent()) return; if ([saleResponse, linesResponse, methodsResponse].some((response) => response.status === 401)) return router.replace("/connexion?erreur=session_expired"); if (!saleResponse.ok || !linesResponse.ok) return setError(locale === "fr" ? "Vente indisponible." : "Sale unavailable."); const nextSale = (await saleResponse.json() as { sale: Sale }).sale; const nextLines = (await linesResponse.json() as { lines: Line[] }).lines; if (!isCurrent()) return; setSale(nextSale); setLines(nextLines); if (methodsResponse.ok) { const nextMethods = (await methodsResponse.json() as { paymentMethods?: PaymentMethod[] }).paymentMethods ?? []; if (!isCurrent()) return; setMethods(nextMethods); } if (nextSale.receivable) { const paymentsResponse = await fetch(`/api/private/businesses/${businessId}/receivables/${nextSale.receivable}/payments`, { credentials: "same-origin" }); if (paymentsResponse.ok) { const nextPayments = (await paymentsResponse.json() as { payments: ReceivablePayment[] }).payments; if (!isCurrent()) return; setPayments(nextPayments); } } if (isCurrent()) setError(null); } catch { if (isCurrent()) setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable."); } }, [businessId, locale, router, saleId]);
-  const loadList = useCallback(async (isCurrent: () => boolean = () => true) => { try { const [salesResponse, customersResponse] = await Promise.all([fetch(`/api/private/businesses/${businessId}/sales`, { credentials: "same-origin" }), fetch(`/api/private/businesses/${businessId}/customers/search?page_size=50`, { credentials: "same-origin" })]); if (!isCurrent()) return; if (salesResponse.status === 401 || customersResponse.status === 401) return router.replace("/connexion?erreur=session_expired"); if (!salesResponse.ok) throw new Error(); const nextSales = (await salesResponse.json() as { sales: Sale[] }).sales; if (!isCurrent()) return; setSales(nextSales); if (customersResponse.ok) { const nextCustomers = (await customersResponse.json() as { customers: Customer[] }).customers; if (!isCurrent()) return; setCustomers(nextCustomers); } } catch { if (isCurrent()) setError(locale === "fr" ? "Ventes indisponibles." : "Sales are unavailable."); } }, [businessId, locale, router]);
-  useEffect(() => { if (!canViewScope) return; const version = ++requestVersion.current; const isCurrent = () => requestVersion.current === version; void Promise.resolve().then(() => { if (!isCurrent()) return; return saleId ? loadDetail(isCurrent) : loadList(isCurrent); }); return () => { requestVersion.current += 1; }; }, [canViewScope, loadDetail, loadList, saleId]);
+  const loadDetail = useCallback(async (isCurrent: () => boolean = () => true) => {
+    if (!saleId) return;
+    try {
+      const [saleResponse, linesResponse, methodsResponse] = await Promise.all([fetch(`/api/private/businesses/${businessId}/sales/${saleId}`, {
+        credentials: "same-origin"
+      }), fetch(`/api/private/businesses/${businessId}/sales/${saleId}/lines`, {
+        credentials: "same-origin"
+      }), fetch(`/api/private/businesses/${businessId}/payment-methods`, {
+        credentials: "same-origin"
+      })]);
+      if (!isCurrent()) return;
+      if ([saleResponse, linesResponse, methodsResponse].some(response => response.status === 401)) return router.replace("/connexion?erreur=session_expired");
+      if (!saleResponse.ok || !linesResponse.ok) return setError(locale === "fr" ? "Vente indisponible." : "Sale unavailable.");
+      const nextSale = ((await saleResponse.json()) as {
+        sale: Sale;
+      }).sale;
+      const nextLines = ((await linesResponse.json()) as {
+        lines: Line[];
+      }).lines;
+      if (!isCurrent()) return;
+      setSale(nextSale);
+      setLines(nextLines);
+      if (methodsResponse.ok) {
+        const nextMethods = ((await methodsResponse.json()) as {
+          paymentMethods?: PaymentMethod[];
+        }).paymentMethods ?? [];
+        if (!isCurrent()) return;
+        setMethods(nextMethods);
+      }
+      if (nextSale.receivable) {
+        const paymentsResponse = await fetch(`/api/private/businesses/${businessId}/receivables/${nextSale.receivable}/payments`, {
+          credentials: "same-origin"
+        });
+        if (paymentsResponse.ok) {
+          const nextPayments = ((await paymentsResponse.json()) as {
+            payments: ReceivablePayment[];
+          }).payments;
+          if (!isCurrent()) return;
+          setPayments(nextPayments);
+        }
+      }
+      if (isCurrent()) setError(null);
+    } catch {
+      if (isCurrent()) setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable.");
+    }
+  }, [businessId, locale, router, saleId]);
+  const loadList = useCallback(async (isCurrent: () => boolean = () => true) => {
+    try {
+      const [salesResponse, customersResponse] = await Promise.all([fetch(`/api/private/businesses/${businessId}/sales`, {
+        credentials: "same-origin"
+      }), fetch(`/api/private/businesses/${businessId}/customers/search?page_size=50`, {
+        credentials: "same-origin"
+      })]);
+      if (!isCurrent()) return;
+      if (salesResponse.status === 401 || customersResponse.status === 401) return router.replace("/connexion?erreur=session_expired");
+      if (!salesResponse.ok) throw new Error();
+      const nextSales = ((await salesResponse.json()) as {
+        sales: Sale[];
+      }).sales;
+      if (!isCurrent()) return;
+      setSales(nextSales);
+      if (customersResponse.ok) {
+        const nextCustomers = ((await customersResponse.json()) as {
+          customers: Customer[];
+        }).customers;
+        if (!isCurrent()) return;
+        setCustomers(nextCustomers);
+      }
+    } catch {
+      if (isCurrent()) setError(locale === "fr" ? "Ventes indisponibles." : "Sales are unavailable.");
+    }
+  }, [businessId, locale, router]);
+  useEffect(() => {
+    if (!canViewScope) return;
+    const version = ++requestVersion.current;
+    const isCurrent = () => requestVersion.current === version;
+    void Promise.resolve().then(() => {
+      if (!isCurrent()) return;
+      return saleId ? loadDetail(isCurrent) : loadList(isCurrent);
+    });
+    return () => {
+      requestVersion.current += 1;
+    };
+  }, [canViewScope, loadDetail, loadList, saleId]);
   useEffect(() => {
     if (!saleId || !sale) return;
     if (scope === "legacy" && sale.operation_type === "INVOICE") router.replace(`/espace/entreprises/${businessId}/factures/${sale.public_id}`);
     if (scope === "invoices" && sale.operation_type === "DIRECT_SALE") router.replace(`/espace/entreprises/${businessId}/ventes/${sale.public_id}`);
   }, [businessId, router, sale, saleId, scope]);
   const selectedOperation: "ALL" | Operation = scope === "legacy" ? operation : scope === "invoices" ? "INVOICE" : "DIRECT_SALE";
-  const visible = useMemo(() => (sales ?? []).filter((entry) => (selectedOperation === "ALL" || entry.operation_type === selectedOperation) && (status === "ALL" || entry.status === status) && `${entry.public_id} ${entry.customer_name_snapshot} ${entry.invoice_number} ${entry.reference}`.toLowerCase().includes(query.toLowerCase())), [query, sales, selectedOperation, status]);
+  const visible = useMemo(() => (sales ?? []).filter(entry => (selectedOperation === "ALL" || entry.operation_type === selectedOperation) && (status === "ALL" || entry.status === status) && `${entry.public_id} ${entry.customer_name_snapshot} ${entry.invoice_number} ${entry.reference}`.toLowerCase().includes(query.toLowerCase())), [query, sales, selectedOperation, status]);
   if (!saleId && scope !== "legacy") {
     const invoices = scope === "invoices";
-    const title = invoices ? (locale === "fr" ? "Factures" : "Invoices") : (locale === "fr" ? "Ventes" : "Sales");
-    const canUsePos = ["SALE_VIEW", "SALE_CREATE", "SALE_LINE_CREATE", "SALE_COMPLETE"].every((permission) => can(permission));
+    const title = invoices ? locale === "fr" ? "Factures" : "Invoices" : locale === "fr" ? "Ventes" : "Sales";
+    const canUsePos = ["SALE_VIEW", "SALE_CREATE", "SALE_LINE_CREATE", "SALE_COMPLETE"].every(permission => can(permission));
     if (permissions !== null && !canViewScope) return <main><h1 className="text-3xl font-semibold">{title}</h1><p className="app-alert mt-5" role="alert">{locale === "fr" ? "Vous n’êtes pas autorisé à consulter ces opérations." : "You are not allowed to view these operations."}</p></main>;
     return <OperationListView businessId={businessId} canCreateInvoice={can(operationPermission("INVOICE", "create"))} canUsePos={canUsePos} customers={customers} error={error} invoices={invoices} locale={locale} query={query} sales={sales} setQuery={setQuery} setStatus={setStatus} status={status} visible={visible} />;
   }
-  if (saleId) return <SaleDetailView businessId={businessId} can={can} error={error} lines={lines} locale={locale} methods={methods} onCancel={() => { if (!sale || !window.confirm(locale === "fr" ? "Annuler ce brouillon ?" : "Cancel this draft?")) return; void fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/cancel`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: "{}" }).then(async (response) => { if (!response.ok) setError(await errorDetail(response, locale === "fr" ? "Annulation impossible." : "Unable to cancel.")); else void loadDetail(); }).catch(() => setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable.")); }} onRefresh={loadDetail} payments={payments} sale={sale} scope={scope} />;
+  if (saleId) return <SaleDetailView businessId={businessId} can={can} error={error} lines={lines} locale={locale} methods={methods} onCancel={() => {
+    if (!sale || !window.confirm(locale === "fr" ? "Annuler ce brouillon ?" : "Cancel this draft?")) return;
+    void fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/cancel`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "content-type": "application/json",
+        "x-csrf-protection": "1"
+      },
+      body: "{}"
+    }).then(async response => {
+      if (!response.ok) setError(await errorDetail(response, locale === "fr" ? "Annulation impossible." : "Unable to cancel."));else void loadDetail();
+    }).catch(() => setError(locale === "fr" ? "Service temporairement indisponible." : "Service is temporarily unavailable."));
+  }} onRefresh={loadDetail} payments={payments} sale={sale} scope={scope} />;
   if (!saleId && scope !== "legacy") {
     const invoices = scope === "invoices";
-    const title = invoices ? (locale === "fr" ? "Factures" : "Invoices") : (locale === "fr" ? "Ventes" : "Sales");
+    const title = invoices ? locale === "fr" ? "Factures" : "Invoices" : locale === "fr" ? "Ventes" : "Sales";
     const href = invoices ? `/espace/entreprises/${businessId}/factures` : `/espace/entreprises/${businessId}/ventes`;
-    const canUsePos = ["SALE_VIEW", "SALE_CREATE", "SALE_LINE_CREATE", "SALE_COMPLETE"].every((permission) => can(permission));
+    const canUsePos = ["SALE_VIEW", "SALE_CREATE", "SALE_LINE_CREATE", "SALE_COMPLETE"].every(permission => can(permission));
     if (permissions !== null && !canViewScope) return <main><h1 className="text-3xl font-semibold">{title}</h1><p className="mt-4 text-[var(--error)]" role="alert">{locale === "fr" ? "Vous n’êtes pas autorisé à consulter ces opérations." : "You are not allowed to view these operations."}</p></main>;
-    return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">{invoices ? "FACTURES" : "VENTES"}</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">{title}</h1></div>{invoices && can(operationPermission("INVOICE", "create")) ? <InvoiceEditor businessId={businessId} customers={customers} /> : null}{!invoices && canUsePos ? <Link className="button button-primary" href={`/espace/entreprises/${businessId}/caisse`}>{locale === "fr" ? "Nouvelle vente" : "New sale"}</Link> : null}</div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5"><div className="grid gap-3 md:grid-cols-2"><input className="rounded border p-2" onChange={(event) => setQuery(event.target.value)} placeholder={locale === "fr" ? "Client, référence ou numéro" : "Customer, reference or number"} value={query} /><select className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="ALL">{locale === "fr" ? "Tous les statuts" : "All statuses"}</option><option value="DRAFT">DRAFT</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option></select></div>{sales === null ? <p className="mt-4">{locale === "fr" ? "Chargement…" : "Loading…"}</p> : <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-2">{locale === "fr" ? "Document" : "Document"}</th><th className="p-2">{locale === "fr" ? "Client" : "Customer"}</th><th className="p-2">{locale === "fr" ? "Montant" : "Amount"}</th><th className="p-2">{locale === "fr" ? "État" : "Status"}</th></tr></thead><tbody>{visible.map((entry) => <tr className="border-b" key={entry.public_id}><td className="p-2"><Link className="underline" href={`${href}/${entry.public_id}`}>{entry.invoice_number || entry.public_id}</Link></td><td className="p-2">{entry.customer_name_snapshot || "—"}</td><td className="p-2">{money(entry.total, entry.currency, locale)}{invoices ? <span className="block text-[var(--muted)]">{locale === "fr" ? "Solde" : "Balance"}: {money(entry.balance, entry.currency, locale)}</span> : null}</td><td className="p-2">{entry.status}{invoices ? ` · ${entry.payment_status}` : ""}</td></tr>)}</tbody></table>{!visible.length ? <p className="mt-4 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune opération ne correspond aux filtres." : "No operation matches the filters."}</p> : null}</div>}</section></main>;
+    return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">{invoices ? "FACTURES" : "VENTES"}</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">{title}</h1></div>{invoices && can(operationPermission("INVOICE", "create")) ? <InvoiceEditor businessId={businessId} customers={customers} /> : null}{!invoices && canUsePos ? <Link className="button button-primary" href={`/espace/entreprises/${businessId}/caisse`}>{locale === "fr" ? "Nouvelle vente" : "New sale"}</Link> : null}</div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5"><div className="grid gap-3 md:grid-cols-2"><input className="rounded border p-2" onChange={event => setQuery(event.target.value)} placeholder={locale === "fr" ? "Client, référence ou numéro" : "Customer, reference or number"} value={query} /><select className="rounded border p-2" onChange={event => setStatus(event.target.value)} value={status}><option value="ALL">{locale === "fr" ? "Tous les statuts" : "All statuses"}</option><option value="DRAFT">DRAFT</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option></select></div>{sales === null ? <p className="mt-4">{locale === "fr" ? "Chargement…" : "Loading…"}</p> : <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-2">{locale === "fr" ? "Document" : "Document"}</th><th className="p-2">{locale === "fr" ? "Client" : "Customer"}</th><th className="p-2">{locale === "fr" ? "Montant" : "Amount"}</th><th className="p-2">{locale === "fr" ? "État" : "Status"}</th></tr></thead><tbody>{visible.map(entry => <tr className="border-b" key={entry.public_id}><td className="p-2"><Link className="underline" href={`${href}/${entry.public_id}`}>{entry.invoice_number || entry.public_id}</Link></td><td className="p-2">{entry.customer_name_snapshot || "—"}</td><td className="p-2">{money(entry.total, entry.currency, locale)}{invoices ? <span className="block text-[var(--muted)]">{locale === "fr" ? "Solde" : "Balance"}: {money(entry.balance, entry.currency, locale)}</span> : null}</td><td className="p-2">{entry.status}{invoices ? ` · ${entry.payment_status}` : ""}</td></tr>)}</tbody></table>{!visible.length ? <p className="mt-4 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune opération ne correspond aux filtres." : "No operation matches the filters."}</p> : null}</div>}</section></main>;
   }
-  async function cancel() { if (!sale || !window.confirm(locale === "fr" ? "Annuler ce brouillon ?" : "Cancel this draft?")) return; const response = await fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/cancel`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: "{}" }); if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Annulation impossible." : "Unable to cancel.")); void loadDetail(); }
-  if (saleId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/${scope === "invoices" ? "factures" : "ventes"}`}>← {scope === "invoices" ? (locale === "fr" ? "Factures" : "Invoices") : (locale === "fr" ? "Ventes" : "Sales")}</Link><h1 className="mt-3 text-3xl font-semibold">{sale?.invoice_number || operationLabel(sale?.operation_type ?? "DIRECT_SALE", locale)}</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{!sale ? <p className="mt-5">{locale === "fr" ? "Chargement…" : "Loading…"}</p> : <><section className="content-panel mt-5 grid gap-2 p-5 sm:grid-cols-2"><p>{locale === "fr" ? "Type" : "Type"}: <strong>{operationLabel(sale.operation_type, locale)}</strong></p><p>{locale === "fr" ? "Statut" : "Status"}: <strong>{sale.status}</strong></p><p>{locale === "fr" ? "Client" : "Customer"}: {sale.customer_name_snapshot || "—"}</p><p>{locale === "fr" ? "Total" : "Total"}: <strong>{money(sale.total, sale.currency, locale)}</strong></p>{sale.operation_type === "INVOICE" ? <><p>{locale === "fr" ? "Échéance" : "Due date"}: {sale.due_date || "—"}</p><p>{locale === "fr" ? "Réglé" : "Paid"}: {money(sale.paid_amount, sale.currency, locale)}</p><p>{locale === "fr" ? "Solde" : "Balance"}: {money(sale.balance, sale.currency, locale)}</p></> : null}</section><div className="mt-5 flex flex-wrap gap-3">{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineCreate")) ? <LineEditor businessId={businessId} onDone={loadDetail} saleId={sale.public_id} /> : null}{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "issue")) ? <PaymentEditor businessId={businessId} methods={methods} onDone={loadDetail} sale={sale} /> : null}{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "cancel")) ? <button className="button button-outline" onClick={() => void cancel()} type="button">{locale === "fr" ? "Annuler le brouillon" : "Cancel draft"}</button> : null}</div><section className="content-panel mt-6 p-5"><h2 className="font-semibold">{locale === "fr" ? "Lignes de vente" : "Sale lines"}</h2>{lines?.length ? <ul className="mt-3 divide-y">{lines.map((line) => <li className="flex flex-wrap justify-between gap-2 py-3" key={line.public_id}><div><strong>{line.item_name_snapshot || line.sku_snapshot}</strong><p className="text-sm text-[var(--muted)]">{line.sku_snapshot} · {line.quantity} {line.unit_symbol_snapshot}</p></div><div className="flex flex-wrap items-center gap-3"><p>{line.quantity} × {money(line.unit_price, sale.currency, locale)} = <strong>{money(line.line_total, sale.currency, locale)}</strong></p>{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineUpdate")) ? <LineActions businessId={businessId} line={line} onDone={loadDetail} saleId={sale.public_id} /> : null}</div></li>)}</ul> : <p className="mt-3 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune ligne." : "No lines."}</p>}</section>{sale.operation_type === "INVOICE" && can(operationPermission("INVOICE", "view")) ? <InvoicePayments businessId={businessId} canCreatePayment={can(operationPermission("INVOICE", "paymentCreate"))} methods={methods} onDone={loadDetail} payments={payments} sale={sale} /> : null}</>}</main>;
-  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">{locale === "fr" ? "VENTES ET FACTURES" : "SALES AND INVOICES"}</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">{locale === "fr" ? "Ventes" : "Sales"}</h1></div><div className="flex flex-wrap gap-2">{can(operationPermission("DIRECT_SALE", "create")) ? <DirectSaleEditor businessId={businessId} customers={customers} /> : null}{can(operationPermission("INVOICE", "create")) ? <InvoiceEditor businessId={businessId} customers={customers} /> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5"><div className="grid gap-3 md:grid-cols-3"><input className="rounded border p-2" onChange={(event) => setQuery(event.target.value)} placeholder={locale === "fr" ? "Client, référence ou numéro" : "Customer, reference or number"} value={query} /><select className="rounded border p-2" onChange={(event) => setOperation(event.target.value as "ALL" | Operation)} value={operation}><option value="ALL">{locale === "fr" ? "Tous les types" : "All types"}</option><option value="DIRECT_SALE">{operationLabel("DIRECT_SALE", locale)}</option><option value="INVOICE">{operationLabel("INVOICE", locale)}</option></select><select className="rounded border p-2" onChange={(event) => setStatus(event.target.value)} value={status}><option value="ALL">{locale === "fr" ? "Tous les statuts" : "All statuses"}</option><option value="DRAFT">DRAFT</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option></select></div>{sales === null ? <p className="mt-4">{locale === "fr" ? "Chargement…" : "Loading…"}</p> : <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-2">{locale === "fr" ? "Document" : "Document"}</th><th className="p-2">{locale === "fr" ? "Client" : "Customer"}</th><th className="p-2">{locale === "fr" ? "Montant" : "Amount"}</th><th className="p-2">{locale === "fr" ? "État" : "Status"}</th></tr></thead><tbody>{visible.map((entry) => <tr className="border-b" key={entry.public_id}><td className="p-2"><Link className="underline" href={`/espace/entreprises/${businessId}/ventes/${entry.public_id}`}>{entry.invoice_number || entry.public_id}</Link><span className="block text-[var(--muted)]">{operationLabel(entry.operation_type, locale)}</span></td><td className="p-2">{entry.customer_name_snapshot || "—"}</td><td className="p-2">{money(entry.total, entry.currency, locale)}{entry.operation_type === "INVOICE" ? <span className="block text-[var(--muted)]">{locale === "fr" ? "Solde" : "Balance"}: {money(entry.balance, entry.currency, locale)}</span> : null}</td><td className="p-2">{entry.status}{entry.operation_type === "INVOICE" ? ` · ${entry.payment_status}` : ""}</td></tr>)}</tbody></table>{!visible.length ? <p className="mt-4 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune opération ne correspond aux filtres." : "No operation matches the filters."}</p> : null}</div>}</section></main>;
+  async function cancel() {
+    if (!sale || !window.confirm(locale === "fr" ? "Annuler ce brouillon ?" : "Cancel this draft?")) return;
+    const response = await fetch(`/api/private/businesses/${businessId}/sales/${sale.public_id}/cancel`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "content-type": "application/json",
+        "x-csrf-protection": "1"
+      },
+      body: "{}"
+    });
+    if (!response.ok) return setError(await errorDetail(response, locale === "fr" ? "Annulation impossible." : "Unable to cancel."));
+    void loadDetail();
+  }
+  if (saleId) return <main><Link className="nav-link text-sm" href={`/espace/entreprises/${businessId}/${scope === "invoices" ? "factures" : "ventes"}`}>← {scope === "invoices" ? locale === "fr" ? "Factures" : "Invoices" : locale === "fr" ? "Ventes" : "Sales"}</Link><h1 className="mt-3 text-3xl font-semibold">{sale?.invoice_number || operationLabel(sale?.operation_type ?? "DIRECT_SALE", locale)}</h1>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}{!sale ? <p className="mt-5">{locale === "fr" ? "Chargement…" : "Loading…"}</p> : <><section className="content-panel mt-5 grid gap-2 p-5 sm:grid-cols-2"><p>{locale === "fr" ? "Type" : "Type"}: <strong>{operationLabel(sale.operation_type, locale)}</strong></p><p>{locale === "fr" ? "Statut" : "Status"}: <strong>{sale.status}</strong></p><p>{locale === "fr" ? "Client" : "Customer"}: {sale.customer_name_snapshot || "—"}</p><p>{locale === "fr" ? "Total" : "Total"}: <strong>{money(sale.total, sale.currency, locale)}</strong></p>{sale.operation_type === "INVOICE" ? <><p>{locale === "fr" ? "Échéance" : "Due date"}: {sale.due_date || "—"}</p><p>{locale === "fr" ? "Réglé" : "Paid"}: {money(sale.paid_amount, sale.currency, locale)}</p><p>{locale === "fr" ? "Solde" : "Balance"}: {money(sale.balance, sale.currency, locale)}</p></> : null}</section><div className="mt-5 flex flex-wrap gap-3">{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineCreate")) ? <LineEditor businessId={businessId} onDone={loadDetail} saleId={sale.public_id} /> : null}{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "issue")) ? <PaymentEditor businessId={businessId} methods={methods} onDone={loadDetail} sale={sale} /> : null}{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "cancel")) ? <button className="button button-outline" onClick={() => void cancel()} type="button">{locale === "fr" ? "Annuler le brouillon" : "Cancel draft"}</button> : null}</div><section className="content-panel mt-6 p-5"><h2 className="font-semibold">{locale === "fr" ? "Lignes de vente" : "Sale lines"}</h2>{lines?.length ? <ul className="mt-3 divide-y">{lines.map(line => <li className="flex flex-wrap justify-between gap-2 py-3" key={line.public_id}><div><strong>{line.item_name_snapshot || line.sku_snapshot}</strong><p className="text-sm text-[var(--muted)]">{line.sku_snapshot} · {formatQuantityWithUnit(line.quantity, locale, line.allows_decimal_quantity, line.unit_symbol_snapshot)}</p></div><div className="flex flex-wrap items-center gap-3"><p>{formatQuantity(line.quantity, locale, line.allows_decimal_quantity)} × {money(line.unit_price, sale.currency, locale)} = <strong>{money(line.line_total, sale.currency, locale)}</strong></p>{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineUpdate")) ? <LineActions businessId={businessId} line={line} onDone={loadDetail} saleId={sale.public_id} /> : null}</div></li>)}</ul> : <p className="mt-3 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune ligne." : "No lines."}</p>}</section>{sale.operation_type === "INVOICE" && can(operationPermission("INVOICE", "view")) ? <InvoicePayments businessId={businessId} canCreatePayment={can(operationPermission("INVOICE", "paymentCreate"))} methods={methods} onDone={loadDetail} payments={payments} sale={sale} /> : null}</>}</main>;
+  return <main><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">{locale === "fr" ? "VENTES ET FACTURES" : "SALES AND INVOICES"}</p><h1 className="text-3xl font-semibold text-[var(--brand-secondary)]">{locale === "fr" ? "Ventes" : "Sales"}</h1></div><div className="flex flex-wrap gap-2">{can(operationPermission("DIRECT_SALE", "create")) ? <DirectSaleEditor businessId={businessId} customers={customers} /> : null}{can(operationPermission("INVOICE", "create")) ? <InvoiceEditor businessId={businessId} customers={customers} /> : null}</div></div>{error ? <p className="mt-4 text-[var(--error)]" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5"><div className="grid gap-3 md:grid-cols-3"><input className="rounded border p-2" onChange={event => setQuery(event.target.value)} placeholder={locale === "fr" ? "Client, référence ou numéro" : "Customer, reference or number"} value={query} /><select className="rounded border p-2" onChange={event => setOperation(event.target.value as "ALL" | Operation)} value={operation}><option value="ALL">{locale === "fr" ? "Tous les types" : "All types"}</option><option value="DIRECT_SALE">{operationLabel("DIRECT_SALE", locale)}</option><option value="INVOICE">{operationLabel("INVOICE", locale)}</option></select><select className="rounded border p-2" onChange={event => setStatus(event.target.value)} value={status}><option value="ALL">{locale === "fr" ? "Tous les statuts" : "All statuses"}</option><option value="DRAFT">DRAFT</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option></select></div>{sales === null ? <p className="mt-4">{locale === "fr" ? "Chargement…" : "Loading…"}</p> : <div className="mt-5 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-2">{locale === "fr" ? "Document" : "Document"}</th><th className="p-2">{locale === "fr" ? "Client" : "Customer"}</th><th className="p-2">{locale === "fr" ? "Montant" : "Amount"}</th><th className="p-2">{locale === "fr" ? "État" : "Status"}</th></tr></thead><tbody>{visible.map(entry => <tr className="border-b" key={entry.public_id}><td className="p-2"><Link className="underline" href={`/espace/entreprises/${businessId}/ventes/${entry.public_id}`}>{entry.invoice_number || entry.public_id}</Link><span className="block text-[var(--muted)]">{operationLabel(entry.operation_type, locale)}</span></td><td className="p-2">{entry.customer_name_snapshot || "—"}</td><td className="p-2">{money(entry.total, entry.currency, locale)}{entry.operation_type === "INVOICE" ? <span className="block text-[var(--muted)]">{locale === "fr" ? "Solde" : "Balance"}: {money(entry.balance, entry.currency, locale)}</span> : null}</td><td className="p-2">{entry.status}{entry.operation_type === "INVOICE" ? ` · ${entry.payment_status}` : ""}</td></tr>)}</tbody></table>{!visible.length ? <p className="mt-4 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune opération ne correspond aux filtres." : "No operation matches the filters."}</p> : null}</div>}</section></main>;
 }
