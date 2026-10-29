@@ -1,22 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, CreditCard, Minus, Package, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
 
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
-import { Modal } from "@/components/ui/modal";
+import { Modal as BaseModal } from "@/components/ui/modal";
 import { formatMessage } from "@/lib/i18n/messages";
 import { formatQuantity } from "@/lib/quantities/format";
+import { CommercialDocumentPrint } from "@/components/sales/commercial-document-print";
 
 type PosProduct = { type: "PRODUCT" | "VARIANT"; public_id: string; product_public_id: string; name: string; variant_label: string | null; internal_reference: string | null; barcode: string | null; effective_price: string; currency: string; available_quantity: string; unit_code: string; unit_symbol: string; allows_decimal_quantity: boolean };
 type CartLine = PosProduct & { quantity: string };
 type PaymentMethod = { public_id: string; name: string; category: string; is_active: boolean };
-type Sale = { public_id: string; status: "DRAFT" | "COMPLETED" | "CANCELLED"; total: string; currency: string };
+type Sale = { public_id: string; status: "DRAFT" | "COMPLETED" | "CANCELLED"; total: string; currency: string; payment_records?: { amount: string; currency: string; method_name: string; occurred_at: string }[]; completed_at?: string | null; created_at?: string };
 type SaleLine = { public_id: string };
 type PosPhase = "editing" | "draft" | "preparing" | "prepared" | "completing" | "uncertain" | "complete" | (string & {});
+
+let confirmedReceipt: { businessId: string; locale: string; sale: Sale; lines: CartLine[] } | null = null;
+function Modal(props: ComponentProps<typeof BaseModal>) {
+  const receipt = confirmedReceipt;
+  return <BaseModal {...props}>{props.children}{receipt ? <div className="mt-4 flex justify-center"><CommercialDocumentPrint businessId={receipt.businessId} lines={receipt.lines.map((line) => ({ public_id: keyOf(line), item_name_snapshot: line.name, sku_snapshot: line.internal_reference ?? line.barcode ?? "", unit_symbol_snapshot: line.unit_symbol, allows_decimal_quantity: line.allows_decimal_quantity, quantity: line.quantity, unit_price: line.effective_price, line_total: (amount(line.effective_price) * amount(line.quantity)).toFixed(2) }))} locale={receipt.locale} sale={{ ...receipt.sale, customer_name_snapshot: "", operation_type: "DIRECT_SALE", invoice_number: "", reference: receipt.sale.public_id, due_date: null, paid_amount: receipt.sale.total, balance: "0.00", payment_status: "PAID" }} /></div> : null}</BaseModal>;
+}
 
 const posPermissions = ["SALE_VIEW", "SALE_CREATE", "SALE_LINE_CREATE", "SALE_COMPLETE"];
 const paymentMethodsInFlight = new Map<string, Promise<PaymentMethod[]>>();
@@ -211,8 +218,8 @@ export function PosCheckout({ businessId }: { businessId: string }) {
     try { const current = await getSale(sale.public_id); setSale(current); if (current.status === "COMPLETED") finish(current); else setPhase("prepared"); }
     catch (reason) { setError(requestFailureMessage(reason, t("pos", "saleUnavailable"))); }
   }
-  function finish(completed: Sale) { setSale(completed); setPhase("complete"); setCart([]); setSynced({}); setMethod(""); }
-  function startNewSale() { setSale(null); setPhase("editing"); setCart([]); setSynced({}); setMethod(""); setError(null); setLineErrors({}); }
+  function finish(completed: Sale) { confirmedReceipt = { businessId, locale, sale: completed, lines: cart }; setSale(completed); setPhase("complete"); setCart([]); setSynced({}); setMethod(""); }
+  function startNewSale() { confirmedReceipt = null; setSale(null); setPhase("editing"); setCart([]); setSynced({}); setMethod(""); setError(null); setLineErrors({}); }
   async function complete() {
     if (!sale || !method || phase !== "prepared" || completionInFlight.current) return;
     completionInFlight.current = true;

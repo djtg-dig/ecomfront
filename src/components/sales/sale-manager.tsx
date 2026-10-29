@@ -9,6 +9,7 @@ import { useBusinessPermissions } from "@/components/private/use-business-permis
 import { Modal } from "@/components/ui/modal";
 import { operationPermission, type CommercialOperation } from "@/lib/sales/operation-permissions";
 import { formatQuantity, formatQuantityWithUnit } from "@/lib/quantities/format";
+import { CommercialDocumentPrint } from "@/components/sales/commercial-document-print";
 type Customer = {
   public_id: string;
   name: string;
@@ -25,6 +26,9 @@ type Sale = {
   status: "DRAFT" | "COMPLETED" | "CANCELLED";
   currency: string;
   reference: string;
+  created_at?: string;
+  issued_at?: string | null;
+  completed_at?: string | null;
   due_date?: string | null;
   notes?: string;
   total: string;
@@ -32,6 +36,7 @@ type Sale = {
   balance: string;
   payment_status: string;
   receivable: string | null;
+  payment_records?: { amount: string; currency: string; method_name: string; occurred_at: string }[];
 };
 type Line = {
   public_id: string;
@@ -616,7 +621,7 @@ function ReturnEditor({
                     }))} step={pcs ? "1" : "0.001"} type="number" value={quantities[line.public_id] ?? ""} /></label></div>;
               })}</div><label className="grid gap-1 text-sm"><span>{locale === "fr" ? "Motif du retour" : "Return reason"}</span><textarea className="min-h-20 rounded-lg border border-[var(--line)] bg-white p-3" maxLength={1000} onChange={event => setReason(event.target.value)} value={reason} /></label><p className="text-sm font-medium">{locale === "fr" ? "Montant retourné" : "Returned amount"}: {money(returnTotal.toFixed(2), sale.currency, locale)}</p>{projectedRefund > 0 ? <label className="grid gap-1 text-sm"><span>{locale === "fr" ? "Moyen de remboursement" : "Refund payment method"}</span><select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" onChange={event => setRefundMethod(event.target.value)} required value={refundMethod}><option value="">{locale === "fr" ? "Choisir un moyen actif" : "Choose an active method"}</option>{activeMethods.map(method => <option key={method.public_id} value={method.public_id}>{method.name}</option>)}</select><span className="text-xs text-[var(--muted)]">{locale === "fr" ? `Remboursement estimé : ${money(projectedRefund.toFixed(2), sale.currency, locale)}. Le montant final est validé par le backend.` : `Estimated refund: ${money(projectedRefund.toFixed(2), sale.currency, locale)}. The backend validates the final amount.`}</span></label> : null}<button className="button button-primary w-fit" onClick={continueToConfirmation} type="button">{locale === "fr" ? "Continuer" : "Continue"}</button></>}</>}</section>}</Modal> : null}</>;
 }
-function SaleDetailView({
+function SaleDetailContent({
   businessId,
   scope,
   locale,
@@ -646,6 +651,11 @@ function SaleDetailView({
   if (!sale) return <main><Link className="nav-link text-sm" href={back}>← {invoices ? locale === "fr" ? "Factures" : "Invoices" : locale === "fr" ? "Ventes" : "Sales"}</Link>{error ? <p className="app-alert mt-5" role="alert">{error}</p> : <p className="mt-5 text-sm text-[var(--muted)]">{locale === "fr" ? "Chargement…" : "Loading…"}</p>}</main>;
   return <main className="min-w-0"><Link className="nav-link text-sm" href={back}>← {invoices ? locale === "fr" ? "Factures" : "Invoices" : locale === "fr" ? "Ventes" : "Sales"}</Link><div className="mt-4 flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">{operationLabel(sale.operation_type, locale)}</p><h1 className="mt-1 text-3xl font-semibold">{sale.invoice_number || sale.reference || sale.public_id}</h1><p className="mt-2 text-sm text-[var(--muted)]">{sale.reference || sale.public_id}</p></div><StatusBadge locale={locale} status={sale.status} /></div>{error ? <p className="app-alert mt-5" role="alert">{error}</p> : null}<section className="content-panel mt-6 p-5 sm:p-6"><h2 className="text-lg font-semibold">{locale === "fr" ? "Informations générales" : "General information"}</h2><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Type" : "Type"}</p><p className="mt-1 font-medium">{operationLabel(sale.operation_type, locale)}</p></div><div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Statut" : "Status"}</p><div className="mt-1"><StatusBadge locale={locale} status={sale.status} /></div></div>{sale.operation_type === "INVOICE" ? <div><p className="text-sm text-[var(--muted)]">{locale === "fr" ? "Échéance" : "Due date"}</p><p className="mt-1 font-medium">{sale.due_date || "—"}</p></div> : null}</div></section><div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.8fr)]"><section className="content-panel p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">{sale.operation_type === "INVOICE" ? locale === "fr" ? "Lignes de facture" : "Invoice lines" : locale === "fr" ? "Lignes de vente" : "Sale lines"}</h2>{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineCreate")) ? <LineEditor businessId={businessId} onDone={onRefresh} saleId={sale.public_id} /> : null}</div>{lines?.length ? <ul className="mt-4 divide-y divide-[var(--line)]">{lines.map(line => <li className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0" key={line.public_id}><div><p className="font-medium">{line.item_name_snapshot || line.sku_snapshot}</p><p className="mt-1 text-sm text-[var(--muted)]">{line.sku_snapshot} · {formatQuantityWithUnit(line.quantity, locale, line.allows_decimal_quantity, line.unit_symbol_snapshot)}</p></div><div className="flex flex-wrap items-center justify-end gap-3"><p className="text-right text-sm tabular-nums">{formatQuantity(line.quantity, locale, line.allows_decimal_quantity)} × {money(line.unit_price, sale.currency, locale)}<br /><strong>{money(line.line_total, sale.currency, locale)}</strong></p>{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "lineUpdate")) ? <LineActions businessId={businessId} line={line} onDone={onRefresh} saleId={sale.public_id} /> : null}</div></li>)}</ul> : <p className="mt-4 text-sm text-[var(--muted)]">{locale === "fr" ? "Aucune ligne." : "No lines."}</p>}</section><aside className="content-panel p-5 sm:p-6"><h2 className="text-lg font-semibold">{locale === "fr" ? "Récapitulatif financier" : "Financial summary"}</h2><dl className="mt-4 grid gap-4"><div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">{locale === "fr" ? "Total" : "Total"}</dt><dd className="font-semibold">{money(sale.total, sale.currency, locale)}</dd></div>{sale.operation_type === "INVOICE" ? <><div className="flex justify-between gap-3"><dt className="text-sm text-[var(--muted)]">{locale === "fr" ? "Réglé" : "Paid"}</dt><dd>{money(sale.paid_amount, sale.currency, locale)}</dd></div><div className="flex justify-between gap-3 border-t border-[var(--line)] pt-4"><dt className="font-medium">{locale === "fr" ? "Solde" : "Balance"}</dt><dd className="font-semibold">{money(sale.balance, sale.currency, locale)}</dd></div></> : null}</dl></aside></div><div className="mt-6 flex flex-wrap gap-3">{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "issue")) ? <PaymentEditor businessId={businessId} methods={methods} onDone={onRefresh} sale={sale} /> : null}{sale.status === "DRAFT" && can(operationPermission(sale.operation_type, "cancel")) ? <button className="button button-outline min-h-11" onClick={onCancel} type="button">{locale === "fr" ? "Annuler le brouillon" : "Cancel draft"}</button> : null}{sale.status === "COMPLETED" && lines?.length && can("SALE_RETURN") && can("SALE_RETURN_VIEW") ? <ReturnEditor businessId={businessId} lines={lines} methods={methods} onDone={onRefresh} sale={sale} /> : null}</div>{sale.operation_type === "INVOICE" && can(operationPermission("INVOICE", "view")) ? <InvoicePayments businessId={businessId} canCreatePayment={can(operationPermission("INVOICE", "paymentCreate"))} methods={methods} onDone={onRefresh} payments={payments} sale={sale} /> : null}</main>;
 }
+function SaleDetailView(props: Parameters<typeof SaleDetailContent>[0]) {
+  const { businessId, lines, locale, sale } = props;
+  return <><div className="mb-4 flex justify-end">{sale && lines ? <CommercialDocumentPrint businessId={businessId} lines={lines} locale={locale} sale={sale} /> : null}</div><SaleDetailContent {...props} /></>;
+}
+
 export function SaleManager({
   businessId,
   saleId,

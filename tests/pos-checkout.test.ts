@@ -30,6 +30,11 @@ beforeEach(() => {
 });
 
 describe("caisse POS", () => {
+  it("raccorde le ticket à la confirmation sans refaire la vente", () => {
+    expect(source).toContain("<CommercialDocumentPrint businessId={receipt.businessId}");
+    expect(source).toContain("confirmedReceipt = { businessId, locale, sale: completed, lines: cart }");
+    expect(source).not.toContain("createRoot(");
+  });
   it("relaye exclusivement la recherche POS tenant-scopée", async () => {
     mocks.request.mockResolvedValueOnce({ count: 1, next: null, previous: null, results: [{ type: "VARIANT", public_id: "PV1" }] });
     const response = await search(request(`/api/private/businesses/${businessId}/products/pos/search?q=code&page_size=20`), context);

@@ -33,4 +33,10 @@ describe("gestionnaire de ventes", () => {
     expect(source).toContain("formatQuantityWithUnit(item.available_quantity, locale, item.allows_decimal_quantity, item.unit_symbol)");
     expect(source).not.toContain("Disponible: {item.available_quantity}");
   });
+
+  it("raccorde l’impression au détail sans créer de nouvelle vente", () => {
+    expect(source).toContain("function SaleDetailView(props");
+    expect(source).toContain("<CommercialDocumentPrint businessId={businessId}");
+    expect(source).not.toContain("createRoot(");
+  });
 });

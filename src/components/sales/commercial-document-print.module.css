@@ -1,0 +1,24 @@
+.document { background: #fff; color: #111827; margin: 0 auto; padding: 24px; font-family: Arial, sans-serif; font-size: 12px; }
+.invoice { max-width: 210mm; min-height: 260mm; }
+.ticket { max-width: 80mm; padding: 4mm; }
+.ticket58 { max-width: 58mm; font-size: 10px; }
+.header { display: flex; align-items: flex-start; gap: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; }
+.header h2 { font-size: 20px; margin: 0 0 4px; }
+.header p, .metadata, .title span, .lines small { color: #475569; margin: 2px 0; }
+.logo { width: 64px; height: 64px; object-fit: contain; }
+.title { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0 12px; font-size: 15px; }
+.metadata { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.metadata dt, .totals dt { font-size: 10px; text-transform: uppercase; color: #64748b; }
+.metadata dd, .totals dd { margin: 3px 0 0; font-weight: 600; }
+.lines { width: 100%; border-collapse: collapse; }
+.lines th, .lines td { border-bottom: 1px solid #cbd5e1; padding: 8px 4px; text-align: right; vertical-align: top; }
+.lines th:first-child, .lines td:first-child { text-align: left; }
+.lines small { display: block; font-size: 10px; }
+.totals { margin: 14px 0 0 auto; max-width: 260px; }
+.totals div, .payments li { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; }
+.totals div:last-child { border-top: 1px solid #334155; margin-top: 4px; padding-top: 8px; }
+.payments, .returns { border-top: 1px solid #cbd5e1; margin-top: 16px; padding-top: 10px; }
+.payments h3, .returns h3 { font-size: 12px; margin: 0 0 6px; }
+.payments ul { list-style: none; margin: 0; padding: 0; }
+.returns p, .notice { margin: 4px 0; }
+@media print { @page { margin: 8mm; size: A4; } .document, .document * { visibility: visible; } .document { display: block; position: absolute; inset: 0; width: auto; max-width: none; min-height: 0; margin: 0; } .ticket { width: 80mm; max-width: 80mm; margin: 0 auto; } .ticket58 { width: 58mm; max-width: 58mm; } .ticket .metadata { grid-template-columns: 1fr; } }
