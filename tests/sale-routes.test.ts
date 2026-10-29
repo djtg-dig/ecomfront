@@ -5,6 +5,7 @@ vi.mock("@/lib/api/backend-client", async (importOriginal) => { const actual = a
 
 import { POST as action } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/[action]/route";
 import { GET as lines, POST as createLine } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/lines/route";
+import { GET as returns, POST as createReturn } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/returns/route";
 import { PATCH as updateLine, DELETE as deleteLine } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/lines/[lineId]/route";
 import { GET as detail, PATCH as updateSale } from "@/app/api/private/businesses/[businessId]/sales/[saleId]/route";
 import { GET as sales, POST as createSale } from "@/app/api/private/businesses/[businessId]/sales/route";
@@ -28,10 +29,21 @@ describe("routes BFF ventes", () => {
     mocks.request.mockResolvedValueOnce({ public_id: saleId, status: "COMPLETED" }); expect((await action(mutation(`/api/private/businesses/${businessId}/sales/${saleId}/complete`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ amount_paid: "10", payment_method: "CASH" }) }), { params: Promise.resolve({ businessId, saleId, action: "complete" }) })).status).toBe(200);
     expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/sales/${saleId}/complete/`, expect.objectContaining({ method: "POST", json: { amount_paid: "10", payment_method: "CASH" } }));
   });
+  it("relaie les retours avec leur clé d’idempotence et leur historique", async () => {
+    mocks.request.mockResolvedValueOnce({ count: 0, next: null, previous: null, results: [] });
+    expect((await returns(request(`/api/private/businesses/${businessId}/sales/${saleId}/returns`), saleContext)).status).toBe(200);
+    const payload = { reason: "Retour", returned_at: "2026-01-01T10:00:00Z", lines: [{ sale_line: "SL1", quantity: "1.000" }], refund_payment_method: "PM1" };
+    mocks.request.mockResolvedValueOnce({ public_id: "SR1", refund_amount: "10.00" });
+    const response = await createReturn(mutation(`/api/private/businesses/${businessId}/sales/${saleId}/returns`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "return-retry" }, body: JSON.stringify(payload) }), saleContext);
+    expect(response.status).toBe(201);
+    expect(mocks.request).toHaveBeenLastCalledWith(`/api/v1/businesses/${businessId}/sales/${saleId}/returns/`, expect.objectContaining({ method: "POST", json: payload, headers: { "Idempotency-Key": "return-retry" } }));
+  });
   it("bloque CSRF et les identifiants produit/client invalides avant Django", async () => {
     expect((await createSale(mutation(`/api/private/businesses/${businessId}/sales`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ customer: "../" }) }), businessContext)).status).toBe(400);
     expect((await createLine(mutation(`/api/private/businesses/${businessId}/sales/${saleId}/lines`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ product: "PR1", variant: "PV1", quantity: "1" }) }), saleContext)).status).toBe(400);
     expect((await action(request(`/api/private/businesses/${businessId}/sales/${saleId}/cancel`, { method: "POST" }), { params: Promise.resolve({ businessId, saleId, action: "cancel" }) })).status).toBe(403);
+    expect((await createReturn(request(`/api/private/businesses/${businessId}/sales/${saleId}/returns`, { method: "POST", body: "{}" }), saleContext)).status).toBe(403);
+    expect((await createReturn(mutation(`/api/private/businesses/${businessId}/sales/${saleId}/returns`, { method: "POST", body: "{}" }), saleContext)).status).toBe(400);
     expect(mocks.request).not.toHaveBeenCalled();
   });
   it("relaye la modification et la suppression d’une ligne de brouillon via le BFF", async () => {
