@@ -8,11 +8,12 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { Modal } from "@/components/ui/modal";
 import { operationPermission, type CommercialOperation } from "@/lib/sales/operation-permissions";
+import { formatQuantity } from "@/lib/quantities/format";
 
 type Customer = { public_id: string; name: string; phone: string; email: string; is_active: boolean };
 type Operation = CommercialOperation;
 type Sale = { public_id: string; customer_name_snapshot: string; operation_type: Operation; invoice_number: string; status: "DRAFT" | "COMPLETED" | "CANCELLED"; currency: string; reference: string; due_date?: string | null; notes?: string; total: string; paid_amount: string; balance: string; payment_status: string; receivable: string | null };
-type Line = { public_id: string; item_name_snapshot: string; sku_snapshot: string; unit_symbol_snapshot: string; quantity: string; unit_price: string; line_total: string };
+type Line = { public_id: string; item_name_snapshot: string; sku_snapshot: string; unit_symbol_snapshot: string; allows_decimal_quantity: boolean; quantity: string; unit_price: string; line_total: string };
 type InventoryItem = { public_id: string; product: string | null; variant: string | null; item_name: string; internal_reference: string; available_quantity: string };
 type PaymentMethod = { public_id: string; name: string; category: string; is_active: boolean };
 type ReceivablePayment = { public_id: string; amount: string; payment_method: string; paid_at: string };

@@ -9,6 +9,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { Modal } from "@/components/ui/modal";
 import { formatMessage } from "@/lib/i18n/messages";
+import { formatQuantity } from "@/lib/quantities/format";
 
 type PosProduct = { type: "PRODUCT" | "VARIANT"; public_id: string; product_public_id: string; name: string; variant_label: string | null; internal_reference: string | null; barcode: string | null; effective_price: string; currency: string; available_quantity: string; unit_code: string; unit_symbol: string; allows_decimal_quantity: boolean };
 type CartLine = PosProduct & { quantity: string };
@@ -24,9 +25,7 @@ const keyOf = (item: PosProduct) => `${item.type}:${item.public_id}`;
 const quantityScale = 1000;
 const quantityUnits = (value: string) => Math.round(amount(value) * quantityScale);
 const quantityValue = (units: number) => String(units / quantityScale);
-const displayQuantity = (value: string, allowsDecimals: boolean) => allowsDecimals
-  ? (quantityUnits(value) / quantityScale).toFixed(3).replace(/\.?0+$/, "")
-  : String(Math.floor(quantityUnits(value) / quantityScale));
+const displayQuantity = (value: string, allowsDecimals: boolean, locale = "fr") => formatQuantity(value, locale, allowsDecimals);
 const maximumUnits = (item: PosProduct) => item.allows_decimal_quantity
   ? Math.max(0, quantityUnits(item.available_quantity))
   : Math.max(0, Math.floor(quantityUnits(item.available_quantity) / quantityScale) * quantityScale);
@@ -56,7 +55,7 @@ function loadPaymentMethods(businessId: string) {
 
 /** Le panier local prépare les appels Django sans écrire le stock ni un total autoritatif. */
 export function PosCheckout({ businessId }: { businessId: string }) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const router = useRouter();
   const permissions = useBusinessPermissions(businessId);
   const allowed = permissions !== null && posPermissions.every((permission) => permissions.includes(permission));
@@ -114,7 +113,7 @@ export function PosCheckout({ businessId }: { businessId: string }) {
   }, [allowed, businessId, query, router]);
 
   function stockLabel(item: PosProduct) {
-    const quantity = displayQuantity(item.available_quantity, item.allows_decimal_quantity);
+    const quantity = displayQuantity(item.available_quantity, item.allows_decimal_quantity, locale);
     const unit = item.unit_code === "PCS" ? t("pos", Number(quantity) === 1 ? "piece" : "pieces") : item.unit_symbol;
     return formatMessage(t("pos", "availableWithUnit"), { quantity, unit });
   }
@@ -146,7 +145,7 @@ export function PosCheckout({ businessId }: { businessId: string }) {
       const itemKey = keyOf(item);
       const existing = current.find((line) => keyOf(line) === itemKey);
       const step = item.allows_decimal_quantity ? 1 : quantityScale;
-      if (existing && quantityUnits(existing.quantity) + step > limit) { setLineError(item, formatMessage(t("pos", "maximumReached"), { quantity: displayQuantity(item.available_quantity, item.allows_decimal_quantity) })); return current; }
+      if (existing && quantityUnits(existing.quantity) + step > limit) { setLineError(item, formatMessage(t("pos", "maximumReached"), { quantity: displayQuantity(item.available_quantity, item.allows_decimal_quantity, locale) })); return current; }
       setLineError(item, null);
       return existing ? current.map((line) => keyOf(line) === itemKey ? { ...line, quantity: quantityValue(quantityUnits(line.quantity) + step) } : line) : [...current, { ...item, quantity: quantityValue(Math.min(step, limit)) }];
     });
@@ -156,7 +155,7 @@ export function PosCheckout({ businessId }: { businessId: string }) {
     const units = quantityUnits(quantity);
     const itemKey = keyOf(line);
     if (!units || (!line.allows_decimal_quantity && units % quantityScale !== 0)) { setLineError(line, t("pos", "wholeQuantityRequired")); return; }
-    if (units > maximumUnits(line)) { setLineError(line, formatMessage(t("pos", "maximumReached"), { quantity: displayQuantity(line.available_quantity, line.allows_decimal_quantity) })); return; }
+    if (units > maximumUnits(line)) { setLineError(line, formatMessage(t("pos", "maximumReached"), { quantity: displayQuantity(line.available_quantity, line.allows_decimal_quantity, locale) })); return; }
     setLineError(line, null);
     setCart((current) => current.map((item) => keyOf(item) === itemKey ? { ...item, quantity: quantityValue(units) } : item));
   }
@@ -221,7 +220,7 @@ export function PosCheckout({ businessId }: { businessId: string }) {
       if (targetId && available) {
         const line = cart.find((entry) => entry.public_id === targetId);
         if (line) {
-          setLineError(line, formatMessage(t("pos", "stockInsufficient"), { name: line.name, quantity: displayQuantity(available, line.allows_decimal_quantity), unit: line.unit_code === "PCS" ? t("pos", Number(available) === 1 ? "piece" : "pieces") : line.unit_symbol }));
+          setLineError(line, formatMessage(t("pos", "stockInsufficient"), { name: line.name, quantity: displayQuantity(available, line.allows_decimal_quantity, locale), unit: line.unit_code === "PCS" ? t("pos", Number(available) === 1 ? "piece" : "pieces") : line.unit_symbol }));
           setPhase("draft");
           return;
         }
