@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync(resolve(process.cwd(), "src/components/sales/sale-manager.tsx"), "utf8");
+const salePage = readFileSync(resolve(process.cwd(), "src/app/(private)/espace/entreprises/[businessId]/ventes/[saleId]/page.tsx"), "utf8");
 
 describe("stabilité de la fiche vente", () => {
   it("ne lie pas le rechargement du détail à l’identité instable du tableau de permissions", () => {
@@ -30,6 +31,13 @@ describe("stabilité de la fiche vente", () => {
     expect(modal).toContain("focus({ preventScroll: true })");
     expect(modal).not.toContain("scrollIntoView");
     expect(modal).not.toContain("scrollTo(");
+  });
+
+  it("place les paramètres dynamiques du détail sous Suspense sans accès serveur dans le segment", () => {
+    expect(salePage).toContain("<Suspense fallback={<PrivatePageFallback />}>");
+    expect(salePage).toContain("const { businessId, saleId } = await params;");
+    expect(salePage).toContain('<SaleManager businessId={businessId} saleId={saleId} scope="legacy" />');
+    expect(salePage).not.toMatch(/cookies\(|headers\(|redirect\(|fetch\(/);
   });
 
   it("conserve l’édition de brouillon dans une interface de formulaire structurée", () => {

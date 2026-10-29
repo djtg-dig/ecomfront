@@ -51,9 +51,14 @@ export function PrivateSessionGuard({ children }: Readonly<{ children: ReactNode
 
   if (status === "checking") {
     return (
-      <div aria-busy="true" className="grid min-h-64 place-items-center p-6">
-        <p className="text-sm text-[var(--muted)]">{t("feedback", "sessionChecking")}</p>
-      </div>
+      <>
+        {/* Keep the route segment mounted for Next's Instant Navigation validation.
+            It remains visually and semantically hidden until the session refresh succeeds. */}
+        <div aria-hidden="true" className="hidden">{children}</div>
+        <div aria-busy="true" className="grid min-h-64 place-items-center p-6">
+          <p className="text-sm text-[var(--muted)]">{t("feedback", "sessionChecking")}</p>
+        </div>
+      </>
     );
   }
 
