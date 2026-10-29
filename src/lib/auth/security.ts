@@ -6,6 +6,7 @@ import type { ServerConfig } from "@/lib/config/server";
 
 export const transactionCookieName = "ecommerce_oauth_transaction";
 export const transactionCookiePath = "/api/auth/carri/handoff";
+export const returnToCookieName = "ecommerce_oauth_return_to";
 export const csrfHeaderName = "x-csrf-protection";
 
 function isLoopback(hostname: string): boolean {
@@ -51,6 +52,20 @@ export function requestCookie(request: Request, name: string): string | null {
     return pair.slice(separator + 1).trim();
   }
   return null;
+}
+
+/** Restricts post-authentication navigation to this application's private area. */
+export function safePrivateReturnTo(value: string | null | undefined, frontendUrl: string): string | null {
+  if (!value || value.length > 2048) return null;
+  try {
+    const destination = new URL(decodeURIComponent(value), frontendUrl);
+    if (destination.origin !== frontendUrl || (destination.pathname !== "/espace" && !destination.pathname.startsWith("/espace/"))) {
+      return null;
+    }
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+  } catch {
+    return null;
+  }
 }
 
 export function secureEquals(left: string, right: string): boolean {

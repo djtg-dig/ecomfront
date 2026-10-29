@@ -6,6 +6,8 @@ import {
   transactionCookieName,
   transactionCookieOptions,
   transactionCookiePath,
+  returnToCookieName,
+  safePrivateReturnTo,
 } from "@/lib/auth/security";
 import { getServerConfig } from "@/lib/config/server";
 
@@ -46,6 +48,16 @@ export async function GET(request: Request) {
     path: transactionCookiePath,
     priority: "high",
   });
+  const returnTo = safePrivateReturnTo(new URL(request.url).searchParams.get("retour"), config.frontendUrl);
+  if (returnTo) {
+    response.cookies.set(returnToCookieName, returnTo, {
+      ...cookiePolicy,
+      httpOnly: true,
+      maxAge: 600,
+      path: transactionCookiePath,
+      priority: "high",
+    });
+  }
   response.headers.set("Cache-Control", "no-store, max-age=0");
   response.headers.set("Referrer-Policy", "no-referrer");
   return response;

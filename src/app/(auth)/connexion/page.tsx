@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function ConnexionPage({ searchParams }: {
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; retour?: string }>;
 }) {
   return (
     <Suspense fallback={
@@ -27,9 +27,9 @@ export default function ConnexionPage({ searchParams }: {
 async function ConnexionContent({
   searchParams,
 }: {
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; retour?: string }>;
 }) {
-  const { erreur } = await searchParams;
+  const { erreur, retour } = await searchParams;
   const errorMessage = erreur ? authenticationErrors[erreur] : undefined;
 
   return (
@@ -46,7 +46,7 @@ async function ConnexionContent({
           </p>
         ) : null}
         <ConnectionStatus />
-        <a className="button button-primary mt-7 flex w-full" href="/api/auth/carri/login">
+        <a className="button button-primary mt-7 flex w-full" href={retour ? `/api/auth/carri/login?retour=${encodeURIComponent(retour)}` : "/api/auth/carri/login"}>
           Se connecter avec Carri Account
         </a>
         <Link className="mt-5 inline-flex text-sm text-[var(--muted)] underline underline-offset-4" href="/">

@@ -10,6 +10,8 @@ import {
 } from "@/lib/auth/session";
 import {
   requestCookie,
+  returnToCookieName,
+  safePrivateReturnTo,
   secureEquals,
   isLocalSameSiteConfig,
   transactionCookieName,
@@ -72,6 +74,12 @@ function returnToLogin(config: ReturnType<typeof getServerConfig>, code: string)
 
 function clearTransactionCookie(response: NextResponse, config: ReturnType<typeof getServerConfig>) {
   response.cookies.set(transactionCookieName, "", {
+    ...transactionCookieOptions(config),
+    httpOnly: true,
+    maxAge: 0,
+    path: transactionCookiePath,
+  });
+  response.cookies.set(returnToCookieName, "", {
     ...transactionCookieOptions(config),
     httpOnly: true,
     maxAge: 0,
@@ -165,7 +173,8 @@ export async function POST(request: Request) {
 
     const session = createEcommerceSession(tokens);
     const encrypted = encryptSession(session);
-    const response = NextResponse.redirect(new URL("/espace", config.frontendUrl), 303);
+    const returnTo = safePrivateReturnTo(requestCookie(request, returnToCookieName), config.frontendUrl) ?? "/espace";
+    const response = NextResponse.redirect(new URL(returnTo, config.frontendUrl), 303);
     response.cookies.set(sessionCookieName, encrypted, sessionCookieOptions(
       Math.floor((session.refreshExpiresAt - Date.now()) / 1000),
     ));

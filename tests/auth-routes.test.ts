@@ -65,12 +65,14 @@ function handoffRequest({
   cookieBinding = binding,
   origin = backendUrl,
   invitationReturn = false,
+  returnTo,
 }: {
   handoff?: string;
   deliveryBinding?: string;
   cookieBinding?: string;
   origin?: string;
   invitationReturn?: boolean;
+  returnTo?: string;
 } = {}) {
   const form = new URLSearchParams({ handoff, delivery_binding: deliveryBinding });
   return new Request(`${frontendUrl}/api/auth/carri/handoff`, {
@@ -79,7 +81,7 @@ function handoffRequest({
       "content-type": "application/x-www-form-urlencoded",
       origin,
       "sec-fetch-site": "same-site",
-      cookie: `ecommerce_oauth_transaction=${cookieBinding}${invitationReturn ? "; ecommerce_invitation_return=1" : ""}`,
+      cookie: `ecommerce_oauth_transaction=${cookieBinding}${invitationReturn ? "; ecommerce_invitation_return=1" : ""}${returnTo ? `; ecommerce_oauth_return_to=${encodeURIComponent(returnTo)}` : ""}`,
     },
     body: form,
   });
@@ -129,6 +131,23 @@ describe("routes d’authentification BFF", () => {
     expect(cookie).toContain("HttpOnly");
     expect(cookie).toContain("SameSite=lax");
     expect(cookie).toContain("Path=/api/auth/carri/handoff");
+  });
+
+  it("conserve uniquement une destination privée validée pour le retour après connexion", async () => {
+    const response = await startLogin(new Request(`${frontendUrl}/api/auth/carri/login?retour=%2Fespace%2Fentreprises%2FSHNV6TJE2ZDU%2Fcaisse%3Fmode%3Dpos`));
+    const returnCookie = cookies(response).find((entry) => entry.startsWith("ecommerce_oauth_return_to="));
+
+    expect(returnCookie).toContain("HttpOnly");
+    expect(returnCookie).toContain("Path=/api/auth/carri/handoff");
+    expect(decodeURIComponent(cookieValue(response, "ecommerce_oauth_return_to"))).toBe("/espace/entreprises/SHNV6TJE2ZDU/caisse?mode=pos");
+  });
+
+  it("ignore une destination externe ou publique avant le handoff", async () => {
+    const external = await startLogin(new Request(`${frontendUrl}/api/auth/carri/login?retour=https%3A%2F%2Fattacker.example%2Fsteal`));
+    const publicPath = await startLogin(new Request(`${frontendUrl}/api/auth/carri/login?retour=%2Fconnexion`));
+
+    expect(cookies(external).some((entry) => entry.startsWith("ecommerce_oauth_return_to="))).toBe(false);
+    expect(cookies(publicPath).some((entry) => entry.startsWith("ecommerce_oauth_return_to="))).toBe(false);
   });
 
   it("n’autorise HTTP que pour le même hôte loopback en développement", async () => {
@@ -277,6 +296,21 @@ describe("routes d’authentification BFF", () => {
     expect(sessionCookie).toContain("Path=/");
     expect(sessionCookie).not.toContain("Max-Age=0");
     expect(sessionCookie).not.toContain(tokenPair().access);
+  });
+
+  it("revient à la destination privée validée puis efface la destination de transaction", async () => {
+    mocks.request.mockResolvedValue(tokenPair());
+    const response = await receiveHandoff(handoffRequest({ returnTo: "/espace/entreprises/SHNV6TJE2ZDU/caisse" }));
+
+    expect(response.headers.get("location")).toBe(`${frontendUrl}/espace/entreprises/SHNV6TJE2ZDU/caisse`);
+    expect(cookies(response).some((entry) => entry.startsWith("ecommerce_oauth_return_to=") && entry.includes("Max-Age=0"))).toBe(true);
+  });
+
+  it("écarte une destination de transaction injectée", async () => {
+    mocks.request.mockResolvedValue(tokenPair());
+    const response = await receiveHandoff(handoffRequest({ returnTo: "https://attacker.example/steal" }));
+
+    expect(response.headers.get("location")).toBe(`${frontendUrl}/espace`);
   });
 
   it("ignore un ancien marqueur d’invitation et revient toujours vers l’espace", async () => {

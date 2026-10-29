@@ -12,6 +12,9 @@ describe("garde de session privée", () => {
     expect(source).toContain('t("feedback", "sessionChecking")');
     expect(messages.fr.feedback.sessionChecking).toBe("Vérification de la session…");
     expect(messages.en.feedback.sessionChecking).toBe("Checking your session…");
-    expect(source).toContain('router.replace("/connexion?erreur=session_expired")');
+    expect(source).toContain('cache: "no-store"');
+    expect(source).toContain("setAttempt((current) => current + 1)");
+    expect(source).toContain('status === "expired" || status === "forbidden"');
+    expect(source).toContain("window.location.assign");
   });
 });
