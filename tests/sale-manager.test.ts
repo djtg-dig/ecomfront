@@ -22,4 +22,15 @@ describe("gestionnaire de ventes", () => {
     expect(source).toContain("<LineEditor");
     expect(source).toContain("<PaymentEditor");
   });
+
+  it("explique le parcours brouillon puis ajout des articles dès la création", () => {
+    expect(source).toContain("La facture sera créée comme brouillon.");
+    expect(source).toContain("rechercher les articles dans le stock");
+    expect(source).toContain("add multiple lines, and issue it");
+  });
+
+  it("affiche les disponibilités avec le formateur partagé dans l’éditeur de lignes", () => {
+    expect(source).toContain("formatQuantityWithUnit(item.available_quantity, locale, item.allows_decimal_quantity, item.unit_symbol)");
+    expect(source).not.toContain("Disponible: {item.available_quantity}");
+  });
 });
