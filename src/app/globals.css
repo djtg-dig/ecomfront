@@ -274,3 +274,33 @@ input, select, textarea {
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: .78; }
 input:focus, select:focus, textarea:focus { border-color: var(--focus-ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 22%, transparent); outline: none; }
 ::selection { background: color-mix(in srgb, var(--brand) 30%, transparent); }
+.commercial-document-print {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: max-content;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media print {
+  html:has(body[data-commercial-printing]) { background: #fff !important; }
+  body[data-commercial-printing] {
+    margin: 0 !important;
+    background: #fff !important;
+  }
+
+  /* Le portail est un enfant direct de body : aucun de ses ancêtres n'est masqué. */
+  body[data-commercial-printing] > :not(.commercial-document-print) { display: none !important; }
+  body[data-commercial-printing] > .commercial-document-print {
+    display: block !important;
+    position: static;
+    width: max-content;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    visibility: visible;
+    pointer-events: auto;
+  }
+}

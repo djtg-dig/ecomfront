@@ -1,24 +1,562 @@
-.document { background: #fff; color: #111827; margin: 0 auto; padding: 24px; font-family: Arial, sans-serif; font-size: 12px; }
-.invoice { max-width: 210mm; min-height: 260mm; }
-.ticket { max-width: 80mm; padding: 4mm; }
-.ticket58 { max-width: 58mm; font-size: 10px; }
-.header { display: flex; align-items: flex-start; gap: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; }
-.header h2 { font-size: 20px; margin: 0 0 4px; }
-.header p, .metadata, .title span, .lines small { color: #475569; margin: 2px 0; }
-.logo { width: 64px; height: 64px; object-fit: contain; }
-.title { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0 12px; font-size: 15px; }
-.metadata { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
-.metadata dt, .totals dt { font-size: 10px; text-transform: uppercase; color: #64748b; }
-.metadata dd, .totals dd { margin: 3px 0 0; font-weight: 600; }
-.lines { width: 100%; border-collapse: collapse; }
-.lines th, .lines td { border-bottom: 1px solid #cbd5e1; padding: 8px 4px; text-align: right; vertical-align: top; }
-.lines th:first-child, .lines td:first-child { text-align: left; }
-.lines small { display: block; font-size: 10px; }
-.totals { margin: 14px 0 0 auto; max-width: 260px; }
-.totals div, .payments li { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; }
-.totals div:last-child { border-top: 1px solid #334155; margin-top: 4px; padding-top: 8px; }
-.payments, .returns { border-top: 1px solid #cbd5e1; margin-top: 16px; padding-top: 10px; }
-.payments h3, .returns h3 { font-size: 12px; margin: 0 0 6px; }
-.payments ul { list-style: none; margin: 0; padding: 0; }
-.returns p, .notice { margin: 4px 0; }
-@media print { @page { margin: 8mm; size: A4; } .document, .document * { visibility: visible; } .document { display: block; position: absolute; inset: 0; width: auto; max-width: none; min-height: 0; margin: 0; } .ticket { width: 80mm; max-width: 80mm; margin: 0 auto; } .ticket58 { width: 58mm; max-width: 58mm; } .ticket .metadata { grid-template-columns: 1fr; } }
+.preview {
+  overflow-x: auto;
+  border-radius: 12px;
+  background: #e2e8f0;
+  padding: 16px;
+}
+
+.document,
+.document * {
+  box-sizing: border-box;
+}
+
+.document {
+  position: relative;
+  margin: 0 auto;
+  overflow-wrap: anywhere;
+  background: #fff;
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.4;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+/* Facture A4 */
+.invoice {
+  width: 190mm;
+  min-height: 267mm;
+  padding: 12mm;
+  font-size: 9.5pt;
+}
+
+.invoiceHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8mm;
+  border-bottom: 1.5px solid #0f172a;
+  padding-bottom: 6mm;
+}
+
+.invoiceLogo {
+  display: block;
+  width: 24mm;
+  height: 20mm;
+  object-fit: contain;
+  object-position: left top;
+}
+
+.businessIdentity {
+  min-width: 0;
+}
+
+.businessIdentity h2 {
+  margin: 0 0 1.5mm;
+  color: #0f172a;
+  font-size: 17pt;
+  line-height: 1.15;
+}
+
+.businessIdentity p {
+  margin: 0.6mm 0;
+  color: #475569;
+}
+
+.invoiceHeading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(58mm, 0.75fr);
+  gap: 12mm;
+  align-items: start;
+  margin: 9mm 0 7mm;
+}
+
+.eyebrow,
+.sectionLabel {
+  margin: 0 0 1mm;
+  color: #64748b;
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.invoiceHeading h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 25pt;
+  line-height: 1;
+}
+
+.draftNotice {
+  margin: 3mm 0 0;
+  color: #991b1b;
+  font-size: 8pt;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.draftWatermark {
+  position: absolute;
+  top: 110mm;
+  left: 24mm;
+  z-index: 0;
+  transform: rotate(-30deg);
+  color: rgb(153 27 27 / 7%);
+  font-size: 46pt;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.invoiceReference {
+  min-width: 0;
+  margin: 0;
+  border-left: 3px solid #2563eb;
+  padding-left: 5mm;
+}
+
+.invoiceReference div + div {
+  margin-top: 3mm;
+}
+
+.invoiceReference dt {
+  color: #64748b;
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.invoiceReference dd {
+  margin: 0.8mm 0 0;
+  color: #0f172a;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.parties {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.75fr) minmax(0, 0.75fr);
+  gap: 6mm;
+  margin-bottom: 8mm;
+  border: 1px solid #cbd5e1;
+  border-radius: 2mm;
+  padding: 5mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.parties strong {
+  display: block;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  color: #1d4ed8 !important;
+}
+
+.invoiceLines {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.invoiceLines thead {
+  display: table-header-group;
+}
+
+.invoiceLines tfoot {
+  display: table-footer-group;
+}
+
+.itemColumn {
+  width: 44%;
+}
+
+.quantityColumn {
+  width: 18%;
+}
+
+.moneyColumn {
+  width: 19%;
+}
+
+.invoiceLines th {
+  border-bottom: 1.5px solid #0f172a;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 7.5pt;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.invoiceLines th,
+.invoiceLines td {
+  padding: 3mm 2.2mm;
+  vertical-align: top;
+}
+
+.invoiceLines th:not(:first-child),
+.invoiceLines td:not(:first-child) {
+  text-align: right;
+}
+
+.invoiceLines td:not(:first-child) {
+  white-space: nowrap;
+}
+
+.invoiceLines tbody tr {
+  border-bottom: 1px solid #dbe3ed;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.invoiceLines td strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.invoiceLines th:first-child,
+.invoiceLines td:first-child {
+  padding-right: 5mm;
+}
+
+.invoiceLines small {
+  display: block;
+  margin-top: 1mm;
+  color: #64748b;
+  font-size: 7.5pt;
+  overflow-wrap: anywhere;
+}
+
+.invoiceSummary {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 7mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.summaryTotals {
+  width: 78mm;
+  margin: 0;
+}
+
+.summaryTotals div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8mm;
+  align-items: baseline;
+  padding: 2mm 0;
+}
+
+.summaryTotals dt {
+  color: #475569;
+}
+
+.summaryTotals dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.summaryTotals .balanceRow {
+  margin-top: 1mm;
+  border-top: 1.5px solid #0f172a;
+  padding-top: 3mm;
+  color: #0f172a;
+  font-size: 12pt;
+  font-weight: 800;
+}
+
+.invoiceDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8mm;
+  margin-top: 8mm;
+}
+
+.payments,
+.returns {
+  border-top: 1px solid #94a3b8;
+  padding-top: 3mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.payments h3,
+.returns h3 {
+  margin: 0 0 2.5mm;
+  color: #334155;
+  font-size: 8pt;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.payments ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.payments li,
+.returns p {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4mm;
+  margin: 0;
+  padding: 1.4mm 0;
+}
+
+.payments li span,
+.payments li small,
+.returns p span,
+.returns p small {
+  display: block;
+}
+
+.payments li small,
+.returns p small {
+  color: #64748b;
+  font-size: 7.5pt;
+}
+
+.payments li strong,
+.returns p strong {
+  white-space: nowrap;
+}
+
+.returns p small {
+  grid-column: 1 / -1;
+}
+
+/* Ticket thermique : structure volontairement distincte, sans tableau. */
+.ticket {
+  min-height: auto;
+  padding: 3mm;
+  color: #000;
+  font-size: 8.5pt;
+}
+
+.ticket80 {
+  width: 80mm;
+}
+
+.ticket58 {
+  width: 58mm;
+  padding: 2.2mm;
+  font-size: 7.5pt;
+}
+
+.ticketHeader {
+  border-bottom: 1px dashed #000;
+  padding-bottom: 3mm;
+  text-align: center;
+}
+
+.ticketLogo {
+  display: block;
+  width: 13mm;
+  height: 11mm;
+  margin: 0 auto 2mm;
+  filter: grayscale(1);
+  object-fit: contain;
+}
+
+.ticketHeader .businessIdentity h2 {
+  margin-bottom: 1mm;
+  color: #000;
+  font-size: 11pt;
+}
+
+.ticketHeader .businessIdentity p {
+  margin: 0.4mm 0;
+  color: #000;
+  font-size: 7.5pt;
+}
+
+.ticketReference {
+  border-bottom: 1px dashed #000;
+  padding: 3mm 0;
+}
+
+.ticketReference h1 {
+  margin: 0 0 2mm;
+  font-size: 10pt;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ticketReference p {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3mm;
+  margin: 0.8mm 0;
+}
+
+.ticketReference strong {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.ticketItems {
+  border-bottom: 1px dashed #000;
+}
+
+.ticketItem {
+  padding: 2.8mm 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.ticketItem + .ticketItem {
+  border-top: 1px dotted #777;
+}
+
+.ticketItemName {
+  display: block;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ticketItem small {
+  display: block;
+  margin-top: 0.6mm;
+  color: #333;
+  font-size: 7pt;
+  overflow-wrap: anywhere;
+}
+
+.ticketItemCalculation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2mm;
+  align-items: end;
+  margin-top: 1.4mm;
+}
+
+.ticketItemCalculation span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ticketItemCalculation strong {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ticketTotals {
+  margin: 3mm 0 0;
+}
+
+.ticketTotals div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2mm;
+  align-items: baseline;
+  padding: 0.8mm 0;
+}
+
+.ticketTotals dd {
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ticketGrandTotal {
+  margin-bottom: 1.5mm;
+  border-top: 1.5px solid #000;
+  border-bottom: 1.5px solid #000;
+  padding: 2mm 0 !important;
+  font-size: 12pt;
+  font-weight: 900;
+}
+
+.ticketDetails {
+  margin-top: 3mm;
+}
+
+.ticketDetails .payments,
+.ticketDetails .returns {
+  border-top: 1px dashed #000;
+  padding-top: 2.5mm;
+}
+
+.ticketDetails .returns {
+  margin-top: 2.5mm;
+}
+
+.ticketDetails .payments h3,
+.ticketDetails .returns h3 {
+  color: #000;
+  font-size: 7pt;
+}
+
+.ticketDetails .payments li,
+.ticketDetails .returns p {
+  gap: 2mm;
+  padding: 1mm 0;
+}
+
+.ticket58 .ticketItemCalculation {
+  grid-template-columns: 1fr;
+}
+
+.ticket58 .ticketItemCalculation strong {
+  display: block;
+}
+
+.ticketFooter {
+  margin-top: 4mm;
+  border-top: 1px dashed #000;
+  padding-top: 3mm;
+  text-align: center;
+}
+
+@media print {
+  .preview {
+    overflow: visible;
+    padding: 0;
+    background: transparent;
+  }
+
+  .document {
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .invoice {
+    width: 190mm;
+    min-height: auto;
+    padding: 0;
+  }
+
+  .ticket {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .ticket80 {
+    width: 76mm;
+  }
+
+  .ticket58 {
+    width: 55mm;
+  }
+}
+
+@media screen and (max-width: 720px) {
+  .preview {
+    padding: 8px;
+  }
+
+  .invoice {
+    width: 190mm;
+    transform-origin: top left;
+  }
+}
