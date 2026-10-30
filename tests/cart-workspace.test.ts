@@ -1,0 +1,46 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { messages } from "@/lib/i18n/messages";
+
+const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+
+describe("espace personnel des paniers", () => {
+  it("place les paniers dans la navigation personnelle, pas dans les modules entreprise", () => {
+    const shell = source("src/components/private/private-shell.tsx");
+    expect(shell).toContain('href: "/compte/paniers"');
+    expect(shell).toContain('label: t("navigation", "carts")');
+    expect(shell.indexOf('href: "/compte/paniers"')).toBeLessThan(shell.indexOf("function BusinessShell"));
+  });
+
+  it("préserve une redirection sûre depuis la route historique", () => {
+    const legacy = source("src/app/(public)/paniers/page.tsx");
+    expect(legacy).toContain('new Set(["search", "business", "status", "page"])');
+    expect(legacy).toContain("redirect(`/compte/paniers");
+  });
+
+  it("utilise un seul BFF carts pour la liste, le détail et les mutations", () => {
+    const manager = source("src/components/carts/cart-manager.tsx");
+    expect(manager).toContain('fetch(`/api/private/carts/${path}`');
+    expect(manager).toContain('method: "PATCH"');
+    expect(manager).toContain('method: "DELETE"');
+    expect(manager).toContain('method: "POST", body: JSON.stringify({ source_cart: cart.reference');
+    expect(manager).toContain('failure.code === "CART_LOCKED"');
+    expect(manager).toContain('status=DRAFT&page_size=100');
+  });
+
+  it("fournit les libellés FR et EN nécessaires", () => {
+    expect(messages.fr.navigation.carts).toBe("Mes paniers");
+    expect(messages.en.navigation.carts).toBe("My carts");
+    expect(messages.fr.carts.locked).toBe("Panier verrouillé");
+    expect(messages.en.carts.transfer).toBe("Transfer");
+  });
+
+  it("relie un ajout marketplace au panier réellement retourné par Django", () => {
+    const addToCart = source("src/components/carts/marketplace-add-to-cart.tsx");
+    expect(addToCart).toContain("setCartReference(added.reference ?? \"\")");
+    expect(addToCart).toContain("setCartReference(result.reference ?? selected)");
+    expect(addToCart).toContain("/compte/paniers/${encodeURIComponent(cartReference)}");
+  });
+});

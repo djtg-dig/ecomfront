@@ -80,6 +80,7 @@ function mapBackendError(error: unknown): PrivateSessionError {
       "invitation_delivery_unavailable",
       "invalid_invitation_token",
       "invitation_not_found",
+      "CART_LOCKED",
     ]);
     if (error.code && invitationCodes.has(error.code) &&
         [400, 401, 403, 409, 410, 503].includes(error.status)) {
