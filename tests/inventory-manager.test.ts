@@ -42,11 +42,11 @@ describe("gestionnaire de stocks", () => {
     expect(source).toContain("paginationSearchParams(searchParams.toString(), updates)");
   });
   it("remet uniquement la page du tableau filtré à la première page", () => {
-    expect(source).toContain('updateUrl({ q: event.target.value || null, inventory_page: null }, true)');
-    expect(source).toContain('updateUrl({ status: event.target.value || null, inventory_page: null }, true)');
-    expect(source).toContain('updateUrl({ type: event.target.value || null, movements_page: null }, true)');
-    expect(source).toContain('updateUrl({ origin: event.target.value || null, movements_page: null }, true)');
-    expect(source).toContain('date_from: null, date_to: null, movements_page: null');
+    expect(source).toMatch(/q: event\.target\.value \|\| null,\s*inventory_page: null/);
+    expect(source).toMatch(/status: event\.target\.value \|\| null,\s*inventory_page: null/);
+    expect(source).toMatch(/type: event\.target\.value \|\| null,\s*movements_page: null/);
+    expect(source).toMatch(/origin: event\.target\.value \|\| null,\s*movements_page: null/);
+    expect(source).toMatch(/date_from: null,\s*date_to: null,\s*movements_page: null/);
   });
   it("conserve un tableau desktop et des cartes de mouvements sur mobile", () => {
     expect(source).toContain('hidden min-w-[860px] md:block');

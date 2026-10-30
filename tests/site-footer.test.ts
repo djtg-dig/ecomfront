@@ -44,7 +44,7 @@ describe("variantes du pied de page", () => {
 
     expect(publicLayout).toContain('className="flex flex-1 flex-col"');
     expect(privateShell).toContain('className="site-container flex flex-1 flex-col gap-6 py-6 md:flex-row"');
-    expect(homeContent).toContain('className="site-container grid flex-1 content-center');
+    expect(homeContent).toContain('<MarketplaceHome initialListing={listing} initialError={error} />');
     expect(homeContent).not.toContain("min-h-[calc(100vh-9rem)]");
     expect(publicLayout).not.toContain("fixed");
     expect(privateShell).not.toContain("fixed");
