@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import type { PublicCatalogPage, PublicProduct } from "@/lib/api/public-catalog";
 
-type Product = { public_id: string; name: string; description: string; business: string; business_name: string; category: string | null; category_name: string | null; selling_price: string; min_price: string; max_price: string; currency: string; is_negotiable: boolean; is_online_purchasable: boolean; is_home_deliverable: boolean; unit: string; image: string | null };
-type Listing = { count: number; next: number | string | null; results: Product[] };
+type Product = PublicProduct;
+type Listing = PublicCatalogPage;
 type Suggestion = { type: "PRODUCT" | "CATEGORY" | "BUSINESS"; label: string; href: string };
 
 function money(product: Product) { return new Intl.NumberFormat("fr-CD", { style: "currency", currency: product.currency, maximumFractionDigits: 2 }).format(Number(product.max_price)); }
@@ -20,14 +22,24 @@ export function MarketplaceSearch() {
   return <form onSubmit={submit} className="relative w-full max-w-2xl"><label className="sr-only" htmlFor="marketplace-search">Rechercher un produit, une catégorie ou une boutique</label><input id="marketplace-search" value={query} onChange={(event) => { setQuery(event.target.value); if (!event.target.value.trim()) setSuggestions([]); setOpen(true); }} onFocus={() => setOpen(true)} className="w-full rounded-full border border-[var(--line)] bg-white px-5 py-3 pr-24 shadow-sm" placeholder="Que recherchez-vous ?" autoComplete="off"/><button className="button button-primary absolute right-1 top-1" type="submit">Rechercher</button>{open && suggestions.length ? <ul role="listbox" className="content-panel absolute z-20 mt-2 w-full overflow-hidden p-1">{suggestions.map((item) => <li key={`${item.type}-${item.href}`}><Link role="option" onClick={() => setOpen(false)} className="block rounded px-4 py-3 hover:bg-[var(--surface-raised)]" href={item.href}><span className="mr-2 text-xs font-semibold text-[muted)]">{item.type}</span>{item.label}</Link></li>)}</ul> : null}</form>;
 }
 
-export function MarketplaceHome() {
-  const [listing, setListing] = useState<Listing | null>(null); const [error, setError] = useState(false);
-  useEffect(() => { fetch("/api/public/catalog/products/home/").then((response) => response.ok ? response.json() : Promise.reject()).then(setListing).catch(() => setError(true)); }, []);
-  return <><section className="border-b border-[var(--line)] bg-[var(--surface-raised)]"><div className="site-container py-14"><p className="eyebrow">Marketplace</p><h1 className="mt-3 max-w-3xl text-4xl font-semibold text-[var(--brand-secondary)] sm:text-5xl">Découvrez les produits de plusieurs boutiques.</h1><div className="mt-7"><MarketplaceSearch /></div></div></section><section className="site-container py-10"><h2 className="text-2xl font-semibold">À découvrir</h2>{error ? <p role="alert" className="mt-5 text-[var(--muted)]">Le catalogue est temporairement indisponible. Réessayez dans un instant.</p> : !listing ? <p className="mt-5 text-[var(--muted)]" aria-busy="true">Chargement des produits…</p> : listing.results.length === 0 ? <p className="mt-5 text-[var(--muted)]">Aucun produit public pour le moment.</p> : <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{listing.results.map((product) => <ProductCard key={product.public_id} product={product} />)}</div>}</section></>;
+function PublicPagination({ listing }: { listing: Listing }) {
+  const pathname = usePathname();
+  const search = useSearchParams();
+  const currentPage = Math.max(1, Number(search.get("page") ?? "1") || 1);
+  const pageHref = (page: number) => {
+    const next = new URLSearchParams(search.toString());
+    if (page === 1) next.delete("page"); else next.set("page", String(page));
+    const query = next.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  };
+  if (!listing.previous && !listing.next) return null;
+  return <nav aria-label="Pagination du catalogue" className="mt-8 flex items-center justify-between gap-4"><Link aria-disabled={!listing.previous} className={`button button-outline ${listing.previous ? "" : "pointer-events-none opacity-50"}`} href={pageHref(Math.max(1, currentPage - 1))}>Précédent</Link><span className="text-sm text-[var(--muted)]">Page {currentPage}</span><Link aria-disabled={!listing.next} className={`button button-outline ${listing.next ? "" : "pointer-events-none opacity-50"}`} href={pageHref(currentPage + 1)}>Suivant</Link></nav>;
 }
 
-export function MarketplaceResults({ endpoint, title }: { endpoint: string; title: string }) {
-  const [listing, setListing] = useState<Listing | null>(null); const [error, setError] = useState(false);
-  useEffect(() => { fetch(`/api/public/catalog/${endpoint}`).then((response) => response.ok ? response.json() : Promise.reject()).then((data) => setListing(data.products ? { count: data.count, next: data.next, results: data.products } : data)).catch(() => setError(true)); }, [endpoint]);
-  return <section className="site-container py-12"><MarketplaceSearch /><h1 className="mt-10 text-3xl font-semibold text-[var(--brand-secondary)]">{title}</h1>{error ? <p role="alert" className="mt-5">Impossible de charger ces produits.</p> : !listing ? <p className="mt-5" aria-busy="true">Chargement…</p> : listing.results.length ? <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{listing.results.map((product) => <ProductCard key={product.public_id} product={product} />)}</div> : <p className="mt-5 text-[var(--muted)]">Aucun résultat.</p>}</section>;
+export function MarketplaceHome({ initialListing, initialError }: { initialListing: Listing | null; initialError: boolean }) {
+  return <><section className="border-b border-[var(--line)] bg-[var(--surface-raised)]"><div className="site-container py-14"><p className="eyebrow">Marketplace</p><h1 className="mt-3 max-w-3xl text-4xl font-semibold text-[var(--brand-secondary)] sm:text-5xl">Découvrez les produits de plusieurs boutiques.</h1><div className="mt-7"><MarketplaceSearch /></div></div></section><section className="site-container py-10"><h2 className="text-2xl font-semibold">À découvrir</h2>{initialError ? <p role="alert" className="mt-5 text-[var(--muted)]">Le catalogue est temporairement indisponible. Réessayez dans un instant.</p> : !initialListing ? <p className="mt-5 text-[var(--muted)]">Aucun produit public pour le moment.</p> : initialListing.results.length === 0 ? <p className="mt-5 text-[var(--muted)]">Aucun produit public pour le moment.</p> : <><div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{initialListing.results.map((product) => <ProductCard key={product.public_id} product={product} />)}</div><PublicPagination listing={initialListing} /></>}</section></>;
+}
+
+export function MarketplaceResults({ initialListing, title, initialError }: { initialListing: Listing | null; title: string; initialError: boolean }) {
+  return <section className="site-container py-12"><MarketplaceSearch /><h1 className="mt-10 text-3xl font-semibold text-[var(--brand-secondary)]">{title}</h1>{initialError ? <p role="alert" className="mt-5">Impossible de charger ces produits.</p> : !initialListing || initialListing.results.length === 0 ? <p className="mt-5 text-[var(--muted)]">Aucun résultat.</p> : <><div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{initialListing.results.map((product) => <ProductCard key={product.public_id} product={product} />)}</div><PublicPagination listing={initialListing} /></>}</section>;
 }

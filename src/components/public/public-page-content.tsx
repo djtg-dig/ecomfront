@@ -1,10 +1,11 @@
 "use client";
 
 import { useLocale } from "@/components/i18n/locale-provider";
+import type { PublicCatalogPage } from "@/lib/api/public-catalog";
 import { MarketplaceHome } from "@/components/public/marketplace";
 
-export function HomeContent() {
-  return <MarketplaceHome />;
+export function HomeContent({ listing, error }: { listing: PublicCatalogPage | null; error: boolean }) {
+  return <MarketplaceHome initialListing={listing} initialError={error} />;
 }
 
 export function InformationalPage({ page }: Readonly<{ page: "contact" | "pricing" | "terms" | "privacy" | "cookies" }>) {
