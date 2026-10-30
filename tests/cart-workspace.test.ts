@@ -35,6 +35,10 @@ describe("espace personnel des paniers", () => {
     expect(messages.en.navigation.carts).toBe("My carts");
     expect(messages.fr.carts.locked).toBe("Panier verrouillé");
     expect(messages.en.carts.transfer).toBe("Transfer");
+    expect(messages.fr.carts.memberCannotPurchaseTitle).toBe("Vous faites partie de cette boutique");
+    expect(messages.en.carts.memberCannotPurchaseTitle).toBe("You are a member of this store");
+    expect(messages.fr.carts.memberCannotPurchaseDescription).toContain("consulter les produits");
+    expect(messages.en.carts.memberCannotPurchaseDescription).toContain("browse its products");
   });
 
   it("relie un ajout marketplace au panier réellement retourné par Django", () => {
@@ -49,6 +53,9 @@ describe("espace personnel des paniers", () => {
     expect(addToCart).toContain('fetchBusinesses()');
     expect(addToCart).toContain('memberCannotPurchase');
     expect(addToCart).toContain('error.code === "BUSINESS_MEMBER_CANNOT_PURCHASE"');
+    expect(addToCart).toContain('t("carts", "memberCannotPurchaseTitle")');
+    expect(addToCart).toContain('t("carts", "memberCannotPurchaseDescription")');
+    expect(addToCart).toContain('else setMessage(readableError(error))');
   });
 
   it("retire la recherche redondante du contenu de la fiche produit", () => {
@@ -60,6 +67,7 @@ describe("espace personnel des paniers", () => {
     const manager = source("src/components/carts/cart-manager.tsx");
     expect(manager).toContain('failure.code === "BUSINESS_MEMBER_CANNOT_PURCHASE"');
     expect(manager).toContain("setMembershipForbidden(true)");
+    expect(manager).toContain('payload.code === "BUSINESS_MEMBER_CANNOT_PURCHASE" ? undefined : payload.detail');
     expect(source("src/lib/businesses/list-client.ts")).toContain('cache: "no-store"');
   });
 });

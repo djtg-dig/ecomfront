@@ -66,16 +66,16 @@ const catalogMediaHints = {
   en: "Add clear product photos. JPEG, PNG, and WebP are supported; square, portrait, and landscape photos are allowed (8 MB maximum).",
 } as const;
 // Keep direct consumers of `messages` aligned with the localized helper below.
+const cartExtras = {
+  fr: { memberCannotPurchase: "Vous ne pouvez pas acheter les produits de cette boutique, car vous en êtes membre.", memberCannotPurchaseTitle: "Vous faites partie de cette boutique", memberCannotPurchaseDescription: "Vous ne pouvez pas acheter les produits de cette boutique, car vous en êtes membre. Vous pouvez toutefois consulter les produits et leurs informations." },
+  en: { memberCannotPurchase: "You cannot purchase products from this store because you are a member.", memberCannotPurchaseTitle: "You are a member of this store", memberCannotPurchaseDescription: "You cannot purchase products from this store because you are a member. You can still browse its products and view their details." },
+} as const;
 export const messages = {
-  fr: { ...baseMessages.fr, catalog: { ...baseMessages.fr.catalog, imageHint: catalogMediaHints.fr } },
-  en: { ...baseMessages.en, catalog: { ...baseMessages.en.catalog, imageHint: catalogMediaHints.en } },
+  fr: { ...baseMessages.fr, catalog: { ...baseMessages.fr.catalog, imageHint: catalogMediaHints.fr }, carts: { ...baseMessages.fr.carts, ...cartExtras.fr } },
+  en: { ...baseMessages.en, catalog: { ...baseMessages.en.catalog, imageHint: catalogMediaHints.en }, carts: { ...baseMessages.en.carts, ...cartExtras.en } },
 } as const;
 
 export type MessageKey = keyof typeof messages.fr;
-const cartExtras = {
-  fr: { memberCannotPurchase: "Vous ne pouvez pas acheter de produits dans une boutique dont vous êtes membre." },
-  en: { memberCannotPurchase: "You cannot buy products from a store where you are a member." },
-} as const;
 export function message(locale: Locale, section: MessageKey, key: string): string {
   if (section === "pos") {
     const extra = (posExtras[locale] as Record<string, string>)[key];

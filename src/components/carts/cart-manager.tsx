@@ -20,7 +20,7 @@ class CartRequestError extends Error { constructor(readonly status: number, read
 async function request<T>(path = "", init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/private/carts/${path}`, { credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1", ...init?.headers }, ...init });
   if (response.status === 401) { window.location.assign(`/connexion?retour=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`); throw new CartRequestError(401, "session_expired"); }
-  if (!response.ok) { const payload = await response.json().catch(() => ({})) as ErrorPayload; throw new CartRequestError(response.status, payload.code, payload.detail); }
+  if (!response.ok) { const payload = await response.json().catch(() => ({})) as ErrorPayload; const detail = payload.code === "BUSINESS_MEMBER_CANNOT_PURCHASE" ? undefined : payload.detail; throw new CartRequestError(response.status, payload.code, detail); }
   return response.status === 204 ? undefined as T : response.json() as Promise<T>;
 }
 
