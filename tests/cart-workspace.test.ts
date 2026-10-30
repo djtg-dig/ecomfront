@@ -39,6 +39,10 @@ describe("espace personnel des paniers", () => {
 
   it("relie un ajout marketplace au panier réellement retourné par Django", () => {
     const addToCart = source("src/components/carts/marketplace-add-to-cart.tsx");
+    expect(addToCart).toContain('method: "POST", body: JSON.stringify({ product, quantity: normalizedQuantity })');
+    expect(addToCart).toContain('`${encodeURIComponent(selected)}/items`');
+    expect(addToCart).toContain("setModalError(readableError(error))");
+    expect(addToCart).toContain("validateCartQuantity(quantity, rules)");
     expect(addToCart).toContain("setCartReference(added.reference ?? \"\")");
     expect(addToCart).toContain("setCartReference(result.reference ?? selected)");
     expect(addToCart).toContain("/compte/paniers/${encodeURIComponent(cartReference)}");

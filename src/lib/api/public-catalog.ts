@@ -17,7 +17,9 @@ export type PublicProduct = {
   is_negotiable: boolean;
   is_online_purchasable: boolean;
   is_home_deliverable: boolean;
+  unit_code: string;
   unit: string;
+  allows_decimal_quantity: boolean;
   image: string | null;
 };
 
