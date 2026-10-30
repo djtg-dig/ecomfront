@@ -40,28 +40,9 @@ export async function GET(request: Request) {
   const destination = new URL("/api/v1/auth/carri/login/", config.backendUrl);
   destination.searchParams.set("delivery", "nextjs");
   destination.searchParams.set("delivery_binding", binding);
-
-  // The OAuth start endpoint is normally a browser navigation. Probe it from
-  // the BFF first so a provider outage never renders Django's technical API UI.
-  let upstream: Response;
-  try {
-    upstream = await fetch(destination, { redirect: "manual", headers: { Accept: "text/html" } });
-  } catch {
-    const unavailable = new URL("/auth/indisponible", config.frontendUrl);
-    if (returnTo) unavailable.searchParams.set("retour", returnTo);
-    return NextResponse.redirect(unavailable, 303);
-  }
-  if (upstream.status >= 500) {
-    console.error("[auth] OAuth provider start unavailable", { status: upstream.status });
-    const unavailable = new URL("/auth/indisponible", config.frontendUrl);
-    if (returnTo) unavailable.searchParams.set("retour", returnTo);
-    return NextResponse.redirect(unavailable, 303);
-  }
-  const providerLocation = upstream.headers.get("location");
-  if (!providerLocation || upstream.status < 300 || upstream.status >= 400) {
-    return NextResponse.redirect(new URL("/connexion?erreur=oauth_configuration_unavailable", config.frontendUrl), 303);
-  }
-  const response = NextResponse.redirect(providerLocation, 303);
+  // Django must receive this browser navigation directly: it creates the
+  // HttpOnly OAuth-attempt cookie that binds the later callback to this browser.
+  const response = NextResponse.redirect(destination, 303);
   response.cookies.set(transactionCookieName, binding, {
     ...cookiePolicy,
     httpOnly: true,
