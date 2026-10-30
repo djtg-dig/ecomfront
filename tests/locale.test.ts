@@ -23,4 +23,16 @@ describe("résolution de la langue", () => {
     }
     expect(message("en", "navigation", "workspace")).toBe("My workspace");
   });
+
+  it("décrit les photos produit sans imposer de dimensions", () => {
+    const frenchHint = message("fr", "catalog", "imageHint");
+    const englishHint = message("en", "catalog", "imageHint");
+
+    expect(frenchHint).toContain("verticales");
+    expect(englishHint).toContain("portrait");
+    expect(frenchHint).not.toContain("800");
+    expect(englishHint).not.toContain("800");
+    expect(messages.fr.catalog.imageHint).toBe(frenchHint);
+    expect(messages.en.catalog.imageHint).toBe(englishHint);
+  });
 });

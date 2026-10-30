@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/i18n/locale";
 
-export const messages = {
+const baseMessages = {
   fr: {
     common: { language: "Langue", french: "Français", english: "English", saving: "Enregistrement…", saved: "Préférence enregistrée.", retry: "Réessayer" },
     navigation: { home: "Accueil", features: "Fonctionnalités", pricing: "Tarifs", contact: "Contact", workspace: "Mon espace", login: "Connexion", logout: "Se déconnecter", logoutPending: "Déconnexion…", settings: "Paramètres du compte", businesses: "Mes entreprises", carts: "Mes paniers", invitations: "Invitations reçues", dashboard: "Tableau de bord", products: "Produits", inventory: "Stocks", purchases: "Achats", sales: "Ventes", invoices: "Factures", pos: "Caisse", partners: "Partenaires commerciaux", finance: "Finance", businessSettings: "Paramètres entreprise", backToWorkspace: "Retour à mon espace" },
@@ -45,7 +45,6 @@ export function unitLabel(locale: Locale, code: string, fallback: string): strin
   return (unitMessages[locale] as Record<string, string>)[code] ?? fallback;
 }
 
-export type MessageKey = keyof typeof messages.fr;
 const posExtras = {
   fr: { successModalTitle: "Vente confirmée !", successModalDescription: "Le paiement a été enregistré avec succès.", saleReference: "Référence de vente", amountCollected: "Montant encaissé" },
   en: { successModalTitle: "Sale confirmed!", successModalDescription: "The payment has been recorded successfully.", saleReference: "Sale reference", amountCollected: "Amount collected" },
@@ -62,6 +61,17 @@ const commercialSettingsValidationMessages = {
   fr: { salesLocationRequired: "Choisissez un type de point de vente.", salesChannelRequired: "Choisissez un mode de vente.", deliveryMethodsRequired: "Choisissez au moins une modalité de remise." },
   en: { salesLocationRequired: "Choose a sales location type.", salesChannelRequired: "Choose a sales channel.", deliveryMethodsRequired: "Choose at least one delivery method." },
 } as const;
+const catalogMediaHints = {
+  fr: "Ajoutez des photos nettes de vos produits. Les formats JPEG, PNG et WebP sont acceptés ; les photos carrées, verticales et horizontales sont autorisées (8 Mo maximum).",
+  en: "Add clear product photos. JPEG, PNG, and WebP are supported; square, portrait, and landscape photos are allowed (8 MB maximum).",
+} as const;
+// Keep direct consumers of `messages` aligned with the localized helper below.
+export const messages = {
+  fr: { ...baseMessages.fr, catalog: { ...baseMessages.fr.catalog, imageHint: catalogMediaHints.fr } },
+  en: { ...baseMessages.en, catalog: { ...baseMessages.en.catalog, imageHint: catalogMediaHints.en } },
+} as const;
+
+export type MessageKey = keyof typeof messages.fr;
 const cartExtras = {
   fr: { memberCannotPurchase: "Vous ne pouvez pas acheter de produits dans une boutique dont vous êtes membre." },
   en: { memberCannotPurchase: "You cannot buy products from a store where you are a member." },
