@@ -40,7 +40,23 @@ export async function GET(request: Request) {
   destination.searchParams.set("delivery", "nextjs");
   destination.searchParams.set("delivery_binding", binding);
 
-  const response = NextResponse.redirect(destination, 303);
+  // The OAuth start endpoint is normally a browser navigation. Probe it from
+  // the BFF first so a provider outage never renders Django's technical API UI.
+  let upstream: Response;
+  try {
+    upstream = await fetch(destination, { redirect: "manual", headers: { Accept: "text/html" } });
+  } catch {
+    return NextResponse.redirect(new URL("/auth/indisponible", config.frontendUrl), 303);
+  }
+  if (upstream.status >= 500) {
+    console.error("[auth] OAuth provider start unavailable", { status: upstream.status });
+    return NextResponse.redirect(new URL("/auth/indisponible", config.frontendUrl), 303);
+  }
+  const providerLocation = upstream.headers.get("location");
+  if (!providerLocation || upstream.status < 300 || upstream.status >= 400) {
+    return NextResponse.redirect(new URL("/connexion?erreur=oauth_configuration_unavailable", config.frontendUrl), 303);
+  }
+  const response = NextResponse.redirect(providerLocation, 303);
   response.cookies.set(transactionCookieName, binding, {
     ...cookiePolicy,
     httpOnly: true,
