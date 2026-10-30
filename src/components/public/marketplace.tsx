@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
-type Product = { public_id: string; name: string; description: string; business: string; business_name: string; category: string | null; category_name: string | null; selling_price: string; min_price: string; max_price: string; currency: string; is_negotiable: boolean; unit: string; image: string | null };
+type Product = { public_id: string; name: string; description: string; business: string; business_name: string; category: string | null; category_name: string | null; selling_price: string; min_price: string; max_price: string; currency: string; is_negotiable: boolean; is_online_purchasable: boolean; is_home_deliverable: boolean; unit: string; image: string | null };
 type Listing = { count: number; next: number | string | null; results: Product[] };
 type Suggestion = { type: "PRODUCT" | "CATEGORY" | "BUSINESS"; label: string; href: string };
 
 function money(product: Product) { return new Intl.NumberFormat("fr-CD", { style: "currency", currency: product.currency, maximumFractionDigits: 2 }).format(Number(product.max_price)); }
 
 export function ProductCard({ product }: { product: Product }) {
-  return <Link href={`/produits/${product.public_id}`} className="content-panel group overflow-hidden p-0 transition hover:-translate-y-0.5 hover:shadow-md"><div className="aspect-[4/3] bg-[var(--surface-raised)]">{product.image ? <img src={product.image} alt={product.name} className="size-full object-cover" loading="lazy" /> : <div className="grid size-full place-items-center text-sm text-[var(--muted)]">Image indisponible</div>}</div><div className="p-4"><p className="text-xs text-[var(--muted)]">{product.category_name ?? "Produit"}</p><h2 className="mt-1 font-semibold text-[var(--brand-secondary)]">{product.name}</h2><p className="mt-1 line-clamp-2 text-sm text-[var(--muted)]">{product.description || "Découvrez ce produit."}</p><div className="mt-4 flex items-end justify-between gap-3"><strong>{money(product)}</strong><span className="text-xs text-[var(--muted)]">{product.business_name}</span></div></div></Link>;
+  return <Link href={`/produits/${product.public_id}`} className="content-panel group overflow-hidden p-0 transition hover:-translate-y-0.5 hover:shadow-md"><div className="aspect-[4/3] bg-[var(--surface-raised)]">{product.image ? <img src={product.image} alt={product.name} className="size-full object-cover" loading="lazy" /> : <div className="grid size-full place-items-center text-sm text-[var(--muted)]">Image indisponible</div>}</div><div className="p-4"><p className="text-xs text-[var(--muted)]">{product.category_name ?? "Produit"}</p><h2 className="mt-1 font-semibold text-[var(--brand-secondary)]">{product.name}</h2><p className="mt-1 text-xs">{product.is_online_purchasable ? "Achat en ligne disponible" : "Achat en ligne indisponible"}{product.is_home_deliverable ? " · Livraison à domicile disponible" : ""}</p><p className="mt-1 line-clamp-2 text-sm text-[var(--muted)]">{product.description || "Découvrez ce produit."}</p><div className="mt-4 flex items-end justify-between gap-3"><strong>{money(product)}</strong><span className="text-xs text-[var(--muted)]">{product.business_name}</span></div></div></Link>;
 }
 
 export function MarketplaceSearch() {

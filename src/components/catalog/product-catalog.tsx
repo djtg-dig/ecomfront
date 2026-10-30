@@ -49,6 +49,9 @@ type Product = {
   currency: string;
   attributes: Record<string, unknown>;
   status: Status;
+  is_public: boolean;
+  is_online_purchasable: boolean;
+  is_home_deliverable: boolean;
   primary_image_url: string | null;
 };
 
@@ -322,7 +325,7 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
       name: fields.get("name"), description: fields.get("description"), ...categoryPayload(categorySource, categoryCode),
       internal_reference: fields.get("internal_reference") || null, barcode: fields.get("barcode") || null, unit_of_measure: selectedUnit,
       min_price: fields.get("min_price"), max_price: fields.get("max_price"), is_negotiable: fields.get("is_negotiable") === "on",
-      cost_price: fields.get("cost_price") || null, status: fields.get("status"), attributes: { ...preservedUnknownAttributes, ...normalized.attributes },
+      cost_price: fields.get("cost_price") || null, status: fields.get("status"), is_public: fields.get("is_public") === "on", is_online_purchasable: fields.get("is_online_purchasable") === "on", is_home_deliverable: fields.get("is_home_deliverable") === "on", attributes: { ...preservedUnknownAttributes, ...normalized.attributes },
     };
     const url = product ? `/api/private/businesses/${businessId}/products/${product.public_id}` : `/api/private/businesses/${businessId}/products`;
     try {
@@ -375,7 +378,7 @@ function ProductForm({ businessCurrency, businessId, categoriesLoading, legacyCa
       <label className="flex items-center gap-2 text-sm"><input defaultChecked={product?.is_negotiable ?? false} name="is_negotiable" type="checkbox" />Prix négociable</label>
       <div><label className="text-sm font-medium" htmlFor="product-cost-price">Prix de revient</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.cost_price ?? ""} id="product-cost-price" min="0" name="cost_price" step="0.01" type="number" /></div>
       <div><label className="text-sm font-medium" htmlFor="product-reference">Référence interne</label><input className="mt-1 w-full rounded border p-2" defaultValue={product?.internal_reference ?? ""} id="product-reference" name="internal_reference" /></div>
-      <div><label className="text-sm font-medium" htmlFor="product-status">Statut</label><select className="mt-1 w-full rounded border p-2" defaultValue={product?.status ?? "ACTIVE"} id="product-status" name="status"><option value="ACTIVE">Actif</option><option value="INACTIVE">Inactif</option><option value="ARCHIVED">Archivé</option></select></div>
+      <fieldset className="grid gap-3 rounded border p-4"><legend className="px-1 font-semibold">Visibilité et disponibilité commerciale</legend><label className="grid gap-1 text-sm"><span>Produit actif</span><select className="rounded border p-2" defaultValue={product?.status ?? "ACTIVE"} name="status"><option value="ACTIVE">Activé</option><option value="INACTIVE">Désactivé</option><option value="ARCHIVED">Archivé</option></select><small>Active ou désactive ce produit dans votre catalogue. Un produit inactif n'est pas affiché publiquement.</small></label><label className="flex gap-3"><input defaultChecked={product?.is_public ?? false} name="is_public" type="checkbox"/><span>Afficher dans la marketplace<br/><small>Rendez ce produit visible aux visiteurs de Carri Business E-commerce. Son prix de vente et sa boutique pourront être consultés publiquement.</small></span></label><label className="flex gap-3"><input defaultChecked={product?.is_online_purchasable ?? false} name="is_online_purchasable" type="checkbox"/><span>Autoriser l'achat en ligne<br/><small>Permettez aux clients de demander l'achat de ce produit sur la plateforme, sous réserve de validation par le vendeur.</small></span></label><label className="flex gap-3"><input defaultChecked={product?.is_home_deliverable ?? false} name="is_home_deliverable" type="checkbox"/><span>Livraison à domicile disponible<br/><small>Signalez que ce produit peut être livré à l'adresse du client. Les conditions et frais seront précisés ultérieurement.</small></span></label></fieldset>
     </fieldset>
     <p className="text-xs text-[var(--muted)]">Le stock et les variantes restent gérés par leurs actions dédiées. Aucun stock ni aucune variante n’est créé automatiquement.</p>
     <button className="button button-primary w-fit" disabled={saving || categoriesLoading || attributesLoading || Boolean(attributeError) || !categoryCode || (!product && (unitsLoading || !units.length))} type="submit">{saving ? "Enregistrement…" : "Enregistrer"}</button>
