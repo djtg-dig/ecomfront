@@ -35,6 +35,7 @@ export function fetchBusinesses(): Promise<ListedBusiness[]> {
   inFlightRequest = (async () => {
     const response = await fetch("/api/private/businesses", {
       credentials: "same-origin",
+      cache: "no-store",
     });
     if (!response.ok) throw new BusinessListRequestError(response.status, await readDetail(response));
     return (await response.json() as { businesses: ListedBusiness[] }).businesses;

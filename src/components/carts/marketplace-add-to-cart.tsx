@@ -67,7 +67,7 @@ export function MarketplaceAddToCart({ allowsDecimalQuantity, business, product,
         setCartReference(added.reference ?? ""); setMessage(t("carts", "addSuccess")); return;
       }
       setCarts(drafts); setSelected(drafts.length === 1 ? drafts[0]!.reference : ""); setOpen(true);
-    } catch (error) { setMessage(readableError(error)); } finally { setLoading(false); }
+    } catch (error) { if (error instanceof CartApiError && error.code === "BUSINESS_MEMBER_CANNOT_PURCHASE") setMembershipForbidden(true); setMessage(readableError(error)); } finally { setLoading(false); }
   }
 
   async function confirm() {
@@ -79,7 +79,11 @@ export function MarketplaceAddToCart({ allowsDecimalQuantity, business, product,
       const result = await api(`${encodeURIComponent(selected)}/items`, { method: "POST", body: JSON.stringify({ product, quantity: normalizedQuantity }) });
       if (result.unauthenticated) return login();
       setCartReference(result.reference ?? selected); setOpen(false); setMessage(t("carts", "addSuccess"));
-    } catch (error) { setModalError(readableError(error)); } finally { setLoading(false); }
+    } catch (error) {
+      if (error instanceof CartApiError && error.code === "BUSINESS_MEMBER_CANNOT_PURCHASE") {
+        setMembershipForbidden(true); setOpen(false); setMessage(readableError(error));
+      } else setModalError(readableError(error));
+    } finally { setLoading(false); }
   }
 
   const inputAttributes = quantityInputAttributes(rules);

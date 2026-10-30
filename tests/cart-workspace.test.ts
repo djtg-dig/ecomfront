@@ -48,10 +48,18 @@ describe("espace personnel des paniers", () => {
     expect(addToCart).toContain("/compte/paniers/${encodeURIComponent(cartReference)}");
     expect(addToCart).toContain('fetchBusinesses()');
     expect(addToCart).toContain('memberCannotPurchase');
+    expect(addToCart).toContain('error.code === "BUSINESS_MEMBER_CANNOT_PURCHASE"');
   });
 
   it("retire la recherche redondante du contenu de la fiche produit", () => {
     const productPage = source("src/components/public/product-page.tsx");
     expect(productPage).not.toContain("MarketplaceSearch");
+  });
+
+  it("actualise le détail après un refus d’achat lié à une adhésion active", () => {
+    const manager = source("src/components/carts/cart-manager.tsx");
+    expect(manager).toContain('failure.code === "BUSINESS_MEMBER_CANNOT_PURCHASE"');
+    expect(manager).toContain("setMembershipForbidden(true)");
+    expect(source("src/lib/businesses/list-client.ts")).toContain('cache: "no-store"');
   });
 });
