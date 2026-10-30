@@ -62,6 +62,10 @@ const commercialSettingsValidationMessages = {
   fr: { salesLocationRequired: "Choisissez un type de point de vente.", salesChannelRequired: "Choisissez un mode de vente.", deliveryMethodsRequired: "Choisissez au moins une modalité de remise." },
   en: { salesLocationRequired: "Choose a sales location type.", salesChannelRequired: "Choose a sales channel.", deliveryMethodsRequired: "Choose at least one delivery method." },
 } as const;
+const cartExtras = {
+  fr: { memberCannotPurchase: "Vous ne pouvez pas acheter de produits dans une boutique dont vous êtes membre." },
+  en: { memberCannotPurchase: "You cannot buy products from a store where you are a member." },
+} as const;
 export function message(locale: Locale, section: MessageKey, key: string): string {
   if (section === "pos") {
     const extra = (posExtras[locale] as Record<string, string>)[key];
@@ -76,6 +80,10 @@ export function message(locale: Locale, section: MessageKey, key: string): strin
     if (extra) return extra;
     const validation = (commercialSettingsValidationMessages[locale] as Record<string, string>)[key];
     if (validation) return validation;
+  }
+  if (section === "carts") {
+    const extra = (cartExtras[locale] as Record<string, string>)[key];
+    if (extra) return extra;
   }
   const group = messages[locale][section] as Record<string, string>;
   return group[key] ?? (messages.fr[section] as Record<string, string>)[key] ?? key;

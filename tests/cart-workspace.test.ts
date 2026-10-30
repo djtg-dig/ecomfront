@@ -46,5 +46,12 @@ describe("espace personnel des paniers", () => {
     expect(addToCart).toContain("setCartReference(added.reference ?? \"\")");
     expect(addToCart).toContain("setCartReference(result.reference ?? selected)");
     expect(addToCart).toContain("/compte/paniers/${encodeURIComponent(cartReference)}");
+    expect(addToCart).toContain('fetchBusinesses()');
+    expect(addToCart).toContain('memberCannotPurchase');
+  });
+
+  it("retire la recherche redondante du contenu de la fiche produit", () => {
+    const productPage = source("src/components/public/product-page.tsx");
+    expect(productPage).not.toContain("MarketplaceSearch");
   });
 });
