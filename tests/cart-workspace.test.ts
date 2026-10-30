@@ -43,6 +43,7 @@ describe("espace personnel des paniers", () => {
 
   it("relie un ajout marketplace au panier réellement retourné par Django", () => {
     const addToCart = source("src/components/carts/marketplace-add-to-cart.tsx");
+    const productPage = source("src/components/public/product-page.tsx");
     expect(addToCart).toContain('method: "POST", body: JSON.stringify({ product, quantity: normalizedQuantity })');
     expect(addToCart).toContain('`${encodeURIComponent(selected)}/items`');
     expect(addToCart).toContain("setModalError(readableError(error))");
@@ -56,6 +57,9 @@ describe("espace personnel des paniers", () => {
     expect(addToCart).toContain('t("carts", "memberCannotPurchaseTitle")');
     expect(addToCart).toContain('t("carts", "memberCannotPurchaseDescription")');
     expect(addToCart).toContain('else setMessage(readableError(error))');
+    expect(addToCart).toContain('if (!isOnlinePurchasable) return');
+    expect(addToCart).toContain('t("carts", "productUnavailable")');
+    expect(productPage).toContain('isOnlinePurchasable={product.is_online_purchasable}');
   });
 
   it("retire la recherche redondante du contenu de la fiche produit", () => {
