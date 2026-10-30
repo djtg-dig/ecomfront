@@ -36,6 +36,7 @@ export async function GET(request: Request) {
   }
 
   const binding = randomBytes(32).toString("base64url");
+  const returnTo = safePrivateReturnTo(new URL(request.url).searchParams.get("retour"), config.frontendUrl);
   const destination = new URL("/api/v1/auth/carri/login/", config.backendUrl);
   destination.searchParams.set("delivery", "nextjs");
   destination.searchParams.set("delivery_binding", binding);
@@ -46,11 +47,15 @@ export async function GET(request: Request) {
   try {
     upstream = await fetch(destination, { redirect: "manual", headers: { Accept: "text/html" } });
   } catch {
-    return NextResponse.redirect(new URL("/auth/indisponible", config.frontendUrl), 303);
+    const unavailable = new URL("/auth/indisponible", config.frontendUrl);
+    if (returnTo) unavailable.searchParams.set("retour", returnTo);
+    return NextResponse.redirect(unavailable, 303);
   }
   if (upstream.status >= 500) {
     console.error("[auth] OAuth provider start unavailable", { status: upstream.status });
-    return NextResponse.redirect(new URL("/auth/indisponible", config.frontendUrl), 303);
+    const unavailable = new URL("/auth/indisponible", config.frontendUrl);
+    if (returnTo) unavailable.searchParams.set("retour", returnTo);
+    return NextResponse.redirect(unavailable, 303);
   }
   const providerLocation = upstream.headers.get("location");
   if (!providerLocation || upstream.status < 300 || upstream.status >= 400) {
@@ -64,7 +69,6 @@ export async function GET(request: Request) {
     path: transactionCookiePath,
     priority: "high",
   });
-  const returnTo = safePrivateReturnTo(new URL(request.url).searchParams.get("retour"), config.frontendUrl);
   if (returnTo) {
     response.cookies.set(returnToCookieName, returnTo, {
       ...cookiePolicy,
