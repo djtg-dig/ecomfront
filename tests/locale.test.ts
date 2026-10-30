@@ -35,4 +35,12 @@ describe("résolution de la langue", () => {
     expect(messages.fr.catalog.imageHint).toBe(frenchHint);
     expect(messages.en.catalog.imageHint).toBe(englishHint);
   });
+
+  it("traduit les permissions de messagerie en français et en anglais", () => {
+    expect(message("fr", "messagingPermissions", "group")).toBe("Messagerie");
+    expect(message("en", "messagingPermissions", "group")).toBe("Messaging");
+    expect(message("fr", "messagingPermissions", "replyLabel")).toBe("Répondre aux acheteurs");
+    expect(message("en", "messagingPermissions", "replyLabel")).toBe("Reply to buyers");
+    expect(message("en", "messagingPermissions", "manageDescription")).toContain("business messaging settings");
+  });
 });

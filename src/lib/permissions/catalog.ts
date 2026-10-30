@@ -1,4 +1,7 @@
-export type PermissionGroup = "Entreprise" | "Équipe" | "Produits" | "Stocks" | "Achats" | "Ventes" | "Factures" | "Partenaires" | "Finance" | "Dépenses" | "Rapports";
+import type { Locale } from "@/lib/i18n/locale";
+import { message } from "@/lib/i18n/messages";
+
+export type PermissionGroup = "Entreprise" | "Équipe" | "Produits" | "Stocks" | "Achats" | "Ventes" | "Factures" | "Partenaires" | "Finance" | "Dépenses" | "Rapports" | "Messagerie";
 export type PermissionDefinition = { code: string; label: string; description: string; group: PermissionGroup };
 
 const entries: Array<[PermissionGroup, string, string, string]> = [
@@ -91,10 +94,39 @@ const entries: Array<[PermissionGroup, string, string, string]> = [
   ["Rapports", "SALE_REPORT_VIEW", "Consulter le rapport des ventes", "Afficher le rapport des ventes."],
   ["Rapports", "PURCHASE_REPORT_VIEW", "Consulter le rapport des achats", "Afficher le rapport des achats."],
   ["Rapports", "EXPENSE_RECEIVABLE_REPORT_VIEW", "Consulter le rapport dépenses-créances", "Afficher le rapport croisé dépenses et créances."],
+  ["Messagerie", "MESSAGING_VIEW", "Consulter les conversations", "Permet de consulter les conversations entre les acheteurs et l’entreprise."],
+  ["Messagerie", "MESSAGING_REPLY", "Répondre aux acheteurs", "Permet d’envoyer des messages aux acheteurs au nom de l’entreprise."],
+  ["Messagerie", "MESSAGING_ASSIGN", "Attribuer les conversations", "Permet d’attribuer ou de réattribuer une conversation à un membre autorisé."],
+  ["Messagerie", "MESSAGING_MANAGE", "Gérer la messagerie", "Permet de gérer les statuts des conversations et les paramètres de messagerie de l’entreprise."],
 ];
 
 export const permissionCatalog: PermissionDefinition[] = entries.map(([group, code, label, description]) => ({ group, code, label, description }));
 export const permissionByCode = new Map(permissionCatalog.map((permission) => [permission.code, permission]));
-export const permissionLabel = (code: string) => permissionByCode.get(code)?.label ?? "Permission non reconnue";
-export const permissionDescription = (code: string) => permissionByCode.get(code)?.description ?? "Ce code de permission n’est pas reconnu par cette version de l’application.";
+const messagingMessageKeys: Record<string, { label: string; description: string }> = {
+  MESSAGING_VIEW: { label: "viewLabel", description: "viewDescription" },
+  MESSAGING_REPLY: { label: "replyLabel", description: "replyDescription" },
+  MESSAGING_ASSIGN: { label: "assignLabel", description: "assignDescription" },
+  MESSAGING_MANAGE: { label: "manageLabel", description: "manageDescription" },
+};
+export const localizedPermissionCatalog = (locale: Locale): PermissionDefinition[] => permissionCatalog.map((permission) => {
+  const keys = messagingMessageKeys[permission.code];
+  return keys ? { ...permission, label: message(locale, "messagingPermissions", keys.label), description: message(locale, "messagingPermissions", keys.description) } : permission;
+});
+export const permissionLabel = (code: string, locale: Locale = "fr") => localizedPermissionCatalog(locale).find((permission) => permission.code === code)?.label ?? "Permission non reconnue";
+export const permissionDescription = (code: string, locale: Locale = "fr") => localizedPermissionCatalog(locale).find((permission) => permission.code === code)?.description ?? "Ce code de permission n’est pas reconnu par cette version de l’application.";
+export const messagingPermissionCodes = ["MESSAGING_VIEW", "MESSAGING_REPLY", "MESSAGING_ASSIGN", "MESSAGING_MANAGE"] as const;
+export function normalizeMessagingPermissions(permissions: readonly string[]): string[] {
+  const normalized = new Set(permissions);
+  const hasDependent = messagingPermissionCodes.slice(1).some((permission) => normalized.has(permission));
+  if (hasDependent) normalized.add("MESSAGING_VIEW");
+  if (!normalized.has("MESSAGING_VIEW")) messagingPermissionCodes.slice(1).forEach((permission) => normalized.delete(permission));
+  return [...normalized];
+}
+export function updatePermissionSelection(current: readonly string[], permission: string, selected: boolean): string[] {
+  if (permission === "MESSAGING_VIEW" && !selected) {
+    return current.filter((value) => !messagingPermissionCodes.includes(value as typeof messagingPermissionCodes[number]));
+  }
+  const next = selected ? [...current, permission] : current.filter((value) => value !== permission);
+  return normalizeMessagingPermissions(next);
+}
 export const hasAnyPermission = (permissions: readonly string[], expected: readonly string[]) => expected.some((permission) => permissions.includes(permission));
