@@ -7,9 +7,8 @@ const source = readFileSync(resolve(process.cwd(), "src/components/auth/home-aut
 
 describe("CTA d’authentification de l’accueil", () => {
   it("vérifie une fois la session avant d’afficher une action", () => {
-    expect(source).toContain('useState<SessionState>("checking")');
-    expect(source).toContain('fetch("/api/auth/refresh"');
-    expect(source).toContain("}, []);");
+    expect(source).toContain("useAuthSession");
+    expect(source).toContain('state === "loading"');
     expect(source).toContain('t("home", "checking")');
     expect(messages.fr.home.checking).toBe("Vérification de la session…");
     expect(messages.en.home.checking).toBe("Checking your session…");

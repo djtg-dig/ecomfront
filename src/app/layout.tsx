@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { getPublicSiteUrl, isPublicIndexingEnabled, noIndexRobots } from "@/lib/seo/site";
 import { LocaleBoundary } from "@/components/i18n/locale-boundary";
+import { AuthSessionProvider } from "@/components/auth/auth-session-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -50,7 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <body className="min-h-full flex flex-col">
         <Script id="locale-html-language" strategy="beforeInteractive">{localeBootstrapScript}</Script>
         <Suspense fallback={<div aria-busy="true" className="min-h-screen" />}>
-          <LocaleBoundary>{children}</LocaleBoundary>
+          <LocaleBoundary><AuthSessionProvider>{children}</AuthSessionProvider></LocaleBoundary>
         </Suspense>
       </body>
     </html>

@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 
 import { clearBusinessPermissionsCache } from "@/components/private/business-permissions-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useAuthSession } from "@/components/auth/auth-session-provider";
 
 export function LogoutButton() {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   const router = useRouter();
   const { t } = useLocale();
+  const { markUnauthenticated } = useAuthSession();
 
   async function logout() {
     if (pending) return;
@@ -23,6 +25,7 @@ export function LogoutButton() {
         headers: { "x-csrf-protection": "1" },
       });
       if (response.ok || response.status === 503) {
+        markUnauthenticated();
         clearBusinessPermissionsCache();
         router.replace("/");
       }
