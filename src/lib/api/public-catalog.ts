@@ -21,6 +21,7 @@ export type PublicProduct = {
   unit: string;
   allows_decimal_quantity: boolean;
   image: string | null;
+  images?: Array<{ url: string; is_primary: boolean; position: number }>;
 };
 
 export type PublicCatalogPage = {

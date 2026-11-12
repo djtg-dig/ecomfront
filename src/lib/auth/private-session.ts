@@ -82,6 +82,7 @@ function mapBackendError(error: unknown): PrivateSessionError {
       "invitation_not_found",
       "CART_LOCKED",
       "BUSINESS_MEMBER_CANNOT_PURCHASE",
+      "BUSINESS_MEMBER_CANNOT_CONTACT_SELLER",
     ]);
     if (error.code && invitationCodes.has(error.code) &&
         [400, 401, 403, 409, 410, 503].includes(error.status)) {
