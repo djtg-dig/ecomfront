@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { MessageCircle, UserCircle, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 
@@ -8,6 +9,7 @@ type Seller = { reference: string; first_name: string; display_name: string; ava
 
 export function ContactSeller({ business }: { business: string }) {
   const { locale } = useLocale();
+  const router = useRouter();
   const [sellers, setSellers] = useState<Seller[] | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,7 @@ export function ContactSeller({ business }: { business: string }) {
       const body = await response.json().catch(() => null);
       if (response.status === 403 && body?.code === "BUSINESS_MEMBER_CANNOT_CONTACT_SELLER") setMessage(text.member);
       else if (!response.ok) setMessage(text.network);
-      else if (body?.reference) window.location.href = `/messages?conversation=${encodeURIComponent(body.reference)}`;
+      else if (body?.reference) router.push(`/messages?conversation=${encodeURIComponent(body.reference)}`);
     } catch { setMessage(text.network); }
     finally { setBusy(false); }
   }
