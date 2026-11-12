@@ -3,27 +3,30 @@
 :root {
   color-scheme: light;
 
-  /* Design system blanc et bleu : le thème reste explicitement clair. */
-  --brand: #2563eb;
-  --brand-hover: #1d4ed8;
-  --brand-secondary: #0f172a;
-  --accent: #2563eb;
-  --surface: #f8fafc;
+  /* Design system Carri Business : neutres majoritaires, orange réservé aux accents. */
+  --brand: #b96517;
+  --brand-primary: var(--brand);
+  --brand-hover: #96500f;
+  --brand-secondary: #171717;
+  --brand-foreground: #ffffff;
+  --accent: #e79a47;
+  --surface: #f5f6f8;
   --surface-raised: #ffffff;
-  --surface-muted: #eff6ff;
-  --ink: #0f172a;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --focus-ring: #2563eb;
-  --control-disabled: #e2e8f0;
+  --surface-muted: #f5f6f8;
+  --ink: #171717;
+  --muted: #52525b;
+  --line: #e5e7eb;
+  --focus-ring: #b96517;
+  --overlay: rgb(23 23 23 / 0.6);
+  --control-disabled: #e5e7eb;
   --success: #087f5b;
   --success-bg: #e8f7f1;
   --error: #b42318;
   --warning: #9a6700;
-  --info: #2563eb;
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.03);
-  --shadow-md: 0 8px 20px rgb(15 23 42 / 0.06);
-  --background: var(--surface);
+  --info: #b96517;
+  --shadow-sm: 0 1px 2px rgb(23 23 23 / 0.04);
+  --shadow-md: 0 8px 20px rgb(23 23 23 / 0.08);
+  --background: #ffffff;
   --foreground: var(--ink);
 }
 
@@ -36,12 +39,15 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   --color-brand-secondary: var(--brand-secondary);
   --color-accent: var(--accent);
   --color-success: var(--success);
   --color-error: var(--error);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--brand-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -69,7 +75,7 @@ body {
 .page-shell {
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--surface);
+  background: var(--background);
   color: var(--ink);
 }
 
@@ -151,7 +157,7 @@ body {
 }
 
 .private-navigation-link--secondary:hover {
-  border-color: #bfdbfe;
+  border-color: var(--accent);
   background: var(--surface-muted);
   color: var(--brand);
 }
@@ -205,6 +211,15 @@ body {
 .skeleton { border-radius: .5rem; background: linear-gradient(90deg, var(--surface-muted), color-mix(in srgb, var(--surface-muted) 62%, var(--surface-raised)), var(--surface-muted)); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .accent-rule {
   border-color: var(--accent);
 }
@@ -225,7 +240,7 @@ body {
 
 .button-primary {
   background: var(--brand);
-  color: var(--surface-raised);
+  color: var(--brand-foreground);
 }
 
 .button-primary:hover:not(:disabled) {
@@ -241,7 +256,7 @@ body {
 }
 
 .button-secondary:hover:not(:disabled) {
-  border-color: #bfdbfe;
+  border-color: var(--accent);
   background: var(--surface-muted);
   color: var(--brand);
 }
@@ -253,7 +268,7 @@ body {
 }
 
 .button-outline:hover:not(:disabled) {
-  border-color: #bfdbfe;
+  border-color: var(--accent);
   background: var(--surface-muted);
   color: var(--brand);
 }
@@ -263,6 +278,25 @@ body {
   background: var(--control-disabled);
   color: var(--muted);
   opacity: 1;
+}
+
+.button-ghost {
+  background: transparent;
+  color: var(--ink);
+}
+
+.button-ghost:hover:not(:disabled) {
+  background: var(--surface-muted);
+  color: var(--brand);
+}
+
+.button-destructive {
+  background: var(--error);
+  color: var(--brand-foreground);
+}
+
+.button-destructive:hover:not(:disabled) {
+  filter: brightness(0.9);
 }
 
 input, select, textarea {

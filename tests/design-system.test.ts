@@ -12,10 +12,14 @@ describe("design system privé", () => {
     expect(css).not.toContain("prefers-color-scheme: dark");
     expect(css).toContain("color-scheme: light");
     expect(layout).toContain('data-theme="light"');
-    expect(css).toContain("--brand: #2563eb");
-    expect(css).toContain("--brand-hover: #1d4ed8");
-    expect(css).toContain("--surface: #f8fafc");
+    expect(css).toContain("--brand: #b96517");
+    expect(css).toContain("--brand-hover: #96500f");
+    expect(css).toContain("--accent: #e79a47");
+    expect(css).toContain("--surface: #f5f6f8");
     expect(css).toContain("--surface-raised: #ffffff");
+    expect(css).toContain("--ink: #171717");
+    expect(css).toContain("--muted: #52525b");
+    expect(css).toContain("--line: #e5e7eb");
     expect(css).toContain("--surface-muted");
     expect(css).toContain(".status-badge");
     expect(css).toContain(".empty-state");
