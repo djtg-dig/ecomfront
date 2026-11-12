@@ -14,6 +14,7 @@ import { BusinessPermissionsProvider, useBusinessPermissionsState } from "@/comp
 import { hasAnyPermission } from "@/lib/permissions/catalog";
 import { LanguageSelector } from "@/components/i18n/language-selector";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { AuthenticatedProfile } from "@/components/auth/authenticated-profile";
 
 export function PrivateShell({ children }: Readonly<{ children: ReactNode }>) {
   return <Suspense fallback={<PrivateShellFallback />}><PrivateShellContent>{children}</PrivateShellContent></Suspense>;
@@ -43,6 +44,7 @@ function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ c
               <p className="text-xs font-medium text-[var(--muted)]">{title}</p>
             </div>
             <LanguageSelector persistPreference />
+            <AuthenticatedProfile />
             <LogoutButton />
           </div>
           <PrivateMobileNavigation key={pathname} mobileSection={mobileSection} navigation={navigation} pathname={pathname} title={title} />

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Menu, X, type LucideIcon } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
+import { AuthenticatedProfile } from "@/components/auth/authenticated-profile";
 
 export type PrivateNavigationItem = {
   href: string;
@@ -82,6 +83,7 @@ export function PrivateMobileNavigation({ mobileSection, navigation, pathname, t
   const secondaryNavigation = navigation.filter((item) => item.secondary);
   return <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
     <Link aria-label="Retour à l’accueil" className="brand-mark grid size-9 shrink-0 place-items-center rounded-xl text-sm font-bold" href="/" onClick={close}>E</Link>
+    <AuthenticatedProfile />
     <p className="min-w-0 flex-1 truncate text-sm font-semibold" title={title}>{title}</p>
     <button aria-controls="private-mobile-navigation" aria-expanded={open} aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} className="button button-outline grid min-h-11 min-w-11 shrink-0 place-items-center px-3" onClick={() => setOpen((current) => !current)} ref={buttonRef} type="button">
       {open ? <X aria-hidden="true" size={20} /> : <Menu aria-hidden="true" size={20} />}
