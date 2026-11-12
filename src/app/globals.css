@@ -131,7 +131,7 @@ body {
 .account-menu { position: absolute; right: 0; top: calc(100% + .5rem); z-index: 50; display: grid; min-width: 13rem; gap: .25rem; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface-raised); padding: .5rem; box-shadow: var(--shadow-md); }
 .account-menu a, .account-menu button { display: flex; min-height: 2.5rem; align-items: center; border-radius: .5rem; padding-inline: .75rem; color: var(--ink); font-size: .875rem; }
 .account-menu a:hover, .account-menu button:hover:not(:disabled) { background: var(--surface-muted); color: var(--brand); }
-.public-mobile-menu { position: absolute; inset-inline: 1rem; top: calc(100% + .5rem); z-index: 50; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface-raised); padding: .75rem; box-shadow: var(--shadow-md); }
+.public-mobile-menu { border: 1px solid var(--line); border-radius: .75rem; background: var(--surface-raised); padding: .75rem; box-shadow: var(--shadow-md); }
 .mobile-nav-link { display: block; border-radius: .5rem; padding: .75rem; color: var(--ink); font-weight: 600; }
 .mobile-nav-link:hover { background: var(--surface-muted); color: var(--brand); }
 .marketplace-hero { border-bottom: 1px solid var(--line); background: var(--surface-muted); }

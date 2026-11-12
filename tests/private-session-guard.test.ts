@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { messages } from "@/lib/i18n/messages";
 
 const source = readFileSync(resolve(process.cwd(), "src/components/auth/private-session-guard.tsx"), "utf8");
+const sessionProvider = readFileSync(resolve(process.cwd(), "src/components/auth/auth-session-provider.tsx"), "utf8");
 
 describe("garde de session privée", () => {
   it("préserve le segment privé pour la validation Instant Navigation pendant la vérification", () => {
@@ -12,9 +13,9 @@ describe("garde de session privée", () => {
     expect(source).toContain('t("feedback", "sessionChecking")');
     expect(messages.fr.feedback.sessionChecking).toBe("Vérification de la session…");
     expect(messages.en.feedback.sessionChecking).toBe("Checking your session…");
-    expect(source).toContain('cache: "no-store"');
-    expect(source).toContain("setAttempt((current) => current + 1)");
-    expect(source).toContain('status === "expired" || status === "forbidden"');
+    expect(sessionProvider).toContain('cache: "no-store"');
+    expect(sessionProvider).toContain("setVersion((current) => current + 1)");
+    expect(sessionProvider).toContain('response.status === 401');
     expect(source).toContain("window.location.assign");
   });
 });
