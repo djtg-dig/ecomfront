@@ -4,7 +4,7 @@ import { type ReactNode } from "react";
 import { Suspense } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Building2, FileText, Handshake, LayoutDashboard, Package, Receipt, Settings, ShoppingCart, Truck, WalletCards, Warehouse } from "lucide-react";
+import { ArrowLeft, Building2, FileText, Handshake, LayoutDashboard, MessageCircle, Package, Receipt, Settings, ShoppingCart, Truck, WalletCards, Warehouse } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -59,7 +59,7 @@ function ShellFrame({ children, navigation, title, mobileSection }: Readonly<{ c
 
 function PersonalShell({ children }: Readonly<{ children: ReactNode }>) {
   const { locale, t } = useLocale();
-  const navigation: PrivateNavigationItem[] = [{ href: "/espace", label: t("navigation", "home"), icon: LayoutDashboard }, { href: "/espace/entreprises", label: t("navigation", "businesses"), icon: Building2 }, { href: "/compte/paniers", label: t("navigation", "carts"), icon: ShoppingCart }, { href: "/espace/invitations", label: t("navigation", "invitations"), icon: Handshake }, { href: "/espace/parametres", label: t("navigation", "settings"), icon: Settings }];
+  const navigation: PrivateNavigationItem[] = [{ href: "/espace", label: t("navigation", "home"), icon: LayoutDashboard }, { href: "/messages", label: t("navigation", "messages"), icon: MessageCircle }, { href: "/espace/entreprises", label: t("navigation", "businesses"), icon: Building2 }, { href: "/compte/paniers", label: t("navigation", "carts"), icon: ShoppingCart }, { href: "/espace/invitations", label: t("navigation", "invitations"), icon: Handshake }, { href: "/espace/parametres", label: t("navigation", "settings"), icon: Settings }];
   return <ShellFrame mobileSection={locale === "en" ? "MY ACCOUNT" : "MON COMPTE"} navigation={navigation} title={locale === "en" ? "My account" : "Mon compte"}>{children}</ShellFrame>;
 }
 
