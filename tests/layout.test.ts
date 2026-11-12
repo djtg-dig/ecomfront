@@ -14,7 +14,7 @@ describe("layouts et pied de page", () => {
 
     expect(footer).toContain("new Date().getFullYear()");
     expect(footer).toContain("Carri Business");
-    expect(footer).toContain("Nos plateformes");
+    expect(footer).toContain("marketplace");
     expect(footer).toContain("Kisinet");
     expect(footer).toContain("Conditions générales");
     expect(footer).toContain("Confidentialité");
@@ -49,7 +49,7 @@ describe("layouts et pied de page", () => {
     const publicHeader = source("src/components/public/public-header.tsx");
     const privateShell = source("src/components/private/private-shell.tsx");
 
-    expect(publicHeader).toContain('className="site-container flex min-h-16');
+    expect(publicHeader).toContain('className="site-container grid min-h-16');
     expect(publicHeader).not.toContain("max-w-6xl");
     expect(privateShell).toContain('className="site-container flex flex-wrap items-center justify-between');
     expect(privateShell).toContain("Mon compte");
@@ -62,7 +62,7 @@ describe("layouts et pied de page", () => {
     const privateShell = source("src/components/private/private-shell.tsx");
 
     expect(styles).toMatch(/\.site-header\s*\{[\s\S]*position: sticky;[\s\S]*top: 0;[\s\S]*z-index: 40;/);
-    expect(publicHeader).toContain('aria-label="Retour à l’accueil"');
+    expect(publicHeader).toContain('aria-label="Carri Business — accueil"');
     expect(publicHeader).toContain('href="/"');
     expect(privateShell).toContain('aria-label="Retour à l’accueil"');
     expect(privateShell).toContain("PrivateSidebarNavigation");

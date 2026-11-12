@@ -14,7 +14,7 @@ describe("variantes du pied de page", () => {
     expect(footer).toContain('variant === "private" ? "site-footer-private" : "site-footer-public"');
     expect(footer).toContain("site-footer-private");
     expect(footer).toContain("site-footer-public");
-    expect(footer).toContain("Nos plateformes");
+    expect(footer).toContain("marketplace");
     expect(footer).toContain("Carri Business");
     expect(footer).toContain("Kisinet");
     expect(footer).toContain("Conditions générales");
@@ -31,10 +31,10 @@ describe("variantes du pied de page", () => {
     const styles = source("src/app/globals.css");
 
     expect(footer).toContain("sm:grid-cols-2");
-    expect(footer).toContain("lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]");
+    expect(footer).toContain("lg:grid-cols-[minmax(0,1.35fr)_repeat(4,minmax(0,1fr))]");
     expect(footer).toContain('border-t border-[var(--line)]');
-    expect(footer).toContain("brand-mark");
-    expect(styles).toMatch(/\.site-footer\s*\{[\s\S]*border-top: 1px solid var\(--line\);[\s\S]*box-shadow: inset 0 4px 0 var\(--brand\);/);
+    expect(footer).toContain("brand-wordmark");
+    expect(styles).toMatch(/\.site-footer\s*\{[\s\S]*border-top: 1px solid var\(--line\);[\s\S]*box-shadow: inset 0 1px 0 var\(--line\);/);
   });
 
   it("garde le footer dans le flux après une zone centrale extensible", () => {

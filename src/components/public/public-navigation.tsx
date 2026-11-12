@@ -1,18 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { Menu, ShoppingBag, UserRound, X } from "lucide-react";
 import { LanguageSelector } from "@/components/i18n/language-selector";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { LogoutButton } from "@/components/auth/logout-button";
 
 export function PublicNavigation({ isAuthenticated }: Readonly<{ isAuthenticated: boolean }>) {
   const { t } = useLocale();
+  const [open, setOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const navigation = [
     { href: "/", label: t("navigation", "home") },
-    { href: "/recherche", label: "Marketplace" },
+    { href: "/recherche", label: t("navigation", "marketplace") },
     { href: "/fonctionnalites", label: t("navigation", "features") },
     { href: "/tarifs", label: t("navigation", "pricing") },
     { href: "/contact", label: t("navigation", "contact") },
   ];
-  return <nav className="w-full sm:w-auto" aria-label="Navigation principale"><ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm sm:justify-end">{navigation.map((item) => <li key={item.href}><Link className="nav-link" href={item.href}>{item.label}</Link></li>)}<li><LanguageSelector /></li><li>{isAuthenticated ? <><Link className="nav-link" href="/espace">{t("navigation", "workspace")}</Link><LogoutButton /></> : <Link className="button button-primary" href="/connexion">{t("navigation", "login")}</Link>}</li></ul></nav>;
+  return <div className="flex items-center gap-2">
+    <Link aria-label={t("navigation", "cart")} className="header-icon-link" href="/compte/paniers"><ShoppingBag aria-hidden="true" size={19} /><span className="sr-only">{t("navigation", "cart")}</span></Link>
+    {isAuthenticated ? <div className="relative hidden sm:block"><button aria-expanded={accountOpen} aria-haspopup="menu" className="account-trigger" onClick={() => setAccountOpen((value) => !value)} type="button"><UserRound aria-hidden="true" size={18} /><span>{t("navigation", "account")}</span></button>{accountOpen ? <div className="account-menu" role="menu"><Link href="/espace" onClick={() => setAccountOpen(false)} role="menuitem">{t("navigation", "workspace")}</Link><Link href="/espace/parametres" onClick={() => setAccountOpen(false)} role="menuitem">{t("navigation", "settings")}</Link><div className="border-t border-[var(--line)] pt-2"><LogoutButton /></div></div> : null}</div> : <Link className="button button-primary hidden min-h-10 sm:inline-flex" href="/connexion">{t("navigation", "login")}</Link>}
+    <button aria-controls="public-mobile-navigation" aria-expanded={open} aria-label={open ? t("navigation", "closeMenu") : t("navigation", "openMenu")} className="button button-outline min-h-11 min-w-11 px-3 sm:hidden" onClick={() => setOpen((value) => !value)} type="button">{open ? <X aria-hidden="true" size={20} /> : <Menu aria-hidden="true" size={20} />}</button>
+    <nav aria-label={t("navigation", "home")} className="hidden sm:block"><ul className="flex items-center gap-5 text-sm">{navigation.map((item) => <li key={item.href}><Link className="nav-link" href={item.href}>{item.label}</Link></li>)}<li><LanguageSelector /></li></ul></nav>
+    {open ? <div className="public-mobile-menu sm:hidden" id="public-mobile-navigation"><nav aria-label={t("navigation", "home")}><ul className="grid gap-1">{navigation.map((item) => <li key={item.href}><Link className="mobile-nav-link" href={item.href} onClick={() => setOpen(false)}>{item.label}</Link></li>)}</ul></nav><div className="mt-4 grid gap-2 border-t border-[var(--line)] pt-4"><Link className="mobile-nav-link" href="/compte/paniers" onClick={() => setOpen(false)}>{t("navigation", "cart")}</Link>{isAuthenticated ? <><Link className="mobile-nav-link" href="/espace" onClick={() => setOpen(false)}>{t("navigation", "workspace")}</Link><Link className="mobile-nav-link" href="/espace/parametres" onClick={() => setOpen(false)}>{t("navigation", "settings")}</Link><LogoutButton /></> : <Link className="button button-primary mt-2" href="/connexion">{t("navigation", "login")}</Link>}<LanguageSelector /></div></div> : null}
+  </div>;
 }
