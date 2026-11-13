@@ -135,7 +135,7 @@ body {
 .mobile-nav-link { display: block; border-radius: .5rem; padding: .75rem; color: var(--ink); font-weight: 600; }
 .mobile-nav-link:hover { background: var(--surface-muted); color: var(--brand); }
 .marketplace-hero { border-bottom: 1px solid var(--line); background: var(--surface-muted); }
-.marketplace-search-input { min-height: 3rem; width: 100%; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface-raised); padding: .75rem 7.5rem .75rem 1rem; box-shadow: var(--shadow-sm); }
+.marketplace-search-input { min-width: 0; min-height: 3rem; width: 100%; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface-raised); padding: .75rem 7.5rem .75rem 1rem; box-shadow: var(--shadow-sm); }
 .product-card { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: .875rem; background: var(--surface-raised); box-shadow: var(--shadow-sm); transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
 .product-card:hover, .product-card:focus-visible { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .product-card-media { aspect-ratio: 4 / 3; background: var(--surface-muted); padding: 1rem; }
@@ -270,6 +270,13 @@ body {
   font-weight: 700;
   gap: .5rem;
   transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+/* Cette règle est placée après .button : elle empêche son display:inline-flex de réafficher le déclencheur mobile au bureau. */
+@media (min-width: 1024px) {
+  .public-mobile-menu-toggle {
+    display: none;
+  }
 }
 
 .button-primary {
