@@ -8,6 +8,7 @@ export type PublicProduct = {
   description: string;
   business: string;
   business_name: string;
+  business_is_verified?: boolean | null;
   category: string | null;
   category_name: string | null;
   selling_price: string;
