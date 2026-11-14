@@ -8,11 +8,25 @@ type Invitation = {
   business_name: string;
   business_description: string;
   business_address: string;
+  business_structured_address: StructuredAddress | null;
   business_zone: string;
   business_primary_category: string | null;
   title: string;
   status: string;
   expires_at: string;
+};
+type StructuredAddress = {
+  country: { name: string };
+  administrative_area: { name: string } | null;
+  locality: { name: string } | null;
+  state: string;
+  city: string;
+  neighborhood: string;
+  street: string;
+  street_number: string;
+  postal_code: string;
+  additional_information: string;
+  formatted_address: string;
 };
 type InvitationViewState = "loading" | "authentication_required" | "ready" | "reauthentication_required" | "email_verification_required" | "recipient_mismatch" | "expired" | "invalid" | "completed" | "error";
 type ContextResponse = { state?: Exclude<InvitationViewState, "loading" | "expired" | "completed">; invitation?: Invitation; detail?: string };
@@ -35,6 +49,20 @@ const messages: Record<Exclude<InvitationViewState, "loading" | "ready" | "compl
   invalid: "Le lien d’invitation est invalide ou expiré.",
   error: "Le service est temporairement indisponible. Veuillez réessayer.",
 };
+
+function formatBusinessAddress(address: StructuredAddress | null) {
+  if (!address) return "";
+  if (address.formatted_address) return address.formatted_address;
+  return [
+    [address.street, address.street_number].filter(Boolean).join(" "),
+    address.neighborhood,
+    address.locality?.name || address.city,
+    address.administrative_area?.name || address.state,
+    address.postal_code,
+    address.country.name,
+    address.additional_information,
+  ].filter(Boolean).join(", ");
+}
 
 function actionState(code: string | undefined): InvitationViewState {
   if (code === "carri_reauthentication_required") return "reauthentication_required";
@@ -120,6 +148,7 @@ export function InvitationLink() {
   const displayedMessage = detail ?? (state === "completed" ? "" : messages[state as Exclude<InvitationViewState, "loading" | "ready" | "completed">]);
 
   const processedMessage = invitation ? statusMessages[invitation.status] : undefined;
+  const address = invitation ? formatBusinessAddress(invitation.business_structured_address) || invitation.business_address : "";
 
-  return <main className="page-shell grid min-h-screen place-items-center p-6"><section className="content-panel w-full max-w-md p-8"><p className="eyebrow">E-COMMERCE</p><h1 className="mt-3 text-2xl font-semibold text-[var(--brand-secondary)]">Invitation d’entreprise</h1>{state === "loading" ? <p aria-busy="true" className="mt-4 text-sm text-[var(--muted)]">Vérification de l’invitation…</p> : null}{state !== "loading" && state !== "ready" && displayedMessage ? <p className="mt-4 text-sm" role={state === "completed" ? "status" : "alert"}>{displayedMessage}</p> : null}{loginAction ? <Link className="button button-primary mt-6" href="/api/invitation/login" prefetch={false}>Se connecter avec Carri Account</Link> : null}{changeAccount ? <Link className="button button-primary mt-6" href="/api/invitation/login" prefetch={false}>Se connecter avec un autre compte</Link> : null}{state === "completed" ? <div className="mt-6 flex flex-wrap gap-3"><Link className="button button-primary" href="/espace/entreprises">Mes entreprises</Link>{acceptedBusinessId ? <Link className="button button-outline" href={`/espace/entreprises/${acceptedBusinessId}`}>Accéder à l’entreprise</Link> : null}</div> : null}{state === "ready" && invitation ? <><p className="mt-4">Vous êtes invité à rejoindre <strong>{invitation.business_name}</strong>.</p>{invitation.business_description ? <p className="mt-2 text-sm text-[var(--muted)]">{invitation.business_description}</p> : null}{invitation.business_primary_category ? <p className="mt-2 text-sm text-[var(--muted)]">Secteur : {invitation.business_primary_category}</p> : null}{invitation.business_zone || invitation.business_address ? <p className="mt-2 text-sm text-[var(--muted)]">Localisation : {[invitation.business_zone, invitation.business_address].filter(Boolean).join(" · ")}</p> : null}<p className="mt-2 text-sm text-[var(--muted)]">Fonction proposée : {invitation.title || "Non précisée"}</p><p className="mt-2 text-sm text-[var(--muted)]">Expiration : {new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(invitation.expires_at))}</p>{processedMessage ? <><p className="mt-5 text-sm" role="status">{processedMessage}</p><Link className="button button-primary mt-6" href="/espace/entreprises">Voir mes entreprises</Link></> : <div className="mt-6 flex gap-3"><button aria-busy={pending} className="button button-primary" disabled={pending} onClick={() => void act("accept")} type="button">Accepter</button><button className="button button-outline" disabled={pending} onClick={() => void act("decline")} type="button">Refuser</button></div>}</> : null}</section></main>;
+  return <main className="page-shell grid min-h-screen place-items-center p-6"><section className="content-panel w-full max-w-md p-8"><p className="eyebrow">E-COMMERCE</p><h1 className="mt-3 text-2xl font-semibold text-[var(--brand-secondary)]">Invitation d’entreprise</h1>{state === "loading" ? <p aria-busy="true" className="mt-4 text-sm text-[var(--muted)]">Vérification de l’invitation…</p> : null}{state !== "loading" && state !== "ready" && displayedMessage ? <p className="mt-4 text-sm" role={state === "completed" ? "status" : "alert"}>{displayedMessage}</p> : null}{loginAction ? <Link className="button button-primary mt-6" href="/api/invitation/login" prefetch={false}>Se connecter avec Carri Account</Link> : null}{changeAccount ? <Link className="button button-primary mt-6" href="/api/invitation/login" prefetch={false}>Se connecter avec un autre compte</Link> : null}{state === "completed" ? <div className="mt-6 flex flex-wrap gap-3"><Link className="button button-primary" href="/espace/entreprises">Mes entreprises</Link>{acceptedBusinessId ? <Link className="button button-outline" href={`/espace/entreprises/${acceptedBusinessId}`}>Accéder à l’entreprise</Link> : null}</div> : null}{state === "ready" && invitation ? <><p className="mt-4">Vous êtes invité à rejoindre <strong>{invitation.business_name}</strong>.</p>{invitation.business_description ? <p className="mt-2 text-sm text-[var(--muted)]">{invitation.business_description}</p> : null}{invitation.business_primary_category ? <p className="mt-2 text-sm text-[var(--muted)]">Secteur : {invitation.business_primary_category}</p> : null}{invitation.business_zone || address ? <p className="mt-2 text-sm text-[var(--muted)]">Localisation : {[invitation.business_zone, address].filter(Boolean).join(" · ")}</p> : null}<p className="mt-2 text-sm text-[var(--muted)]">Fonction proposée : {invitation.title || "Non précisée"}</p><p className="mt-2 text-sm text-[var(--muted)]">Expiration : {new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(invitation.expires_at))}</p>{processedMessage ? <><p className="mt-5 text-sm" role="status">{processedMessage}</p><Link className="button button-primary mt-6" href="/espace/entreprises">Voir mes entreprises</Link></> : <div className="mt-6 flex gap-3"><button aria-busy={pending} className="button button-primary" disabled={pending} onClick={() => void act("accept")} type="button">Accepter</button><button className="button button-outline" disabled={pending} onClick={() => void act("decline")} type="button">Refuser</button></div>}</> : null}</section></main>;
 }

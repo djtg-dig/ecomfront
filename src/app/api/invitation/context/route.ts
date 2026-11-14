@@ -8,6 +8,19 @@ type Invitation = {
   business_name: string;
   business_description: string;
   business_address: string;
+  business_structured_address: {
+    country: { name: string };
+    administrative_area: { name: string } | null;
+    locality: { name: string } | null;
+    state: string;
+    city: string;
+    neighborhood: string;
+    street: string;
+    street_number: string;
+    postal_code: string;
+    additional_information: string;
+    formatted_address: string;
+  } | null;
   business_zone: string;
   business_primary_category: string | null;
   title: string;
