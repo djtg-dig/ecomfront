@@ -23,19 +23,24 @@ describe("consultation et modification du fonctionnement commercial", () => {
     expect(view).toContain("fonctionnement-commercial/modifier");
   });
 
-  it("refuse la route d’édition sans permission et préremplit seulement le brouillon commercial", () => {
+  it("refuse la route d’édition sans permission et préremplit les brouillons commercial et d’adresse", () => {
     expect(editor).toContain('permissions?.includes("BUSINESS_UPDATE")');
     expect(editor).toContain('t("commercialSettings", "editForbidden")');
     expect(editor).toContain("commercialSettingsFromBusiness");
+    expect(editor).toContain("businessSettingsFromBusiness");
+    expect(editor).toContain("businessAddressDraftFromStructured");
     expect(editor).toContain("setInitial(value); setValue(value);");
     expect(editor).toContain("<BusinessCommercialFields");
+    expect(editor).toContain("<BusinessAddressFields");
   });
 
-  it("sérialise exactement les trois champs commerciaux", () => {
+  it("conserve le payload commercial et ajoute uniquement une adresse structurée renseignée", () => {
     expect(editor).toContain("commercialSettingsPayload");
     expect(editor).toContain("sales_location_type: value.sales_location_type");
     expect(editor).toContain("sales_channel: value.sales_channel");
     expect(editor).toContain("delivery_methods: value.delivery_methods");
+    expect(editor).toContain("businessSettingsPayload");
+    expect(editor).toContain("structuredAddressPayload(value.address)");
     expect(editor).not.toContain("body: JSON.stringify(value)");
   });
 
@@ -49,8 +54,10 @@ describe("consultation et modification du fonctionnement commercial", () => {
 
   it("affiche les erreurs de validation Django sous les champs", () => {
     expect(editor).toContain("responseProblem");
-    expect(editor).toContain("setFieldErrors(issue.fields)");
+    expect(editor).toContain("setFieldErrors(issue.commercialFields)");
+    expect(editor).toContain("setAddressErrors(issue.addressFields)");
     expect(editor).toContain("errors={fieldErrors}");
+    expect(editor).toContain("errors={addressErrors}");
   });
 
   it("annule sans PATCH, protège les brouillons et redirige après sauvegarde", () => {

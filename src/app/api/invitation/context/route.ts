@@ -2,25 +2,14 @@ import { NextResponse } from "next/server";
 import { PrivateSessionError, authenticatedBackendRequest, clearPrivateSession, persistPrivateSession, readPrivateSession } from "@/lib/auth/private-session";
 import { invitationContextCookieName, readInvitationContext } from "@/lib/auth/invitation-context";
 import { requestCookie } from "@/lib/auth/security";
+import type { StructuredAddress } from "@/lib/businesses/address";
 
 type Invitation = {
   public_id: string;
   business_name: string;
   business_description: string;
   business_address: string;
-  business_structured_address: {
-    country: { name: string };
-    administrative_area: { name: string } | null;
-    locality: { name: string } | null;
-    state: string;
-    city: string;
-    neighborhood: string;
-    street: string;
-    street_number: string;
-    postal_code: string;
-    additional_information: string;
-    formatted_address: string;
-  } | null;
+  business_structured_address: StructuredAddress | null;
   business_zone: string;
   business_primary_category: string | null;
   title: string;

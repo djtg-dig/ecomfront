@@ -5,7 +5,7 @@ import { getServerConfig } from "@/lib/config/server";
 
 function failure(error: unknown) {
   const known = error instanceof PrivateSessionError ? error : new PrivateSessionError(503, "backend_unavailable", "Le service E-commerce est temporairement indisponible.");
-  const response = NextResponse.json({ code: known.code, detail: known.message }, { status: known.status });
+  const response = NextResponse.json({ code: known.code, detail: known.message, ...(known.fieldErrors ? { errors: known.fieldErrors } : {}) }, { status: known.status });
   response.headers.set("Cache-Control", "no-store");
   return known.status === 401 ? clearPrivateSession(response) : response;
 }

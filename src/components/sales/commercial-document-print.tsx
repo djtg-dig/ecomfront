@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { Printer } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { formatStructuredAddress, type StructuredAddress } from "@/lib/businesses/address";
 import { formatQuantityWithUnit } from "@/lib/quantities/format";
 import styles from "./commercial-document-print.module.css";
 
@@ -44,19 +45,6 @@ type PaymentRecord = {
   occurred_at: string;
 };
 
-type StructuredAddress = {
-  country: { name: string };
-  administrative_area: { name: string } | null;
-  locality: { name: string } | null;
-  state: string;
-  city: string;
-  neighborhood: string;
-  street: string;
-  street_number: string;
-  postal_code: string;
-  additional_information: string;
-  formatted_address: string;
-};
 type Business = {
   name: string;
   structured_address: StructuredAddress | null;
@@ -96,20 +84,6 @@ const dateTime = (value: string | null | undefined, locale: string) =>
 const dateOnly = (value: string | null | undefined, locale: string) =>
   value ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(value)) : "—";
 
-function formatBusinessAddress(address: StructuredAddress | null | undefined) {
-  if (!address) return "";
-  if (address.formatted_address) return address.formatted_address;
-  return [
-    [address.street, address.street_number].filter(Boolean).join(" "),
-    address.neighborhood,
-    address.locality?.name || address.city,
-    address.administrative_area?.name || address.state,
-    address.postal_code,
-    address.country.name,
-    address.additional_information,
-  ].filter(Boolean).join(", ");
-}
-
 const paymentStatus = (sale: Sale, locale: string) => {
   if (sale.status === "DRAFT") return locale === "fr" ? "Brouillon" : "Draft";
   if (sale.payment_status === "PAID" || sale.operation_type === "DIRECT_SALE") {
@@ -122,7 +96,7 @@ const paymentStatus = (sale: Sale, locale: string) => {
 };
 
 function BusinessIdentity({ business, logo, compact = false }: { business: Business | null; logo: Media; compact?: boolean }) {
-  const address = formatBusinessAddress(business?.structured_address) || business?.address || "";
+  const address = formatStructuredAddress(business?.structured_address) || business?.address || "";
   return (
     <header className={compact ? styles.ticketHeader : styles.invoiceHeader}>
       {logo ? (

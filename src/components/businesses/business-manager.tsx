@@ -7,15 +7,25 @@ import { Building2, FileText, Package, Receipt, Settings, ShoppingCart, Truck, W
 
 import { useBusinessPermissions } from "@/components/private/use-business-permissions";
 import { useBusinessNameState } from "@/components/private/business-name-provider";
+import { BusinessAddressFields } from "@/components/businesses/business-address-fields";
 import { BusinessCommercialFields, type CommercialSettingsValue } from "@/components/businesses/business-commercial-fields";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { businessAddressErrorsFromResponse, emptyBusinessAddressDraft, structuredAddressPayload, validateBusinessAddress, type BusinessAddressDraft, type BusinessAddressFieldErrors } from "@/lib/businesses/address";
 import { BusinessListRequestError, fetchBusinesses, type ListedBusiness } from "@/lib/businesses/list-client";
 
 type Business = ListedBusiness;
 
-async function detail(response: Response) {
-  try { return (await response.json() as { detail?: string }).detail ?? "Le service E-commerce est indisponible."; }
-  catch { return "Le service E-commerce est indisponible."; }
+async function creationProblem(response: Response) {
+  try {
+    const body = await response.json() as unknown;
+    const addressErrors = businessAddressErrorsFromResponse(body);
+    const detail = body && typeof body === "object" && typeof (body as { detail?: unknown }).detail === "string"
+      ? (body as { detail: string }).detail
+      : Object.values(addressErrors)[0] ?? "Le service E-commerce est indisponible.";
+    return { detail, addressErrors };
+  } catch {
+    return { detail: "Le service E-commerce est indisponible.", addressErrors: {} as BusinessAddressFieldErrors };
+  }
 }
 
 export function BusinessList({ invitationOutcome }: { invitationOutcome?: string }) {
@@ -60,6 +70,8 @@ export function BusinessCreate() {
   const [error, setError] = useState<string | null>(null);
   const [commercial, setCommercial] = useState<CommercialSettingsValue>({ sales_location_type: "", sales_channel: "", delivery_methods: [] });
   const [commercialErrors, setCommercialErrors] = useState<Partial<Record<keyof CommercialSettingsValue, string>>>({});
+  const [address, setAddress] = useState<BusinessAddressDraft>(emptyBusinessAddressDraft);
+  const [addressErrors, setAddressErrors] = useState<BusinessAddressFieldErrors>({});
   const create = async (formData: FormData) => {
     if (saving) return;
     const validationErrors: Partial<Record<keyof CommercialSettingsValue, string>> = {};
@@ -67,17 +79,23 @@ export function BusinessCreate() {
     if (!commercial.sales_channel) validationErrors.sales_channel = t("businessCreate", "commercialRequired");
     if (!commercial.delivery_methods.length) validationErrors.delivery_methods = t("businessCreate", "commercialRequired");
     setCommercialErrors(validationErrors);
-    if (Object.keys(validationErrors).length) return;
+    const nextAddressErrors = validateBusinessAddress(address, true);
+    setAddressErrors(nextAddressErrors);
+    if (Object.keys(validationErrors).length || Object.keys(nextAddressErrors).length) return;
     setSaving(true);
     setError(null);
-    const response = await fetch("/api/private/businesses", { method: "POST", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ name: formData.get("name"), primary_currency: formData.get("currency"), ...commercial }) });
+    const response = await fetch("/api/private/businesses", { method: "POST", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ name: formData.get("name"), primary_currency: formData.get("currency"), ...commercial, structured_address: structuredAddressPayload(address) }) });
     setSaving(false);
     if (response.status === 401) return router.replace("/connexion?erreur=session_expired");
-    if (!response.ok) return setError(await detail(response));
+    if (!response.ok) {
+      const problem = await creationProblem(response);
+      setAddressErrors(problem.addressErrors);
+      return setError(problem.detail);
+    }
     router.push(`/espace/entreprises/${(await response.json() as { business: Business }).business.public_id}`);
   };
 
-  return <main><Link className="nav-link text-sm" href="/espace/entreprises">← Mes entreprises</Link><h1 className="mt-3 text-3xl font-semibold text-[var(--brand-secondary)]">Créer une entreprise</h1><form action={create} className="content-panel mt-6 grid max-w-xl gap-6 p-6"><label>Nom<input className="mt-1 w-full rounded-md border px-3 py-2" name="name" required /></label><label>Devise principale<select className="mt-1 w-full rounded-md border px-3 py-2" defaultValue="CDF" name="currency"><option value="CDF">CDF</option><option value="USD">USD</option></select></label><BusinessCommercialFields errors={commercialErrors} onChange={setCommercial} value={commercial} />{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "Création…" : "Créer l’entreprise"}</button></form></main>;
+  return <main><Link className="nav-link text-sm" href="/espace/entreprises">← Mes entreprises</Link><h1 className="mt-3 text-3xl font-semibold text-[var(--brand-secondary)]">Créer une entreprise</h1><form action={create} className="content-panel mt-6 grid max-w-3xl gap-6 p-6"><section className="grid gap-5" aria-labelledby="business-general-title"><h2 className="text-xl font-semibold" id="business-general-title">Informations générales</h2><label>Nom<input className="mt-1 w-full rounded-md border px-3 py-2" name="name" required /></label><label>Devise principale<select className="mt-1 w-full rounded-md border px-3 py-2" defaultValue="CDF" name="currency"><option value="CDF">CDF</option><option value="USD">USD</option></select></label></section><BusinessAddressFields countryRequired errors={addressErrors} onChange={(next) => { setAddress(next); setAddressErrors({}); }} value={address} /><BusinessCommercialFields errors={commercialErrors} onChange={setCommercial} value={commercial} />{error ? <p className="text-sm text-[var(--error)]" role="alert">{error}</p> : null}<button className="button button-primary w-fit" disabled={saving} type="submit">{saving ? "Création…" : "Créer l’entreprise"}</button></form></main>;
 }
 
 const moduleLinks: { label: string; path: string; permissions: string[]; icon: LucideIcon; requiresAll?: boolean }[] = [
