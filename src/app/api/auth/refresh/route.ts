@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { BackendApiError, BackendNetworkError } from "@/lib/api/backend-client";
-import { refreshEcommerceSession } from "@/lib/auth/refresh";
+import { isRefreshTokenInvalidated, refreshEcommerceSession } from "@/lib/auth/refresh";
 import {
   decryptSession,
   encryptSession,
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
   const encrypted = requestCookie(request, sessionCookieName);
   const session = encrypted ? decryptSession(encrypted) : null;
-  if (!session || session.refreshExpiresAt <= Date.now()) {
+  if (!session || session.refreshExpiresAt <= Date.now() || isRefreshTokenInvalidated(session.refreshToken)) {
     const response = NextResponse.json(
       { code: "session_expired", detail: "Votre session a expiré. Reconnectez-vous." },
       { status: 401, headers: { "Cache-Control": "no-store" } },

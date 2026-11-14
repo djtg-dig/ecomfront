@@ -19,6 +19,7 @@ describe("état d’authentification client", () => {
     const profile = source("src/components/auth/authenticated-profile.tsx");
     const navigation = source("src/components/public/public-navigation.tsx");
     expect(logout).toContain("markUnauthenticated();");
+    expect(logout.indexOf("markUnauthenticated();")).toBeLessThan(logout.indexOf('fetch("/api/auth/logout"'));
     expect(logout).toContain('router.replace("/")');
     expect(profile).toContain('response.status === 401');
     expect(profile).toContain("setProfile(null)");
@@ -31,5 +32,13 @@ describe("état d’authentification client", () => {
     expect(guard).toContain("useAuthSession");
     expect(guard).toContain('state === "unauthenticated"');
     expect(guard).toContain("clearBusinessPermissionsCache");
+  });
+
+  it("annule le refresh en cours et ignore toute réponse tardive après logout", () => {
+    const provider = source("src/components/auth/auth-session-provider.tsx");
+    expect(provider).toContain("refreshController.current?.abort()");
+    expect(provider).toContain("signedOut.current = true");
+    expect(provider).toContain("signedOut.current || sequence !== refreshSequence.current");
+    expect(provider).toContain("if (signedOut.current) return;");
   });
 });

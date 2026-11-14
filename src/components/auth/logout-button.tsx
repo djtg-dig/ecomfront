@@ -18,22 +18,22 @@ export function LogoutButton() {
     if (pending) return;
     setPending(true);
     setFailed(false);
+    // Ferme l'interface privée avant la réponse réseau et annule le refresh
+    // racine en cours : un Set-Cookie tardif ne peut plus restaurer la session.
+    markUnauthenticated();
+    clearBusinessPermissionsCache();
     try {
       const response = await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "same-origin",
         headers: { "x-csrf-protection": "1" },
       });
-      if (response.ok || response.status === 503) {
-        markUnauthenticated();
-        clearBusinessPermissionsCache();
-        router.replace("/");
-      }
-      else setFailed(true);
+      if (!response.ok && response.status !== 503) setFailed(true);
     } catch {
       setFailed(true);
     } finally {
       setPending(false);
+      router.replace("/");
     }
   }
 

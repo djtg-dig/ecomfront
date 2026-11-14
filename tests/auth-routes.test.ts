@@ -450,12 +450,10 @@ describe("routes d’authentification BFF", () => {
     expect(cookies(response).some((entry) => entry.startsWith("ecommerce_session=") && entry.includes("Max-Age=0"))).toBe(true);
   });
 
-  it("renouvelle une session expirée avant de la révoquer", async () => {
-    const refreshed = tokenPair();
-    mocks.request.mockResolvedValueOnce(refreshed).mockResolvedValueOnce(undefined);
+  it("ferme localement une session expirée sans tenter de la renouveler", async () => {
     const activeSession: EcommerceSession = {
       accessToken: makeJwt(Math.floor(Date.now() / 1000) - 1),
-      refreshToken: makeJwt(Math.floor(Date.now() / 1000) + 86_400),
+      refreshToken: `expired-logout-${Date.now()}`,
       accessExpiresAt: Date.now() - 1_000,
       refreshExpiresAt: Date.now() + 86_400_000,
     };
@@ -469,15 +467,37 @@ describe("routes d’authentification BFF", () => {
       },
     }));
 
-    expect(response.status).toBe(204);
-    expect(mocks.request).toHaveBeenNthCalledWith(1, "/api/v1/auth/token/refresh/", {
-      method: "POST",
-      json: { refresh: activeSession.refreshToken },
-    });
-    expect(mocks.request).toHaveBeenNthCalledWith(2, "/api/v1/auth/logout/", {
-      method: "POST",
-      accessToken: refreshed.access,
-    });
+    expect(response.status).toBe(503);
+    expect(mocks.request).not.toHaveBeenCalled();
+    expect(cookies(response).some((entry) => entry.startsWith("ecommerce_session=") && entry.includes("Max-Age=0"))).toBe(true);
+  });
+
+  it("bloque un refresh déjà en vol avant qu’il puisse rétablir le cookie après logout", async () => {
+    const activeSession: EcommerceSession = {
+      accessToken: makeJwt(Math.floor(Date.now() / 1000) + 60),
+      refreshToken: `logout-race-${Date.now()}`,
+      accessExpiresAt: Date.now() + 1_000,
+      refreshExpiresAt: Date.now() + 86_400_000,
+    };
+    let resolveRefresh: ((tokens: ReturnType<typeof tokenPair>) => void) | undefined;
+    const refreshPending = new Promise<ReturnType<typeof tokenPair>>((resolve) => { resolveRefresh = resolve; });
+    mocks.request.mockImplementation((path: string) => path === "/api/v1/auth/token/refresh/" ? refreshPending : Promise.resolve(undefined));
+    const headers = {
+      origin: frontendUrl,
+      "sec-fetch-site": "same-origin",
+      "x-csrf-protection": "1",
+      cookie: `ecommerce_session=${encryptSession(activeSession)}`,
+    };
+    const refreshing = refreshSession(new Request(`${frontendUrl}/api/auth/refresh`, { method: "POST", headers }));
+    await Promise.resolve();
+    const loggedOut = await logout(new Request(`${frontendUrl}/api/auth/logout`, { method: "POST", headers }));
+    resolveRefresh?.(tokenPair());
+    const refreshResponse = await refreshing;
+
+    expect(loggedOut.status).toBe(204);
+    expect(refreshResponse.status).toBe(401);
+    expect(cookies(refreshResponse).some((entry) => entry.startsWith("ecommerce_session=") && entry.includes("Max-Age=0"))).toBe(true);
+    expect(mocks.request).toHaveBeenCalledTimes(2);
   });
 
   it("efface quand même le cookie si la révocation serveur est indisponible", async () => {

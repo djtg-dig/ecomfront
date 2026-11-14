@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type AuthenticationState = "loading" | "authenticated" | "unauthenticated" | "forbidden" | "unavailable";
 
@@ -23,9 +23,31 @@ const AuthenticationContext = createContext<AuthenticationContextValue | null>(n
 export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [state, setState] = useState<AuthenticationState>("loading");
   const [version, setVersion] = useState(0);
+  const refreshController = useRef<AbortController | null>(null);
+  const refreshSequence = useRef(0);
+  const signedOut = useRef(false);
+
+  const markUnauthenticated = useCallback(() => {
+    signedOut.current = true;
+    refreshSequence.current += 1;
+    refreshController.current?.abort();
+    setState("unauthenticated");
+  }, []);
+  const markAuthenticated = useCallback(() => {
+    signedOut.current = false;
+    setState("authenticated");
+  }, []);
+  const refresh = useCallback(() => {
+    if (signedOut.current) return;
+    setState("loading");
+    setVersion((current) => current + 1);
+  }, []);
 
   useEffect(() => {
+    if (signedOut.current) return;
     const controller = new AbortController();
+    const sequence = ++refreshSequence.current;
+    refreshController.current = controller;
     void fetch("/api/auth/refresh", {
       method: "POST",
       credentials: "same-origin",
@@ -33,23 +55,25 @@ export function AuthSessionProvider({ children }: Readonly<{ children: ReactNode
       cache: "no-store",
       signal: controller.signal,
     }).then((response) => {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || signedOut.current || sequence !== refreshSequence.current) return;
       if (response.status === 204) return setState("authenticated");
       if (response.status === 401) return setState("unauthenticated");
       if (response.status === 403) return setState("forbidden");
       setState("unavailable");
     }).catch(() => {
-      if (!controller.signal.aborted) setState("unavailable");
+      if (!controller.signal.aborted && !signedOut.current && sequence === refreshSequence.current) setState("unavailable");
+    }).finally(() => {
+      if (refreshController.current === controller) refreshController.current = null;
     });
     return () => controller.abort();
   }, [version]);
 
   const value = useMemo<AuthenticationContextValue>(() => ({
     state,
-    refresh: () => { setState("loading"); setVersion((current) => current + 1); },
-    markAuthenticated: () => setState("authenticated"),
-    markUnauthenticated: () => setState("unauthenticated"),
-  }), [state]);
+    refresh,
+    markAuthenticated,
+    markUnauthenticated,
+  }), [markAuthenticated, markUnauthenticated, refresh, state]);
 
   return <AuthenticationContext.Provider value={value}>{children}</AuthenticationContext.Provider>;
 }

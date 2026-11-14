@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { backendClient } from "@/lib/api/backend-client";
-import { refreshEcommerceSession } from "@/lib/auth/refresh";
+import { invalidateRefreshToken } from "@/lib/auth/refresh";
 import { decryptSession, sessionCookieName, sessionCookieOptions } from "@/lib/auth/session";
 import {
   isSameOriginMutation,
@@ -33,15 +33,17 @@ export async function POST(request: Request) {
   const session = encrypted ? decryptSession(encrypted) : null;
   let revoked = !session;
   if (session) {
+    // Marquer la session avant tout appel réseau bloque les refresh concurrents
+    // et empêche leur réponse tardive de restaurer le cookie après logout.
+    invalidateRefreshToken(session.refreshToken, session.refreshExpiresAt);
     try {
-      const sessionForRevocation = session.accessExpiresAt <= Date.now()
-        ? await refreshEcommerceSession(session)
-        : session;
-      await backendClient.request("/api/v1/auth/logout/", {
-        method: "POST",
-        accessToken: sessionForRevocation.accessToken,
-      });
-      revoked = true;
+      if (session.accessExpiresAt > Date.now()) {
+        await backendClient.request("/api/v1/auth/logout/", {
+          method: "POST",
+          accessToken: session.accessToken,
+        });
+        revoked = true;
+      }
     } catch {
       // Clear the local session even if Django is unavailable. A later request
       // cannot refresh it from this browser because its cookie is removed.
