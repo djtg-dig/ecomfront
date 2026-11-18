@@ -1,42 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import { MessageCircle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { MessageCircle, UserCircle, X } from "lucide-react";
-import { useLocale } from "@/components/i18n/locale-provider";
 
-type Seller = { reference: string; first_name: string; display_name: string; avatar: string | null };
-
-export function ContactSeller({ business }: { business: string }) {
-  const { locale } = useLocale();
-  const router = useRouter();
-  const [sellers, setSellers] = useState<Seller[] | null>(null);
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const english = locale === "en";
-  const text = english ? { question: "Have a question about this product?", description: "Chat directly with a seller from this store.", contact: "Contact a seller", member: "You are a member of this business. You cannot contact its sellers as a buyer.", unavailable: "No seller is currently available to receive new conversations.", network: "The seller list could not be loaded. Please try again.", choose: "Choose a seller", close: "Close", retry: "Try again" } : { question: "Une question sur ce produit ?", description: "Discutez directement avec un vendeur de cette boutique.", contact: "Contacter un vendeur", member: "Vous êtes membre de cette entreprise. Vous ne pouvez pas contacter ses vendeurs en tant qu’acheteur.", unavailable: "Aucun vendeur n’est actuellement disponible pour recevoir de nouvelles conversations.", network: "La liste des vendeurs n’a pas pu être chargée. Réessayez.", choose: "Choisissez un vendeur", close: "Fermer", retry: "Réessayer" };
-  async function loadSellers() {
-    setBusy(true); setMessage("");
-    try {
-      const response = await fetch(`/api/private/messaging/sellers/${business}`);
-      if (response.status === 401) { window.location.href = `/connexion?retour=${encodeURIComponent(window.location.pathname)}`; return; }
-      const body = await response.json().catch(() => null);
-      if (response.status === 403 && body?.code === "BUSINESS_MEMBER_CANNOT_CONTACT_SELLER") { setMessage(text.member); return; }
-      if (!response.ok) { setMessage(text.network); return; }
-      setSellers(body ?? []); if (!body?.length) setMessage(text.unavailable);
-    } catch { setMessage(text.network); }
-    finally { setBusy(false); }
-  }
-  async function choose(seller: Seller) {
-    setBusy(true);
-    try {
-      const response = await fetch("/api/private/messaging/conversations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ business, seller: seller.reference }) });
-      const body = await response.json().catch(() => null);
-      if (response.status === 403 && body?.code === "BUSINESS_MEMBER_CANNOT_CONTACT_SELLER") setMessage(text.member);
-      else if (!response.ok) setMessage(text.network);
-      else if (body?.reference) router.push(`/messages?conversation=${encodeURIComponent(body.reference)}`);
-    } catch { setMessage(text.network); }
-    finally { setBusy(false); }
-  }
-  return <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><div className="flex items-start gap-3"><MessageCircle className="mt-0.5 text-[var(--accent)]" size={20} /><div><h2 className="font-semibold text-[var(--ink)]">{text.question}</h2><p className="mt-1 text-sm text-[var(--muted)]">{text.description}</p></div></div><button className="button-secondary mt-4 inline-flex items-center gap-2" disabled={busy} onClick={loadSellers} type="button">{text.contact}</button>{message ? <div className="mt-3 flex items-start justify-between gap-3 text-sm text-[var(--muted)]" role="status"><span>{message}</span>{message === text.network ? <button className="font-medium text-[var(--accent)]" onClick={loadSellers} type="button">{text.retry}</button> : null}</div> : null}{sellers?.length ? <div aria-label={text.choose} className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" role="dialog" aria-modal="true"><div className="w-full max-w-md rounded-2xl bg-black/30 p-4"><div className="mx-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"><div className="flex items-center justify-between"><h3 className="text-lg font-semibold">{text.choose}</h3><button aria-label={text.close} onClick={() => setSellers(null)} type="button"><X size={18} /></button></div><div className="mt-4 grid gap-2">{sellers.map((seller) => <button className="flex min-h-14 items-center gap-3 rounded-xl border border-[var(--line)] p-3 text-left hover:border-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]" disabled={busy} key={seller.reference} onClick={() => choose(seller)} type="button"><UserCircle className="shrink-0 text-[var(--muted)]" size={24} /><span>{seller.first_name}</span></button>)}</div></div></div></div> : null}</div>;
+/** The API resolves the company's unique agent; the client never selects one. */
+export function ContactSeller({ business, product }: { business: string; product?: string }) {
+  const router = useRouter(); const [inquiryOpen, setInquiryOpen] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [createdConversation, setCreatedConversation] = useState<string | null>(null);
+  async function chat() { setBusy(true); setError(""); try { const response = await fetch("/api/private/messaging/conversations", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ business }) }); if (response.status === 401) return router.push(`/connexion?retour=${encodeURIComponent(window.location.pathname)}`); const body = await response.json().catch(() => null); if (!response.ok || !body?.reference) throw new Error(body?.detail || "La discussion n’a pas pu être ouverte."); router.push(`/messages?conversation=${encodeURIComponent(body.reference)}`); } catch (reason) { setError(reason instanceof Error ? reason.message : "La discussion n’a pas pu être ouverte."); } finally { setBusy(false); } }
+  async function submitInquiry(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); const data = new FormData(event.currentTarget); try { const response = await fetch("/api/private/messaging/inquiries", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ business, ...(product ? { product } : {}), quantity: data.get("quantity") || null, description: data.get("description") }) }); if (response.status === 401) return router.push(`/connexion?retour=${encodeURIComponent(window.location.pathname)}`); const body = await response.json().catch(() => null); if (!response.ok || !body?.conversation) throw new Error(body?.detail || "La demande n’a pas pu être envoyée."); setInquiryOpen(false); setCreatedConversation(body.conversation); } catch (reason) { setError(reason instanceof Error ? reason.message : "La demande n’a pas pu être envoyée."); } finally { setBusy(false); } }
+  return <section className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><div className="flex gap-3"><MessageCircle aria-hidden="true" className="mt-0.5 text-[var(--accent)]" size={20} /><div><h2 className="font-semibold text-[var(--ink)]">Une question pour cette entreprise ?</h2><p className="mt-1 text-sm text-[var(--muted)]">Discutez directement ou envoyez une demande commerciale détaillée.</p></div></div><div className="mt-4 flex flex-wrap gap-3"><button className="button-primary" disabled={busy} onClick={() => void chat()} type="button">Discuter avec l’entreprise</button><button className="button-secondary" disabled={busy} onClick={() => setInquiryOpen(true)} type="button">Contacter l’entreprise</button></div>{createdConversation ? <div className="mt-3 flex flex-wrap items-center gap-3 text-sm" role="status"><span>Demande envoyée à l’entreprise.</span><button className="font-medium text-[var(--accent)]" onClick={() => router.push(`/messages?conversation=${encodeURIComponent(createdConversation)}`)} type="button">Ouvrir la conversation</button></div> : null}{error ? <p className="mt-3 text-sm text-[var(--error)]" role="alert">{error}</p> : null}{inquiryOpen ? <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-labelledby="inquiry-title"><form className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" onSubmit={submitInquiry}><div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-semibold" id="inquiry-title">Contacter l’entreprise</h3><p className="mt-1 text-sm text-[var(--muted)]">Votre demande sera ajoutée au centre de messagerie.</p></div><button aria-label="Fermer" onClick={() => setInquiryOpen(false)} type="button"><X size={18} /></button></div><label className="mt-5 grid gap-1 text-sm">Quantité souhaitée<input className="rounded border p-2" min="0.001" name="quantity" step="0.001" type="number" /></label><label className="mt-4 grid gap-1 text-sm">Décrivez votre besoin<textarea className="min-h-28 rounded border p-2" maxLength={4000} name="description" required /></label><div className="mt-5 flex gap-3"><button className="button-primary" disabled={busy} type="submit">{busy ? "Envoi…" : "Envoyer la demande"}</button><button className="button-outline" disabled={busy} onClick={() => setInquiryOpen(false)} type="button">Annuler</button></div></form></div> : null}</section>;
 }

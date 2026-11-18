@@ -12,17 +12,18 @@ function backendPath(segments: string[]) {
 
 async function handle(request: Request, segments: string[]) {
   if (!safeSegments(segments)) return invalidIdentifier("Identifiant de messagerie invalide.");
-  const method = request.method as "GET" | "POST";
-  if (method === "POST" && !isSameOriginMutation(request, getServerConfig())) return NextResponse.json({ code: "csrf_rejected", detail: "Action non autorisée." }, { status: 403 });
-  let options: { method: "POST"; json?: unknown; rawBody?: ArrayBuffer; contentType?: string } | undefined;
-  if (method === "POST") {
+  const method = request.method as "GET" | "POST" | "PATCH";
+  if (method !== "GET" && !isSameOriginMutation(request, getServerConfig())) return NextResponse.json({ code: "csrf_rejected", detail: "Action non autorisée." }, { status: 403 });
+  let options: { method: "POST" | "PATCH"; json?: unknown; rawBody?: ArrayBuffer; contentType?: string } | undefined;
+  if (method !== "GET") {
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.includes("multipart/form-data")) options = { method, rawBody: await request.arrayBuffer(), contentType };
     else { const raw = await request.text(); options = { method, json: raw ? JSON.parse(raw) : {} }; }
   }
   const result = await authenticatedBackendRequest<unknown>(backendPath(segments), readPrivateSession(request), options);
-  return privateJson(result, result.data, method === "POST" && segments.at(-1) === "websocket-ticket" ? 201 : 200);
+  return privateJson(result, result.data, method === "POST" && (segments.at(-1) === "websocket-ticket" || segments.at(-1) === "inquiries") ? 201 : 200);
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ segments: string[] }> }) { try { return await handle(request, (await params).segments); } catch (error) { return privateFailure(error); } }
 export async function POST(request: Request, { params }: { params: Promise<{ segments: string[] }> }) { try { return await handle(request, (await params).segments); } catch (error) { return privateFailure(error); } }
+export async function PATCH(request: Request, { params }: { params: Promise<{ segments: string[] }> }) { try { return await handle(request, (await params).segments); } catch (error) { return privateFailure(error); } }

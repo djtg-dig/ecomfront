@@ -15,6 +15,7 @@ type Permission = { permission: string; label: string; description?: string };
 type Invitation = { public_id: string; email: string; title: string; status: string; permissions: string[]; expires_at: string };
 type Paginated<T> = T[] | { results: T[] };
 type TeamData = { members: Paginated<Member>; invitations: Paginated<Invitation> };
+type MessagingSettings = { is_enabled: boolean; designated_agent: string | null; effective_agent: { reference: string; display_name: string } | null };
 const invitationStatusLabel: Record<string, string> = {
   PENDING: "En attente",
   ACCEPTED: "Acceptée",
@@ -59,6 +60,7 @@ export function TeamManager({ businessId }: { businessId: string }) {
   const [pending, setPending] = useState<string | null>(null);
   const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   const [permissionDraft, setPermissionDraft] = useState<string[] | null>(null);
+  const [messagingSettings, setMessagingSettings] = useState<MessagingSettings | null>(null);
   const localizedCatalog = useMemo(() => localizedPermissionCatalog(locale), [locale]);
   const catalog = useMemo(
     () => localizedCatalog.filter((item) => catalogCodes.includes(item.code)).map((item) => ({ permission: item.code, label: item.label, description: item.description })),
@@ -74,6 +76,15 @@ export function TeamManager({ businessId }: { businessId: string }) {
   }
 
   useEffect(() => { startTransition(() => { void load(); }); }, [businessId]);
+  useEffect(() => { if (!effectivePermissions?.includes("MESSAGING_VIEW")) return; fetch(`/api/private/messaging/businesses/${businessId}/settings`, { credentials: "same-origin", cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((value) => setMessagingSettings(value as MessagingSettings | null)).catch(() => setMessagingSettings(null)); }, [businessId, effectivePermissions]);
+
+  async function setMessagingAgent(reference: string | null) {
+    if (reference && messagingSettings?.designated_agent && !window.confirm("Remplacer l’agent de messagerie actuel ?")) return;
+    setPending("messaging-agent"); setError(null);
+    try { const response = await fetch(`/api/private/messaging/businesses/${businessId}/settings`, { method: "PATCH", credentials: "same-origin", headers: { "content-type": "application/json", "x-csrf-protection": "1" }, body: JSON.stringify({ designated_agent: reference }) }); if (!response.ok) throw new Error(await message(response)); setMessagingSettings(await response.json() as MessagingSettings); setNotice(reference ? "Agent de messagerie mis à jour." : "Le propriétaire assure de nouveau la messagerie."); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "La désignation de l’agent a échoué."); }
+    finally { setPending(null); }
+  }
 
   async function loadCatalog() {
     if (catalogCodes.length) return true;
@@ -186,6 +197,7 @@ export function TeamManager({ businessId }: { businessId: string }) {
     <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="eyebrow">ÉQUIPE</p><h1 className="mt-2 text-3xl font-semibold text-[var(--brand-secondary)]">Membres et accès</h1></div>{canInvite ? <button className="button button-primary" disabled={Boolean(pending)} onClick={() => void openInvitation()} type="button">Inviter un membre</button> : null}</div>
     {error ? <p className="mt-4 rounded-md border border-[var(--error)]/30 p-3 text-sm text-[var(--error)]" role="alert">{error}</p> : null}
     {notice ? <p className="mt-4 rounded-md border p-3 text-sm" role="status">{notice}</p> : null}
+    {messagingSettings && canViewMembers ? <section className="content-panel mt-5 p-5"><h2 className="font-semibold">Agent de messagerie</h2><p className="mt-2 text-sm text-[var(--muted)]">{messagingSettings.is_enabled ? messagingSettings.designated_agent ? `Agent actuel : ${messagingSettings.effective_agent?.display_name ?? "membre désigné"}.` : "Le propriétaire assure la messagerie par défaut." : "La messagerie est désactivée."}</p>{data ? <div className="mt-4 flex flex-wrap gap-2">{items(data.members).filter((member) => member.status === "ACTIVE" && (member.is_owner || (member.permissions.includes("MESSAGING_VIEW") && member.permissions.includes("MESSAGING_REPLY")))).map((member) => <button className="button button-outline" disabled={Boolean(pending) || messagingSettings.designated_agent === member.public_id} key={member.public_id} onClick={() => void setMessagingAgent(member.is_owner ? null : member.public_id)} type="button">{member.is_owner ? "Rétablir le propriétaire" : messagingSettings.designated_agent === member.public_id ? "Agent actuel" : `Désigner ${member.identity_email}`}</button>)}</div> : null}</section> : null}
     {canViewMembers ? <section className="content-panel mt-5 p-5"><h2 className="font-semibold">Membres</h2>{members.length ? <ul className="mt-3 divide-y">{members.map((member) => <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={member.public_id}><div><p className="font-medium">{member.identity_email || "Identité Carri non renseignée"}{member.is_owner ? " · Propriétaire" : ""}</p><p className="text-sm text-[var(--muted)]">{member.title || "Fonction non précisée"} · {member.status === "SUSPENDED" ? "Suspendu" : "Actif"}{canViewPermissions ? ` · ${member.permissions.length} permission(s) explicite(s)` : ""}</p></div><button className="button button-outline" disabled={pending === "detail"} onClick={() => void selectMember(member.public_id)} type="button">Consulter</button></li>)}</ul> : <p className="mt-3 text-sm">Aucun membre.</p>}</section> : null}
     {canViewInvitations ? <section className="content-panel mt-5 p-5"><h2 className="font-semibold">Invitations</h2>{invitations.length ? <ul className="mt-3 divide-y">{invitations.map((invitation) => <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={invitation.public_id}><div><p className="font-medium">{invitation.email}</p><p className="text-sm text-[var(--muted)]">{invitation.title || "Fonction non précisée"} · {invitationStatusLabel[invitation.status] ?? invitation.status}</p><p className="mt-1 text-xs text-[var(--muted)]">{invitation.permissions.map((permission) => permissionLabel(permission, locale)).join(" · ") || "Aucune permission initiale"}</p></div>{["PENDING", "EXPIRED"].includes(invitation.status) && (canResend || canRevokeInvitation) ? <div className="flex flex-wrap gap-2">{canResend ? <button className="button button-outline" disabled={Boolean(pending)} onClick={() => void invitationAction(invitation.public_id, "resend")} type="button">Renvoyer</button> : null}{canRevokeInvitation && invitation.status === "PENDING" ? <button className="button button-outline" disabled={Boolean(pending)} onClick={() => void invitationAction(invitation.public_id, "revoke")} type="button">Révoquer</button> : null}</div> : null}</li>)}</ul> : <p className="mt-3 text-sm text-[var(--muted)]">Aucune invitation.</p>}</section> : null}
 
